@@ -1,52 +1,89 @@
 //  main.cpp
 //  PL_Project
 
+// project synatax
 // <ATOM>  ::= SYMBOL | INT | FLOAT | STRING | NIL | T | LEFT-PAREN RIGHT-PAREN
 // <S-exp> ::= <ATOM> | LEFT-PAREN <S-exp> { <S-exp> } [ DOT <S-exp> ] RIGHT-PAREN | QUOTE <S-exp>
 
+// <BE> ::= <E> EQ <E>
+// <E>  ::= <T> { ADD <T> | MINUS <T> }
+// <T>  ::= <F> { * <F> | / <F> }
+// <F>  ::= NUM | ID | ( <E> )
+
+// Parser call Scanner with getToken() and peekToken()
+
+// include libraries
 #include <iostream>
 #include <stdio.h>
 #include <string>
 using namespace std;
 
-typedef struct ExprStruct{
-    string expr = "\0";
+// define structures
+typedef struct CharStruct{
+    char ch = '\0';
     string type = "\0";
-    ExprStruct* next = NULL;
-} ExprStruct; // single expr structure
+    CharStruct* nextChar = NULL;
+} CharStructStruct; // single char structure
 
-ExprStruct* ReadSExp() {
-    ExprStruct* head = NULL;
-    ExprStruct* newToken = new ExprStruct;
+typedef struct TokenStruct{
+    CharStruct* token;
+    TokenStruct* nextToken = NULL;
+} TokenStruct; // single expression structure
+
+// read all the expressions
+TokenStruct* ReadSExp() {
+    TokenStruct* head = NULL;
+    TokenStruct* newToken = new TokenStruct;
+    CharStruct* charCursor = NULL;
     head = newToken;
+    charCursor = newToken->token;
     while (cin.peek() != '\n') {
         while (cin.peek() != ' ' && cin.peek() != '\n') {
-            newToken->expr += cin.get();
+            newToken->token->ch = cin.get();
+            // move the cursor
+            charCursor->nextChar = new CharStruct;
+            charCursor = charCursor->nextChar;
         } // get one token
-        if (cin.peek() != '\n') {
-            cin.get();
-            newToken->next = new ExprStruct;
-            newToken = newToken->next;
-        } // get the spaces
+        if (cin.peek() == ' ') {
+            // get the spaces
+            while (cin.peek() == ' ') cin.get();
+            // move the token
+            newToken->nextToken = new TokenStruct;
+            newToken = newToken->nextToken;
+            charCursor = newToken->token;
+        } // if the next char is space
+        if (cin.peek() == '\n') {
+            break;
+        }
     }
     return head;
 } // read the tokens
 
-void PrintSExpr(ExprStruct* head) {
-    ExprStruct* cursor = head;
-    while (cursor != NULL) {
-        cout << cursor->expr << endl;
-        cursor = cursor->next;
-    }
-} // print our the tokens stored in the pointer
+//string PrintSExpr(ExprStruct* head) {
+//    ExprStruct* cursor = head;
+//    string returnToken = "\0";
+//    while (cursor != NULL) {
+//        if (cursor->expr == "(exit)") {
+//            return cursor->expr;
+//        }
+//        else {
+//            cout << cursor->expr << endl;
+//        }
+//        cursor = cursor->next;
+//    }
+//    return returnToken;
+//} // print our the tokens stored in the pointer
 
 int main(int argc, const char * argv[]) {
 //    int uTestNum = 0;
-//    bool end = false;
+    bool end = false;
     cout << "Welcome to OurScheme!" << endl;
+    ReadSExp();
 //    do {
-    cout << "> ";
-    PrintSExpr(ReadSExp());
+//        cout << "> ";
+//        if (PrintSExpr(ReadSExp()) == "(exit)") {
+//            end = true;
+//        }
 //    } while (!end);
-    cout << endl <<"Thanks for using OurScheme!";
+    cout << endl << "Thanks for using OurScheme!" << endl << endl;
 } // main screen
