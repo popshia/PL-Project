@@ -2,8 +2,8 @@
 //  PL_Project
 
 // project synatax
-// <ATOM>  ::= SYMBOL | INT | FLOAT | STRING | NIL | T | LEFT-PAREN RIGHT-PAREN
 // <S-exp> ::= <ATOM> | LEFT-PAREN <S-exp> { <S-exp> } [ DOT <S-exp> ] RIGHT-PAREN | QUOTE <S-exp>
+// <ATOM>  ::= SYMBOL | INT | FLOAT | STRING | NIL | T | LEFT-PAREN RIGHT-PAREN
 
 // <BE> ::= <E> EQ <E>
 // <E>  ::= <T> { ADD <T> | MINUS <T> }
@@ -78,6 +78,7 @@ int main(int argc, const char * argv[]) {
 //    int uTestNum = 0;
     bool end = false;
     cout << "Welcome to OurScheme!" << endl;
+    cout << endl << "Thanks for using OurScheme!" << endl << endl;
     ReadSExp();
 //    do {
 //        cout << "> ";
@@ -85,5 +86,4 @@ int main(int argc, const char * argv[]) {
 //            end = true;
 //        }
 //    } while (!end);
-    cout << endl << "Thanks for using OurScheme!" << endl << endl;
 } // main screen
