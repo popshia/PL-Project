@@ -19,71 +19,29 @@
 using namespace std;
 
 // define structures
-typedef struct CharStruct{
-    char ch = '\0';
-    string type = "\0";
-    CharStruct* nextChar = NULL;
-} CharStructStruct; // single char structure
-
 typedef struct TokenStruct{
-    CharStruct* token;
-    TokenStruct* nextToken = NULL;
-} TokenStruct; // single expression structure
+    string token = "\0";
+} TokenStruct; // single char structure
 
-// read all the expressions
-TokenStruct* ReadSExp() {
-    TokenStruct* head = NULL;
-    TokenStruct* newToken = new TokenStruct;
-    CharStruct* charCursor = NULL;
-    head = newToken;
-    charCursor = newToken->token;
-    while (cin.peek() != '\n') {
-        while (cin.peek() != ' ' && cin.peek() != '\n') {
-            newToken->token->ch = cin.get();
-            // move the cursor
-            charCursor->nextChar = new CharStruct;
-            charCursor = charCursor->nextChar;
-        } // get one token
-        if (cin.peek() == ' ') {
-            // get the spaces
-            while (cin.peek() == ' ') cin.get();
-            // move the token
-            newToken->nextToken = new TokenStruct;
-            newToken = newToken->nextToken;
-            charCursor = newToken->token;
-        } // if the next char is space
-        if (cin.peek() == '\n') {
-            break;
-        }
-    }
-    return head;
-} // read the tokens
+typedef struct TreeStruct{
+    TokenStruct* token;
+    TreeStruct* left = NULL;
+    TreeStruct* right = NULL;
+} TreeStruct; // single expression structure
 
-//string PrintSExpr(ExprStruct* head) {
-//    ExprStruct* cursor = head;
-//    string returnToken = "\0";
-//    while (cursor != NULL) {
-//        if (cursor->expr == "(exit)") {
-//            return cursor->expr;
-//        }
-//        else {
-//            cout << cursor->expr << endl;
-//        }
-//        cursor = cursor->next;
-//    }
-//    return returnToken;
-//} // print our the tokens stored in the pointer
+string GetToken() {
+        
+}
 
+// main function
 int main(int argc, const char * argv[]) {
-//    int uTestNum = 0;
+    //int uTestNum = 0;
     bool end = false;
     cout << "Welcome to OurScheme!" << endl;
+    do {
+        cout << "> ";
+        //call GetToken and PeekToken
+        //ReadSExp();
+    } while (!end);
     cout << endl << "Thanks for using OurScheme!" << endl << endl;
-    ReadSExp();
-//    do {
-//        cout << "> ";
-//        if (PrintSExpr(ReadSExp()) == "(exit)") {
-//            end = true;
-//        }
-//    } while (!end);
 } // main screen
