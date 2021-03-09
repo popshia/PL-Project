@@ -24,6 +24,11 @@
 // namespace
 using namespace std;
 
+// enum
+enum Type {
+    NONE, SYMBOL, INT, FLOAT, STRING, NIL, T, DOT
+}; // enum type definition
+
 // define structures
 typedef struct TokenStruct{
     string value = "\0";
@@ -38,7 +43,8 @@ typedef struct TreeStruct{
 
 class Project1Class {
 public:
-    string atom = "\0";
+    string inputTerm = "\0";
+    string outputTerm = "\0";
     
     void CreateTree() {
 
@@ -46,11 +52,11 @@ public:
 
     char GetChar() {
         char peek = cin.peek();
-        while ( peek == ' ' | peek == '\t' ) {
+        if ( peek == ' ' | peek == '\t' ) {
             cin.get();
-            peek = cin.peek();
-        } // while: get all whitespaces if there are any of them
-        return cin.get(); // get the first non-whitespace characters
+            GetChar();
+        } // if: check if it's a whitespace or tab
+        return cin.get();
     } // GetChar()
 
     void GetToken() {
@@ -58,13 +64,12 @@ public:
         switch ( int(next) ) {
             case 43: // + symbol
             case 45: // - symbol
+            case 46: // . symbol
             case 48 ... 57: // numbers
             case 97 ... 122: // characters
-                atom += next;
-                break;
+                inputTerm += next;
             case 40: // '(' left bracket 
                 CreateTree();
-                break;
         } // switch: check the type of the current char
         char peek = cin.peek();
         if ( peek == '\n' | peek == EOF )
@@ -74,12 +79,33 @@ public:
         return;
     } // get token using recursive
 
-    string ReadSExp() {
-        string exp = "\0";
+    Type IdentifyTokenType() {
+        Type type;
+        for ( char & c: inputTerm ) {
+            if ( isdigit(c) ) type = INT;
+            if ( type == INT && c == '.' ) {
+                return FLOAT;
+            } 
+        }
+        return type;
+    }
+
+    void PrintSExp() {
+        cout << IdentifyTokenType() << endl;
+    }
+
+    void ReadSExp() {
+        inputTerm = "\0";
         GetToken();
-        return exp;
+        PrintSExp();
+        char * p;
+        cout << strtol(inputTerm.c_str(), &p, 10) << endl;
         //call PeekToken
     } // read and process the expression
+
+    string CheckInputTerm() {
+        return inputTerm;
+    } // CheckInputTerm: check(return) the input term
 }; // Project1Class
 
 // main function
@@ -90,8 +116,9 @@ int main(int argc, const char * argv[]) {
     cout << "Welcome to OurScheme!" << endl;
     do {
         cout << "> ";
+        project1.ReadSExp();
         //call GetToken and PeekToken
-        if ( project1.ReadSExp() == "exit" ) {
+        if ( project1.CheckInputTerm() == "exit" ) {
             end = true;
         } // check exit
         //PrintSExp();
