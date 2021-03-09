@@ -17,6 +17,11 @@
 #include <iostream>
 #include <stdio.h>
 #include <string>
+
+// definition
+#define NOT !
+
+// namespace
 using namespace std;
 
 // define structures
@@ -25,54 +30,72 @@ typedef struct TokenStruct{
 } TokenStruct; // single char structure
 
 typedef struct TreeStruct{
-    TokenStruct* token;
-    TreeStruct* left = NULL;
-    TreeStruct* right = NULL;
+    TokenStruct* leftToken = NULL;
+    TokenStruct* rightToken = NULL;
+    TreeStruct* leftNode = NULL;
+    TreeStruct* rightNode = NULL;
 } TreeStruct; // single expression structure
 
-void CreateTree() {
+class Project1Class {
+public:
+    string atom = "\0";
     
-} // create dot list tree
+    void CreateTree() {
 
-string GetToken( string atom ) {
-    char next = '\0';
-    char peek = '\0';
-    next = cin.get();
-    cout << next;
-    switch ( int(next) ) {
-        case 48 ... 57: // numbers
-            atom += next;
-        case 40: // '(' left bracket 
-            CreateTree();
-    }
-    peek = cin.peek();
-    if ( peek == ' ' )
-        return atom;
-    else
-        GetToken(atom);
-    return atom;
-} // get token using recursive
+    } // create dot list tree
 
-string ReadSExp() {
-    string exp = "\0";
-    return exp;
-    //call PeekToken
-} // read and process the expression
+    char GetChar() {
+        char peek = cin.peek();
+        while ( peek == ' ' | peek == '\t' ) {
+            cin.get();
+            peek = cin.peek();
+        } // while: get all whitespaces if there are any of them
+        return cin.get(); // get the first non-whitespace characters
+    } // GetChar()
+
+    void GetToken() {
+        char next = GetChar();
+        switch ( int(next) ) {
+            case 43: // + symbol
+            case 45: // - symbol
+            case 48 ... 57: // numbers
+            case 97 ... 122: // characters
+                atom += next;
+                break;
+            case 40: // '(' left bracket 
+                CreateTree();
+                break;
+        } // switch: check the type of the current char
+        char peek = cin.peek();
+        if ( peek == '\n' | peek == EOF )
+            return;
+        else
+            GetToken();
+        return;
+    } // get token using recursive
+
+    string ReadSExp() {
+        string exp = "\0";
+        GetToken();
+        return exp;
+        //call PeekToken
+    } // read and process the expression
+}; // Project1Class
 
 // main function
 int main(int argc, const char * argv[]) {
     //int uTestNum = 0;
     bool end = false;
+    Project1Class project1;
     cout << "Welcome to OurScheme!" << endl;
     do {
         cout << "> ";
-        GetToken("\0");
         //call GetToken and PeekToken
-        //if ( ReadSExp() == "exit" ) {
-            //end = true;
-        //} // check exit
+        if ( project1.ReadSExp() == "exit" ) {
+            end = true;
+        } // check exit
         //PrintSExp();
         cout << endl;
-    } while (!end);
+    } while ( NOT end );
     cout << endl << "Thanks for using OurScheme!" << endl << endl;
 } // main screen
