@@ -10,9 +10,10 @@
 // <T>  ::= <F> { * <F> | / <F> }
 // <F>  ::= NUM | ID | ( <E> )
 
-// Parser call Scanner with getToken() and peekToken()
+// Parser call Scanner with GetToken() and PeekToken()
 
 // include libraries
+#include <_ctype.h>
 #include <iostream>
 #include <stdio.h>
 #include <string>
@@ -20,7 +21,7 @@ using namespace std;
 
 // define structures
 typedef struct TokenStruct{
-    string token = "\0";
+    string value = "\0";
 } TokenStruct; // single char structure
 
 typedef struct TreeStruct{
@@ -29,9 +30,34 @@ typedef struct TreeStruct{
     TreeStruct* right = NULL;
 } TreeStruct; // single expression structure
 
-string GetToken() {
-        
-}
+void CreateTree() {
+    
+} // create dot list tree
+
+string GetToken( string atom ) {
+    char next = '\0';
+    char peek = '\0';
+    next = cin.get();
+    cout << next;
+    switch ( int(next) ) {
+        case 48 ... 57: // numbers
+            atom += next;
+        case 40: // '(' left bracket 
+            CreateTree();
+    }
+    peek = cin.peek();
+    if ( peek == ' ' )
+        return atom;
+    else
+        GetToken(atom);
+    return atom;
+} // get token using recursive
+
+string ReadSExp() {
+    string exp = "\0";
+    return exp;
+    //call PeekToken
+} // read and process the expression
 
 // main function
 int main(int argc, const char * argv[]) {
@@ -40,8 +66,13 @@ int main(int argc, const char * argv[]) {
     cout << "Welcome to OurScheme!" << endl;
     do {
         cout << "> ";
+        GetToken("\0");
         //call GetToken and PeekToken
-        //ReadSExp();
+        //if ( ReadSExp() == "exit" ) {
+            //end = true;
+        //} // check exit
+        //PrintSExp();
+        cout << endl;
     } while (!end);
     cout << endl << "Thanks for using OurScheme!" << endl << endl;
 } // main screen
