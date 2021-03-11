@@ -4,13 +4,10 @@
 // project synatax
 // <S-exp> ::= <ATOM> | LEFT-PAREN <S-exp> { <S-exp> } [ DOT <S-exp> ] RIGHT-PAREN | QUOTE <S-exp>
 // <ATOM>  ::= SYMBOL | INT | FLOAT | STRING | NIL | T | LEFT-PAREN RIGHT-PAREN
-
 // <BE> ::= <E> EQ <E>
 // <E>  ::= <T> { ADD <T> | MINUS <T> }
 // <T>  ::= <F> { * <F> | / <F> }
 // <F>  ::= NUM | ID | ( <E> )
-
-// Parser call Scanner with GetToken() and PeekToken()
 
 // include libraries
 #include <_ctype.h>
@@ -26,24 +23,24 @@
 // namespace
 using namespace std;
 
-// enum
+// enum and enum strings
 enum TokenType {
     NONE, SYMBOLS, INT, FLOAT, STRING, NIL, T, DOT
 }; // enum token type definition
-static const char *TokenTypeStr[] =
-        { "NONE", "SYMBOLS", "INT", "FLOAT", "STRING", "NIL", "T", "DOT" };
-
+static const char *TokenTypeStr[] = {
+    "NONE", "SYMBOLS", "INT", "FLOAT", "STRING", "NIL", "T", "DOT"
+}; // enum token string
 enum CharType {
     NUM, CHAR, SYMBOL, POUND, L_PARA, R_PARA 
 }; // enum char type definition
-static const char *CharTypeStr[] =
-        { "NUM", "CHAR", "SYMBOL", "POUND", "L_PARA", "R_PARA" };
+static const char *CharTypeStr[] = {
+    "NUM", "CHAR", "SYMBOL", "POUND", "L_PARA", "R_PARA"
+}; // enum token string
 
 // define structures
 typedef struct TokenStruct{
     string value = "\0";
 } TokenStruct; // single char structure
-
 typedef struct TreeStruct{
     TokenStruct* leftToken = NULL;
     TokenStruct* rightToken = NULL;
@@ -69,7 +66,7 @@ public:
         return cin.get();
     } // GetChar()
 
-    CharType IdentifyCharType( char next ) {
+    CharType CheckCharType( char next ) {
         if ( 48 <= int(next) && int(next) <= 57 ) // number 
             return NUM;
         else if ( int(next) == 40 ) // left paranthesis 
@@ -81,19 +78,7 @@ public:
             return CHAR; 
         else // others 
             return SYMBOL;
-    } // IdentifyCharType()
-
-    void GetToken() {
-        char next = GetChar();
-        if ( IdentifyCharType( next ) == L_PARA ) CreateTree();
-        else inputTerm += next;
-        char peek = cin.peek();
-        if ( peek == ' ' | peek == '\n' | peek == EOF ) // next token or end
-            return;
-        else
-            GetToken();
-        return;
-    } // get token using recursive
+    } // CheckCharType()
 
     bool IsFloat() {
         for ( char& c: inputTerm ) {
@@ -101,7 +86,7 @@ public:
                 return true;
         } // for: check if there's a dot in the number
         return false;
-    }
+    } // IsFloat()
 
     TokenType CheckTokenType() {
         bool isNumber = false;
@@ -121,7 +106,7 @@ public:
         } // if: check if the number is float
         else
             return SYMBOLS; 
-    }
+    } // CheckTokenType()
 
     void PrintSExp() {
         cout << TokenTypeStr[CheckTokenType()] << endl;
@@ -131,21 +116,31 @@ public:
             cout << fixed << setprecision(3) << stof(inputTerm) << endl;
         else
             cout << inputTerm << endl;
-    }
+    } // PrintSExp()
+
+    void GetToken() {
+        char next = GetChar();
+        if ( CheckCharType( next ) == L_PARA ) CreateTree();
+        else inputTerm += next;
+        char peek = cin.peek();
+        if ( peek == ' ' | peek == '\n' | peek == EOF ) // next token or end
+            return;
+        else
+            GetToken();
+        return;
+    } // GetToken(): get token using recursive
 
     void ReadSExp() {
         inputTerm = "\0";
         GetToken();
         PrintSExp();
-        //call PeekToken
-    } // read and process the expression
+    } // ReadSExp(): read and process the expression
 
     string CheckInputTerm() {
         return inputTerm;
     } // CheckInputTerm: check(return) the input term
 }; // Project1Class
 
-// main function
 int main(int argc, const char * argv[]) {
     //int uTestNum = 0;
     bool end = false;
@@ -161,4 +156,4 @@ int main(int argc, const char * argv[]) {
         cout << endl;
     } while ( NOT end );
     cout << endl << "Thanks for using OurScheme!" << endl << endl;
-} // main screen
+} // main(): main function
