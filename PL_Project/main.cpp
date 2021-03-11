@@ -14,9 +14,11 @@
 
 // include libraries
 #include <_ctype.h>
+#include <cctype>
 #include <iostream>
 #include <stdio.h>
 #include <string>
+#include <iomanip>
 
 // definition
 #define NOT !
@@ -25,9 +27,17 @@
 using namespace std;
 
 // enum
-enum Type {
-    NONE, SYMBOL, INT, FLOAT, STRING, NIL, T, DOT
-}; // enum type definition
+enum TokenType {
+    NONE, SYMBOLS, INT, FLOAT, STRING, NIL, T, DOT
+}; // enum token type definition
+static const char *TokenTypeStr[] =
+        { "NONE", "SYMBOLS", "INT", "FLOAT", "STRING", "NIL", "T", "DOT" };
+
+enum CharType {
+    NUM, CHAR, SYMBOL, POUND, L_PARA, R_PARA 
+}; // enum char type definition
+static const char *CharTypeStr[] =
+        { "NUM", "CHAR", "SYMBOL", "POUND", "L_PARA", "R_PARA" };
 
 // define structures
 typedef struct TokenStruct{
@@ -52,54 +62,81 @@ public:
 
     char GetChar() {
         char peek = cin.peek();
-        if ( peek == ' ' | peek == '\t' ) {
+        while ( peek == ' ' | peek == '\n' ) {
             cin.get();
-            GetChar();
-        } // if: check if it's a whitespace or tab
+            peek = cin.peek();
+        } // while: get the first non-whitespace
         return cin.get();
     } // GetChar()
 
+    CharType IdentifyCharType( char next ) {
+        if ( 48 <= int(next) && int(next) <= 57 ) // number 
+            return NUM;
+        else if ( int(next) == 40 ) // left paranthesis 
+            return L_PARA;
+        else if ( int(next) == 41 ) // right paranthesis 
+            return R_PARA;
+        else if ( ( 65 <= int(next) && int(next) <= 90 ) || 
+                  ( 97 <= int(next) && int(next) <= 122 ) ) // charcters 
+            return CHAR; 
+        else // others 
+            return SYMBOL;
+    } // IdentifyCharType()
+
     void GetToken() {
         char next = GetChar();
-        switch ( int(next) ) {
-            case 43: // + symbol
-            case 45: // - symbol
-            case 46: // . symbol
-            case 48 ... 57: // numbers
-            case 97 ... 122: // characters
-                inputTerm += next;
-            case 40: // '(' left bracket 
-                CreateTree();
-        } // switch: check the type of the current char
+        if ( IdentifyCharType( next ) == L_PARA ) CreateTree();
+        else inputTerm += next;
         char peek = cin.peek();
-        if ( peek == '\n' | peek == EOF )
+        if ( peek == ' ' | peek == '\n' | peek == EOF ) // next token or end
             return;
         else
             GetToken();
         return;
     } // get token using recursive
 
-    Type IdentifyTokenType() {
-        Type type;
+    bool IsFloat() {
+        for ( char& c: inputTerm ) {
+            if ( c == '.' )
+                return true;
+        } // for: check if there's a dot in the number
+        return false;
+    }
+
+    TokenType CheckTokenType() {
+        bool isNumber = false;
+        bool isSymbol = false;
+        //cout << inputTerm << endl;
         for ( char & c: inputTerm ) {
-            if ( isdigit(c) ) type = INT;
-            if ( type == INT && c == '.' ) {
+            if ( isdigit(c) || c == '.' ) isNumber = true;
+        } // for: check is the input is a int or float
+        for ( char & c: inputTerm ) {
+            if ( isupper(c) | islower(c) ) isSymbol = true;
+        } // for: check if there's any characters in the inputTerm
+        if ( NOT isSymbol ) {
+            if ( IsFloat() )
                 return FLOAT;
-            } 
-        }
-        return type;
+            else
+                return INT;
+        } // if: check if the number is float
+        else
+            return SYMBOLS; 
     }
 
     void PrintSExp() {
-        cout << IdentifyTokenType() << endl;
+        cout << TokenTypeStr[CheckTokenType()] << endl;
+        if ( CheckTokenType() == INT ) 
+            cout << stoi(inputTerm) << endl;
+        else if ( CheckTokenType() == FLOAT )
+            cout << fixed << setprecision(3) << stof(inputTerm) << endl;
+        else
+            cout << inputTerm << endl;
     }
 
     void ReadSExp() {
         inputTerm = "\0";
         GetToken();
         PrintSExp();
-        char * p;
-        cout << strtol(inputTerm.c_str(), &p, 10) << endl;
         //call PeekToken
     } // read and process the expression
 
@@ -117,7 +154,6 @@ int main(int argc, const char * argv[]) {
     do {
         cout << "> ";
         project1.ReadSExp();
-        //call GetToken and PeekToken
         if ( project1.CheckInputTerm() == "exit" ) {
             end = true;
         } // check exit
