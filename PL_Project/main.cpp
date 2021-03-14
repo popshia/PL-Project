@@ -12,10 +12,12 @@
 // include libraries
 #include <_ctype.h>
 #include <cctype>
+#include <cmath>
 #include <iostream>
 #include <stdio.h>
 #include <string>
 #include <iomanip>
+#include <math.h>
 
 // definition
 #define NOT !
@@ -113,7 +115,7 @@ public:
         if ( CheckTokenType() == INT ) 
             cout << stoi(inputTerm) << endl;
         else if ( CheckTokenType() == FLOAT )
-            cout << fixed << setprecision(3) << stof(inputTerm) << endl;
+            cout << fixed << setprecision(3) << roundf(stof(inputTerm)*1000)/1000 << endl;
         else
             cout << inputTerm << endl;
     } // PrintSExp()
