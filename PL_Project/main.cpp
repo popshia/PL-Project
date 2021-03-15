@@ -106,18 +106,33 @@ public:
             else
                 return INT;
         } // if: check if the number is float
-        else
-            return SYMBOLS; 
+        else {
+            if ( inputTerm == "#f" || inputTerm == "nil" )
+                return NIL;
+            else if ( inputTerm == "t" || inputTerm == "#t" )
+                return T;
+            else
+                return SYMBOLS; 
+        }
     } // CheckTokenType()
 
     void PrintSExp() {
-        cout << TokenTypeStr[CheckTokenType()] << endl;
-        if ( CheckTokenType() == INT ) 
+        //cout << TokenTypeStr[CheckTokenType()] << endl;
+        if ( CheckTokenType() == INT ) {
             cout << stoi(inputTerm) << endl;
-        else if ( CheckTokenType() == FLOAT )
+        } // if: int case
+        else if ( CheckTokenType() == FLOAT ) {
             cout << fixed << setprecision(3) << roundf(stof(inputTerm)*1000)/1000 << endl;
-        else
+        } // else if: float case with precision and round
+        else if ( CheckTokenType() == NIL ) {
+            cout << "nil" << endl;
+        } // else if: nil
+        else if ( CheckTokenType() == T ) {
+            cout << "#t" << endl;
+        } // else if: #t case
+        else {
             cout << inputTerm << endl;
+        } // else: symbol
     } // PrintSExp()
 
     void GetToken() {
