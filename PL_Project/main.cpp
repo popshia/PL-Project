@@ -69,24 +69,29 @@ public:
     } // GetChar()
 
     CharType CheckCharType( char next ) {
-        if ( 48 <= int(next) && int(next) <= 57 ) // number 
+        if ( 48 <= int(next) && int(next) <= 57 ) {
             return NUM;
-        else if ( int(next) == 40 ) // left paranthesis 
+        } // if: number 
+        else if ( int(next) == 40 ) {
             return L_PARA;
-        else if ( int(next) == 41 ) // right paranthesis 
+        } // if: left paranthesis 
+        else if ( int(next) == 41 ) {
             return R_PARA;
-        else if ( ( 65 <= int(next) && int(next) <= 90 ) || 
-                  ( 97 <= int(next) && int(next) <= 122 ) ) // charcters 
+        } // if: right paranthesis 
+        else if ( ( 65 <= int(next) && int(next) <= 90 ) || ( 97 <= int(next) && int(next) <= 122 ) ) {
             return CHAR; 
-        else // others 
+        } // if: charcters 
+        else {
             return SYMBOL;
+        } // else: others 
     } // CheckCharType()
 
     bool IsFloat() {
         for ( char& c: inputTerm ) {
-            if ( c == '.' )
+            if ( c == '.' ) {
                 return true;
-        } // for: check if there's a dot in the number
+            } // if: if there's a dot int the inputTerm
+        } // for: go through the inputTerm
         return false;
     } // IsFloat()
 
@@ -101,19 +106,24 @@ public:
             if ( isupper(c) | islower(c) ) isSymbol = true;
         } // for: check if there's any characters in the inputTerm
         if ( NOT isSymbol ) {
-            if ( IsFloat() )
+            if ( IsFloat() ) {
                 return FLOAT;
-            else
+            } // if: float
+            else {
                 return INT;
+            } // else: int
         } // if: check if the number is float
         else {
-            if ( inputTerm == "#f" || inputTerm == "nil" )
+            if ( inputTerm == "#f" || inputTerm == "nil" ) {
                 return NIL;
-            else if ( inputTerm == "t" || inputTerm == "#t" )
+            } // if: nil
+            else if ( inputTerm == "t" || inputTerm == "#t" ) {
                 return T;
-            else
+            } // if: #t
+            else {
                 return SYMBOLS; 
-        }
+            } // else: symbols
+        } // else: check t or nil
     } // CheckTokenType()
 
     void PrintSExp() {
@@ -137,13 +147,19 @@ public:
 
     void GetToken() {
         char next = GetChar();
-        if ( CheckCharType( next ) == L_PARA ) CreateTree();
-        else inputTerm += next;
+        if ( CheckCharType( next ) == L_PARA ) {
+            CreateTree();
+        } // if: left-paranthesis and CreateTree()
+        else {
+            inputTerm += next;
+        } // else: attach to the inputTerm
         char peek = cin.peek();
-        if ( peek == ' ' | peek == '\n' | peek == EOF ) // next token or end
+        if ( peek == ' ' | peek == '\n' | peek == EOF ) {
             return;
-        else
+        } // if: next token or end
+        else {
             GetToken();
+        } // else: not end keep GetToken()
         return;
     } // GetToken(): get token using recursive
 
@@ -168,8 +184,7 @@ int main(int argc, const char * argv[]) {
         project1.ReadSExp();
         if ( project1.CheckInputTerm() == "exit" ) {
             end = true;
-        } // check exit
-        //PrintSExp();
+        } // if: check exit
         cout << endl;
     } while ( NOT end );
     cout << endl << "Thanks for using OurScheme!" << endl << endl;
