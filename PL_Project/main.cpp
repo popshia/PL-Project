@@ -27,13 +27,13 @@ using namespace std;
 
 // enum and enum strings
 enum TokenType {
-    NONE, SYMBOLS, INT, FLOAT, STRING, NIL, T, DOT
+    NONE, SYMBOLS, INT, FLOAT, STRING, NIL, T, DOT, QUOTE
 }; // enum token type definition
 static const char *TokenTypeStr[] = {
     "NONE", "SYMBOLS", "INT", "FLOAT", "STRING", "NIL", "T", "DOT"
 }; // enum token string
 enum CharType {
-    NUM, CHAR, SYMBOL, POUND, L_PARA, R_PARA 
+    NUM, CHAR, SYMBOL, POUND, L_PARA, R_PARA, DOUBLE_Q
 }; // enum char type definition
 static const char *CharTypeStr[] = {
     "NUM", "CHAR", "SYMBOL", "POUND", "L_PARA", "R_PARA"
@@ -55,10 +55,10 @@ public:
     string inputTerm = "\0";
     string outputTerm = "\0";
     
-    void CreateTree() {
-
-    } // create dot list tree
-
+    string CheckInputTerm() {
+        return inputTerm;
+    } // CheckInputTerm: check(return) the input term
+    
     char GetChar() {
         char peek = cin.peek();
         while ( peek == ' ' | peek == '\n' ) {
@@ -67,25 +67,7 @@ public:
         } // while: get the first non-whitespace
         return cin.get();
     } // GetChar()
-
-    CharType CheckCharType( char next ) {
-        if ( 48 <= int(next) && int(next) <= 57 ) {
-            return NUM;
-        } // if: number 
-        else if ( int(next) == 40 ) {
-            return L_PARA;
-        } // if: left paranthesis 
-        else if ( int(next) == 41 ) {
-            return R_PARA;
-        } // if: right paranthesis 
-        else if ( ( 65 <= int(next) && int(next) <= 90 ) || ( 97 <= int(next) && int(next) <= 122 ) ) {
-            return CHAR; 
-        } // if: charcters 
-        else {
-            return SYMBOL;
-        } // else: others 
-    } // CheckCharType()
-
+    
     bool IsFloat() {
         for ( char& c: inputTerm ) {
             if ( c == '.' ) {
@@ -94,6 +76,24 @@ public:
         } // for: go through the inputTerm
         return false;
     } // IsFloat()
+    
+    CharType CheckCharType( char next ) {
+        if ( 48 <= int( next ) && int( next ) <= 57 ) {
+            return NUM;
+        } // if: number 
+        else if ( int( next ) == 40 ) {
+            return L_PARA;
+        } // if: left paranthesis 
+        else if ( int( next ) == 41 ) {
+            return R_PARA;
+        } // if: right paranthesis 
+        else if ( ( 65 <= int( next ) && int( next ) <= 90 ) || ( 97 <= int( next ) && int( next ) <= 122 ) ) {
+            return CHAR; 
+        } // if: charcters 
+        else {
+            return SYMBOL;
+        } // else: others 
+    } // CheckCharType()
 
     TokenType CheckTokenType() {
         bool isNumber = false;
@@ -103,7 +103,7 @@ public:
             if ( isdigit(c) || c == '.' ) isNumber = true;
         } // for: check is the input is a int or float
         for ( char & c: inputTerm ) {
-            if ( isupper(c) | islower(c) ) isSymbol = true;
+            if ( isupper( c ) | islower( c ) ) isSymbol = true;
         } // for: check if there's any characters in the inputTerm
         if ( NOT isSymbol ) {
             if ( IsFloat() ) {
@@ -121,35 +121,27 @@ public:
                 return T;
             } // if: #t
             else {
-                return SYMBOLS; 
+                return SYMBOLS;
             } // else: symbols
         } // else: check t or nil
     } // CheckTokenType()
+    
+    void CreateTree() {
 
-    void PrintSExp() {
-        //cout << TokenTypeStr[CheckTokenType()] << endl;
-        if ( CheckTokenType() == INT ) {
-            cout << stoi(inputTerm) << endl;
-        } // if: int case
-        else if ( CheckTokenType() == FLOAT ) {
-            cout << fixed << setprecision(3) << roundf(stof(inputTerm)*1000)/1000 << endl;
-        } // else if: float case with precision and round
-        else if ( CheckTokenType() == NIL ) {
-            cout << "nil" << endl;
-        } // else if: nil
-        else if ( CheckTokenType() == T ) {
-            cout << "#t" << endl;
-        } // else if: #t case
-        else {
-            cout << inputTerm << endl;
-        } // else: symbol
-    } // PrintSExp()
+    } // CreateTree()
+
+    void ProcessString() {
+
+    } // ProcessString()
 
     void GetToken() {
         char next = GetChar();
         if ( CheckCharType( next ) == L_PARA ) {
             CreateTree();
         } // if: left-paranthesis and CreateTree()
+        else if ( CheckCharType( next ) == DOUBLE_Q ) {
+            ProcessString();
+        } // if: process the afterward string if the char is "
         else {
             inputTerm += next;
         } // else: attach to the inputTerm
@@ -161,17 +153,32 @@ public:
             GetToken();
         } // else: not end keep GetToken()
         return;
-    } // GetToken(): get token using recursive
-
+    } // GetToken()
+    
+    void PrintSExp() {
+        //cout << TokenTypeStr[CheckTokenType()] << endl;
+        if ( CheckTokenType() == INT ) {
+            cout << stoi( inputTerm ) << endl;
+        } // if: int case
+        else if ( CheckTokenType() == FLOAT ) {
+            cout << fixed << setprecision( 3 ) << roundf( stof( inputTerm )*1000 ) / 1000 << endl;
+        } // else if: float case with precision and round
+        else if ( CheckTokenType() == NIL ) {
+            cout << "nil" << endl;
+        } // else if: nil
+        else if ( CheckTokenType() == T ) {
+            cout << "#t" << endl;
+        } // else if: #t case
+        else {
+            cout << inputTerm << endl;
+        } // else: symbol
+    } // PrintSExp()
+    
     void ReadSExp() {
         inputTerm = "\0";
         GetToken();
         PrintSExp();
-    } // ReadSExp(): read and process the expression
-
-    string CheckInputTerm() {
-        return inputTerm;
-    } // CheckInputTerm: check(return) the input term
+    } // ReadSExp()
 }; // Project1Class
 
 int main(int argc, const char * argv[]) {
