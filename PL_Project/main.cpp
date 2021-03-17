@@ -53,7 +53,6 @@ typedef struct TreeStruct{
 class Project1Class {
 public:
     string inputTerm = "\0";
-    string outputTerm = "\0";
     
     string CheckInputTerm() {
         return inputTerm;
@@ -90,6 +89,9 @@ public:
         else if ( ( 65 <= int( next ) && int( next ) <= 90 ) || ( 97 <= int( next ) && int( next ) <= 122 ) ) {
             return CHAR; 
         } // if: charcters 
+        else if ( int( next ) == 34 ) {
+            return DOUBLE_Q;
+        } // if: double quote
         else {
             return SYMBOL;
         } // else: others 
@@ -105,7 +107,7 @@ public:
         for ( char & c: inputTerm ) {
             if ( isupper( c ) | islower( c ) ) isSymbol = true;
         } // for: check if there's any characters in the inputTerm
-        if ( NOT isSymbol ) {
+        if ( isNumber && NOT isSymbol ) {
             if ( IsFloat() ) {
                 return FLOAT;
             } // if: float
@@ -114,7 +116,7 @@ public:
             } // else: int
         } // if: check if the number is float
         else {
-            if ( inputTerm == "#f" || inputTerm == "nil" ) {
+            if ( inputTerm == "#f" || inputTerm == "nil" || inputTerm == "()" ) {
                 return NIL;
             } // if: nil
             else if ( inputTerm == "t" || inputTerm == "#t" ) {
@@ -131,21 +133,46 @@ public:
     } // CreateTree()
 
     void ProcessString() {
-
+        char next = cin.get();
+        while ( next != '\"' ) {
+            if ( next == '\\' ) {
+                char peek = cin.peek();
+                if ( peek == 'n' ) {
+                    cout << endl;
+                } // if: "\n"
+                else if ( peek == 't' ) {
+                    cout << "\t";
+                } // if: "\t"
+                else if ( peek == '\"' ) {
+                    cout << "\"";
+                } // if: "\""
+                else if ( peek == '\\' ) {
+                    cout << "\\";
+                } // if: "\\"
+                cin.get();
+            } // if: escape case
+            else {
+                cout << next;
+            } // else: not escape case
+            next = cin.get();
+        } // while: get the whole string
+        cout << next;
     } // ProcessString()
 
     void GetToken() {
         char next = GetChar();
-        if ( CheckCharType( next ) == L_PARA ) {
+        char peek = cin.peek();
+        if ( CheckCharType( next ) == L_PARA && peek != ')' ) {
             CreateTree();
         } // if: left-paranthesis and CreateTree()
         else if ( CheckCharType( next ) == DOUBLE_Q ) {
+            cout << next;
             ProcessString();
         } // if: process the afterward string if the char is "
         else {
             inputTerm += next;
         } // else: attach to the inputTerm
-        char peek = cin.peek();
+        peek = cin.peek();
         if ( peek == ' ' | peek == '\n' | peek == EOF ) {
             return;
         } // if: next token or end
