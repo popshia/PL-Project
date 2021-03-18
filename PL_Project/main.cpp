@@ -238,8 +238,12 @@ public:
 }; // Project1Class
 
 int main() {
-  int uTestNum = 0;
-  cin >> uTestNum;
+  //int uTestNum = 0;
+  //char lineReturn = '\0';
+  //char * testLabel = new char[100];
+  //cin >> uTestNum;
+  //cin >> lineReturn;
+  //cin.getline( testLabel, 90 );
   bool end = false;
   Project1Class project1;
   cout << "Welcome to OurScheme!" << endl;
