@@ -49,9 +49,9 @@ class Project1Class {
 private:
   string m_InputTerm;
 public:
-  string CheckInputTerm() {
+  string GetInputTerm() {
     return m_InputTerm;
-  } // CheckInputTerm()
+  } // GetInputTerm()
   
   char GetChar() {
     char peekChar = cin.peek();
@@ -154,6 +154,13 @@ public:
     int leftParenthesisCount = 1;
     int rightParenthesisCount = 0;
     // count of the parenthesis
+    string currentValue = "\0";
+    cin >> currentValue;
+
+    if ( currentValue == "exit)") {
+      m_InputTerm = "(exit)";
+      return;
+    } // if: (exit)
     
     
   } // CreateTree()
@@ -203,6 +210,10 @@ public:
       if ( m_InputTerm != "(exit)" ) {
         m_InputTerm = "DOT_PAIR";
       } // if: not exit term
+
+      else {
+        return;
+      } // else: exit case
     } // if: left-parenthesis and CreateTree()
     
     else if ( CheckCharType( currentChar ) == DOUBLE_Q ) {
@@ -228,9 +239,13 @@ public:
   } // GetToken()
   
   void PrintSExp() {
-    if ( CheckTokenType() == INT ) {
+    if ( m_InputTerm == "(exit)" ) {
+      return;
+    } // if: exit case
+    
+    else if ( CheckTokenType() == INT ) {
       cout << atoi( m_InputTerm.c_str() ) << endl;
-    } // if: int case
+    } // else if: int case
     
     else if ( CheckTokenType() == FLOAT ) {
       cout << fixed << setprecision( 3 ) << round( atof( m_InputTerm.c_str() )*1000 ) / 1000 << endl;
@@ -271,7 +286,7 @@ int main() {
     cout << "> ";
     project1.ReadSExp();
     
-    if ( project1.CheckInputTerm() == "exit" ) {
+    if ( project1.GetInputTerm() == "(exit)" ) {
       end = true;
     } // if: check exit
     
