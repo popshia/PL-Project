@@ -87,14 +87,32 @@ public:
   TokenType CheckTokenType( TokenStruct newToken ) {
     bool isNumber = false;
     bool isSymbol = false;
+    int plusSignBitCount = 0;
+    int minusSignBitCount = 0;
 
     for ( int i = 0 ; i < newToken.content.length() ; i++ ) {
-      if ( isdigit( newToken.content[i] ) ) isNumber = true;
-    } // for: is there any numbers in the content
+      if ( newToken.content[i] == '+' ) {
+        plusSignBitCount++;
+      } // if: check the number of plus sign bit
+      
+      else if ( newToken.content[i] == '-' ) {
+        minusSignBitCount++;
+      } // if: check the number of minus sign bit
+      
+      else if ( isdigit( newToken.content[i] ) ) {
+        isNumber = true;
+      } // if: there are digits in the token
+    } // for: go through the token
+    
+    if ( ( plusSignBitCount > 0 && minusSignBitCount > 0 ) || plusSignBitCount > 1 || minusSignBitCount > 1 ) {
+      isNumber = false;
+    } // if: more than one sign bit
 
     for ( int i = 0 ; i < newToken.content.length() ; i++ ) {
-      if ( isupper( newToken.content[i] ) || islower( newToken.content[i] ) ) isSymbol = true;
-    } // for: is there any alphabatic characters in the contentt
+      if ( isupper( newToken.content[i] ) || islower( newToken.content[i] ) ) {
+        isSymbol = true;
+      } // if: there are alphabatic characters in the token
+    } // for: go through the token
 
     if ( isNumber && NOT isSymbol ) {
       if ( IsFloat( newToken ) ) {
@@ -268,7 +286,7 @@ public:
       newToken.type = CheckTokenType( newToken );
     } // else: other types
     
-//    cout << newToken.content << " " << newToken.type << endl;
+    cout << newToken.content << " " << newToken.type << endl;
     
     m_LineOfTokens.push_back( newToken ); // push the newToken to the vector
     
