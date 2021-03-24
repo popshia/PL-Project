@@ -2,12 +2,10 @@
 //  PL_Project
 
 // project synatax
-// <S-exp> ::= <ATOM> | LEFT-PAREN <S-exp> { <S-exp> } [ DOT <S-exp> ] RIGHT-PAREN | QUOTE <S-exp>
+// <S-exp> ::= <ATOM>
+//             | LEFT-PAREN <S-exp> { <S-exp> } [ DOT <S-exp> ] RIGHT-PAREN
+//             | QUOTE <S-exp>
 // <ATOM>  ::= SYMBOL | INT | FLOAT | STRING | NIL | T | LEFT-PAREN RIGHT-PAREN
-// <BE> ::= <E> EQ <E>
-// <E>  ::= <T> { ADD <T> | MINUS <T> }
-// <T>  ::= <F> { * <F> | / <F> }
-// <F>  ::= NUM | ID | ( <E> )
 
 // include libraries
 # include <ctype.h>
@@ -19,6 +17,7 @@
 # include <iostream>
 # include <iomanip>
 # include <string>
+# include <vector>
 
 // definition
 # define NOT !
@@ -26,17 +25,15 @@
 // namespace
 using namespace std;
 
-// enum and enum strings
+// enum declaration
 enum TokenType {
-  NONE, SYMBOLS, INT, FLOAT, STRING, NIL, T, DOT, QUOTE, DOT_PAIR
-}; // enum token type definition
-enum CharType {
-  NUM, CHAR, SYMBOL, POUND, L_PARA, R_PARA, DOUBLE_Q
-}; // enum char type definition
+  LEFT_PAREN, RIGHT_PAREN, INT, STRING, DOT, FLOAT, NIL, T, QUOTE, SYMBOL
+}; // token type enum
 
 // define structures
 struct TokenStruct {
-  string value;
+  string content;
+  TokenType type;
 }; // TokenStruct
 struct TreeStruct {
   TokenStruct* leftToken;
@@ -47,16 +44,13 @@ struct TreeStruct {
 
 class Project1Class {
 private:
-  string m_InputTerm;
-public:
-  string GetInputTerm() {
-    return m_InputTerm;
-  } // GetInputTerm()
+  vector<TokenStruct> m_LineOfTokens;
   
+public:
   char GetChar() {
-    char peekChar = cin.peek();
+    char peekChar = '\0';
     
-    while ( peekChar == ' ' || peekChar == '\n' ) {
+    while ( cin.peek() == ' ' || cin.peek() == '\n' ) {
       cin.get();
       peekChar = cin.peek();
     } // while: get the first non-whitespace
@@ -64,108 +58,101 @@ public:
     return cin.get();
   } // GetChar()
   
-  bool IsFloat() {
-    for ( int i = 0 ; i < m_InputTerm.length() ; i++ ) {
-      if ( m_InputTerm[i] == '.' ) {
+  bool IsFloat( TokenStruct newToken ) {
+    for ( int i = 0 ; i < newToken.content.length() ; i++ ) {
+      if ( newToken.content[i] == '.' ) {
         return true;
       } // if: if there's a dot int the inputTerm
     } // for: go through the inputTerm
     
     return false;
   } // IsFloat()
-  
-  CharType CheckCharType( char currentChar ) {
-    if ( 48 <= ( int ) currentChar && ( int ) currentChar <= 57 ) {
-      return NUM;
-    } // if: number
-    
-    else if ( ( int ) currentChar == 40 ) {
-      return L_PARA;
-    } // if: left parenthesis
-    
-    else if ( ( int ) currentChar == 41 ) {
-      return R_PARA;
-    } // if: right parenthesis
-    
-    else if ( ( 65 <= ( int ) currentChar && ( int ) currentChar <= 90 ) ||
-             ( 97 <= ( int ) currentChar && ( int ) currentChar <= 122 ) ) {
-      return CHAR;
-    } // if: charcters
-    
-    else if ( ( int ) currentChar == 34 ) {
-      return DOUBLE_Q;
-    } // if: double quote
+ 
+  bool IsAtom( TokenStruct currentToken ) {
+    if ( currentToken.type == SYMBOL ||
+         currentToken.type == INT ||
+         currentToken.type == FLOAT ||
+         currentToken.type == STRING ||
+         currentToken.type == NIL ||
+         currentToken.type == T ||
+        currentToken.content == "()" ) {
+      return true;
+    } // if: atom
     
     else {
-      return SYMBOL;
-    } // else: others
-  } // CheckCharType()
+      return false;
+    } // else: not atom
+  } // IsAtom()
   
-  TokenType CheckTokenType() {
+  TokenType CheckTokenType( TokenStruct newToken ) {
     bool isNumber = false;
     bool isSymbol = false;
-    
-    if ( m_InputTerm == "DOT_PAIR" ) {
-      return DOT_PAIR;
-    } // if: dot pair
-    
-    for ( int i = 0 ; i < m_InputTerm.length() ; i++ ) {
-      if ( isdigit( m_InputTerm[i] ) ) isNumber = true;
-    } // for: check is the input is a int or float
-    
-    for ( int i = 0 ; i < m_InputTerm.length() ; i++ ) {
-      if ( isupper( m_InputTerm[i] ) || islower( m_InputTerm[i] ) ) isSymbol = true;
-    } // for: check if there's any characters in the inputTerm
-    
+
+    for ( int i = 0 ; i < newToken.content.length() ; i++ ) {
+      if ( isdigit( newToken.content[i] ) ) isNumber = true;
+    } // for: is there any numbers in the content
+
+    for ( int i = 0 ; i < newToken.content.length() ; i++ ) {
+      if ( isupper( newToken.content[i] ) || islower( newToken.content[i] ) ) isSymbol = true;
+    } // for: is there any alphabatic characters in the contentt
+
     if ( isNumber && NOT isSymbol ) {
-      if ( IsFloat() ) {
+      if ( IsFloat( newToken ) ) {
         return FLOAT;
       } // if: float
-      
+
       else {
         return INT;
       } // else: int
     } // if: check if the number is float
-    
+
     else {
-      if ( m_InputTerm == "#f" || m_InputTerm == "nil" || m_InputTerm == "()" ) {
+      if ( newToken.content == "#f" || newToken.content == "nil" ) {
         return NIL;
       } // if: nil
-      
-      else if ( m_InputTerm == "t" || m_InputTerm == "#t" ) {
+
+      else if ( newToken.content == "t" || newToken.content == "#t" ) {
         return T;
       } // if: #t
       
+      else if ( newToken.content == "." ) {
+        return DOT;
+      } // if: dot
+
       else {
-        return SYMBOLS;
+        return SYMBOL;
       } // else: symbols
-    } // else: check t or nil
+    } // else: check t, nil or dot
   } // CheckTokenType()
   
-  void CreateTree() {
-    TreeStruct *root = new TreeStruct;
-    root->leftNode = NULL;
-    root->rightNode = NULL;
-    root->leftToken = NULL;
-    root->rightToken = NULL;
-    // initialize the first node
-    TreeStruct *currentNode = root;
-    // declare the walking pointer
-    int leftParenthesisCount = 1;
-    int rightParenthesisCount = 0;
-    // count of the parenthesis
-    string currentValue = "\0";
-    cin >> currentValue;
-
-    if ( currentValue == "exit)") {
-      m_InputTerm = "(exit)";
-      return;
-    } // if: (exit)
-    
-    
-  } // CreateTree()
+//  TokenType IsAtom() {
+//
+//  }
   
-  void ProcessString() {
+//  void CreateTree() {
+//    TreeStruct *root = new TreeStruct;
+//    root->leftNode = NULL;
+//    root->rightNode = NULL;
+//    root->leftToken = NULL;
+//    root->rightToken = NULL;
+//    // initialize the first node
+//    TreeStruct *currentNode = root;
+//    // declare the walking pointer
+//    int leftParenthesisCount = 1;
+//    int rightParenthesisCount = 0;
+//    // count of the parenthesis
+//    string currentValue = "\0";
+//    cin >> currentValue;
+//
+//    if ( currentValue == "exit)") {
+//      m_IsExitCase = true;
+//      return;
+//    } // if: (exit)
+//
+//
+//  } // CreateTree()
+  
+  void PrintString() {
     char currentChar = cin.get();
     
     while ( currentChar != '\"' ) {
@@ -199,75 +186,213 @@ public:
     } // while: get the whole string
     
     cout << currentChar;
-  } // ProcessString()
-  
-  void GetToken() {
-    char currentChar = GetChar();
-    char peekChar = cin.peek();
-    
-    if ( CheckCharType( currentChar ) == L_PARA && peekChar != ')' ) {
-      CreateTree();
-      if ( m_InputTerm != "(exit)" ) {
-        m_InputTerm = "DOT_PAIR";
-      } // if: not exit term
+  } // PrintString()
 
+  string GetString() {
+    char currentChar = cin.get();
+    string currentString = "\0";
+
+    while ( currentChar != '\"' ) {
+      char peekChar = cin.peek();
+      
+      if ( currentChar == '\\' && peekChar == '\"' ) {
+        currentString.push_back( currentChar );
+        currentString.push_back( cin.get() );
+      } // if: "\"" case
+      
       else {
-        return;
-      } // else: exit case
-    } // if: left-parenthesis and CreateTree()
-    
-    else if ( CheckCharType( currentChar ) == DOUBLE_Q ) {
-      cout << currentChar;
-      ProcessString();
-    } // if: process the afterward string if the char is "
-    
-    else {
-      m_InputTerm += currentChar;
-    } // else: attach to the inputTerm
-    
-    peekChar = cin.peek();
-    
-    if ( peekChar == ' ' || peekChar == '\n' || peekChar == EOF ) {
-      return;
-    } // if: next token or end
-    
-    else {
-      GetToken();
-    } // else: not end keep GetToken()
-    
-    return;
-  } // GetToken()
+        currentString.push_back( currentChar );
+      } // else: normal string
+
+      currentChar = cin.get();
+    } // while: get the string
+
+    currentString.push_back( currentChar );
+    // push the last " into the string
+    return currentString;
+  } // GetString()
   
-  void PrintSExp() {
-    if ( m_InputTerm == "(exit)" ) {
-      return;
-    } // if: exit case
+  bool HasNextToken() {
+    char currentChar = GetChar();
     
-    else if ( CheckTokenType() == INT ) {
-      cout << atoi( m_InputTerm.c_str() ) << endl;
-    } // else if: int case
+    if ( currentChar == '\0' ) {
+      return false;
+    } // if gets nothing
     
-    else if ( CheckTokenType() == FLOAT ) {
-      cout << fixed << setprecision( 3 ) << round( atof( m_InputTerm.c_str() )*1000 ) / 1000 << endl;
-    } // else if: float case with precision and round
+    TokenStruct newToken;
+    newToken.content.push_back( currentChar );
+    // initialize new token
     
-    else if ( CheckTokenType() == NIL ) {
-      cout << "nil" << endl;
-    } // else if: nil
+    if ( currentChar == '(' ) {
+      char peekChar = cin.peek();
+      if ( peekChar == ')' ) {
+        newToken.content.push_back( cin.get() );
+        newToken.type = NIL;
+      } // if: () case
+      else {
+        newToken.type = LEFT_PAREN;
+      } // else: left parenthesis
+    } // if: left parenthesis
+
+    else if ( currentChar == ')' ) {
+      newToken.type = RIGHT_PAREN;
+    } // if: right parenthesis
     
-    else if ( CheckTokenType() == T ) {
-      cout << "#t" << endl;
-    } // else if: #t case
+    else if ( currentChar == '"' ) {
+      newToken.content.append( GetString() );
+      newToken.type = STRING;
+    } // if: string
+
+    else if ( currentChar == '\'' ) {
+      newToken.content = currentChar;
+      newToken.type = QUOTE;
+    } // if: quote
+    
+    else if ( currentChar == ';' ) {
+      while ( cin.get() != '\n' ) {
+        cin.get();
+      } // while: get rid off the remain line
+      
+      newToken.content = "\0";
+    } // if: comment
     
     else {
-      cout << m_InputTerm << endl;
-    } // else: symbol
-  } // PrintSExp()
+      char peekChar = cin.peek();
+      
+      while ( peekChar != '\n' && peekChar != ' ' && peekChar != '\t' && peekChar != '\'' &&
+             peekChar != '"' && peekChar != '(' && peekChar != ')' && peekChar != ';' ) {
+        newToken.content.push_back( cin.get() );
+        peekChar = cin.peek();
+      } // while: get the rest of the token
+      
+      newToken.type = CheckTokenType( newToken );
+    } // else: other types
+    
+//    cout << newToken.content << " " << newToken.type << endl;
+    
+    m_LineOfTokens.push_back( newToken ); // push the newToken to the vector
+    
+    if ( newToken.content != "\0" ) {
+      return true;
+    } // if: get a single token successfully
+    
+    else {
+      return false;
+    } // else: can't get any token
+  } // GetToken()
+
+  bool CheckSExp() {
+    if ( IsAtom( m_LineOfTokens.back() ) ) {
+      cout << "<ATOM> ";
+      return true;
+    } // if: <ATOM>
+    
+    else if ( m_LineOfTokens.back().type == LEFT_PAREN ) {
+      if ( NOT HasNextToken() ) {
+        return false;
+      } // if: check if there is any token left
+      cout << "LEFT-PAREN ";
+      
+      if ( CheckSExp() == true ) {
+        if ( NOT HasNextToken() ) {
+          return false;
+        } // if: check if there is any token left
+
+        while ( CheckSExp() == true ) {
+          if ( NOT HasNextToken() ) {
+            return false;
+          } // if: check if there is any token left
+        } // while: { <S-exp> }
+        
+        if ( m_LineOfTokens.back().type == DOT ) {
+          if ( NOT HasNextToken() ) {
+            return false;
+          } // if: check if there is any token left
+          cout << "DOT ";
+          
+          if ( CheckSExp() == true ) {
+            if ( NOT HasNextToken() ) {
+              return false;
+            } // if: check if there is any token left
+          } // if: <S-exp>
+          
+          else {
+            return false;
+          } // else: syntax error
+        } // if: [ DOT <S-exp> ]
+        
+        if ( m_LineOfTokens.back().type == RIGHT_PAREN ) {
+          cout << "RIGHT_PAREN";
+          return true;
+        } // if: RIGHT-PAREN
+        
+        else {
+          return false;
+        } // else: syntax error
+      } // if: <S-exp>
+      
+      else {
+        return false;
+      } // else: syntax error
+    } // if: LEFT-PAREN
+    
+    else if ( m_LineOfTokens.back().type == QUOTE ) {
+      if ( NOT HasNextToken() ) {
+        return false;
+      } // if: check if there is any token left
+      cout << "QUOTE ";
+      
+      if ( CheckSExp() == true ) {
+        cout << "<S-exp" << endl;
+        return true;
+      } // if: <S-exp>
+      
+      else {
+        return false;
+      } // else: syntax error
+    } // if: QUOTE
+    
+    return false;
+  } // SyntaxAnalyze()
+  
+//  void PrintSExp() {
+//    if ( m_IsExitCase ) {
+//      return;
+//    } // if: exit case
+//
+//    else if ( CheckTokenType() == INT ) {
+//      cout << atoi( m_CurrentToken.c_str() ) << endl;
+//    } // else if: int case
+//
+//    else if ( CheckTokenType() == FLOAT ) {
+//      cout << fixed << setprecision( 3 ) << round( atof( m_CurrentToken.c_str() )*1000 ) / 1000 << endl;
+//    } // else if: float case with precision and round
+//
+//    else if ( CheckTokenType() == NIL ) {
+//      cout << "nil" << endl;
+//    } // else if: nil
+//
+//    else if ( CheckTokenType() == T ) {
+//      cout << "#t" << endl;
+//    } // else if: #t case
+//
+//    else {
+//      cout << m_CurrentToken << endl;
+//    } // else: symbol
+//  } // PrintSExp()
   
   void ReadSExp() {
-    m_InputTerm = "\0";
-    GetToken();
-    PrintSExp();
+    m_LineOfTokens.clear();
+    if ( HasNextToken() ) {
+      if ( CheckSExp() == true ) {
+        //      PrintSExp();
+      } // if: no error
+      //    else {
+      //      PrintErrorMessage();
+      //    } // else: error
+    } // if: check if there's any command
+    
+    else return;
   } // ReadSExp()
 }; // Project1Class
 
@@ -286,9 +411,9 @@ int main() {
     cout << "> ";
     project1.ReadSExp();
     
-    if ( project1.GetInputTerm() == "(exit)" ) {
-      end = true;
-    } // if: check exit
+//    if ( project1.CheckExit() ) {
+//      end = true;
+//    } // if: check exit
     
     cout << endl;
   } while ( NOT end );
