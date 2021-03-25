@@ -31,7 +31,7 @@ enum TokenType {
 }; // token type enum
 
 // define structures
-struct TokenStruct {
+struct TokenStruct{
   string content;
   TokenType type;
 }; // TokenStruct
@@ -44,20 +44,13 @@ struct TreeStruct {
 
 class Project1Class {
 private:
+  bool m_IsExit;
   vector<TokenStruct> m_LineOfTokens;
+  TreeStruct *m_Root;
+  TreeStruct *m_CurrentTreeLocation;
   
 public:
-  char GetChar() {
-    char peekChar = '\0';
-    
-    while ( cin.peek() == ' ' || cin.peek() == '\n' ) {
-      cin.get();
-      peekChar = cin.peek();
-    } // while: get the first non-whitespace
-    
-    return cin.get();
-  } // GetChar()
-  
+  // ----------------------------------------------------------------------- Is function -----------------------------------------------------------------------------------
   bool IsFloat( TokenStruct newToken ) {
     for ( int i = 0 ; i < newToken.content.length() ; i++ ) {
       if ( newToken.content[i] == '.' ) {
@@ -83,6 +76,113 @@ public:
       return false;
     } // else: not atom
   } // IsAtom()
+  
+  // ---------------------------------------------------------------------- Token Process ----------------------------------------------------------------------------------
+  char GetChar() {
+    while ( cin.peek() == ' ' || cin.peek() == '\n' || cin.peek() == '\r' || cin.peek() == '\t' ) {
+      cout << cin.peek();
+      cin.get();
+    } // while: get the first non-whitespace
+    
+    return cin.get();
+  } // GetChar()
+  
+  string GetString() {
+    char currentChar = cin.get();
+    string currentString = "\0";
+
+    while ( currentChar != '\"' ) {
+      char peekChar = cin.peek();
+      
+      if ( currentChar == '\\' && peekChar == '\"' ) {
+        currentString.push_back( currentChar );
+        currentString.push_back( cin.get() );
+      } // if: "\"" case
+      
+      else {
+        currentString.push_back( currentChar );
+      } // else: normal string
+
+      currentChar = cin.get();
+    } // while: get the string
+
+    currentString.push_back( currentChar );
+    // push the last " into the string
+    return currentString;
+  } // GetString()
+  
+  bool HasNextToken() {
+    char currentChar = GetChar();
+    
+    if ( currentChar == '\0' ) {
+      return false;
+    } // if gets nothing
+    
+    TokenStruct newToken;
+    newToken.content.push_back( currentChar );
+    // initialize new token
+    
+    if ( currentChar == '(' ) {
+      while ( cin.peek() == ' ' || cin.peek() == '\n' || cin.peek() == '\r' || cin.peek() == '\t' ) {
+        cin.get();
+      } // while: get the whitespaces after the left-paren
+      
+      if ( cin.peek() == ')' ) {
+        newToken.content.push_back( cin.get() );
+        newToken.type = NIL;
+      } // if: () case
+      else {
+        newToken.type = LEFT_PAREN;
+      } // else: left parenthesis
+    } // if: left parenthesis
+
+    else if ( currentChar == ')' ) {
+      newToken.type = RIGHT_PAREN;
+    } // if: right parenthesis
+    
+    else if ( currentChar == '"' ) {
+      newToken.content.append( GetString() );
+      newToken.type = STRING;
+    } // if: string
+
+    else if ( currentChar == '\'' ) {
+      newToken.content = currentChar;
+      newToken.type = QUOTE;
+    } // if: quote
+    
+    else if ( currentChar == ';' ) {
+      while ( cin.get() != '\n' ) {
+        cin.get();
+      } // while: get rid off the remain line
+      
+      newToken.content = "\0";
+    } // if: comment
+    
+    else {
+      
+      while ( cin.peek() != '\n' && cin.peek() != ' ' &&
+              cin.peek() != '\t' && cin.peek() != '\'' &&
+              cin.peek() != '"' && cin.peek() != '(' &&
+              cin.peek() != ')' && cin.peek() != ';' &&
+              cin.peek() == '\r' ) {
+        newToken.content.push_back( cin.get() );
+      } // while: get the rest of the token
+      
+      newToken.type = CheckTokenType( newToken );
+    } // else: other types
+    
+    //cout << newToken.content << " " << newToken.type << endl;
+    
+    m_LineOfTokens.push_back( newToken ); // push the newToken to the vector
+    
+    if ( newToken.content != "\0" ) {
+      return true;
+    } // if: get a single token successfully
+    
+    else {
+      return false;
+    } // else: can't get any token
+  } // GetToken()
   
   TokenType CheckTokenType( TokenStruct newToken ) {
     bool isNumber = false;
@@ -143,33 +243,145 @@ public:
     } // else: check t, nil or dot
   } // CheckTokenType()
   
-//  TokenType IsAtom() {
-//
-//  }
+  // ----------------------------------------------------------------------  Check Syntax ----------------------------------------------------------------------------------
+  bool CheckSExp() {
+    // <ATOM>
+    if ( IsAtom( m_LineOfTokens.back() ) ) {
+      cout << "<ATOM> ";
+
+      if ( m_Root != NULL ) {
+        if ( m_CurrentTreeLocation->leftToken != NULL ) {
+          RightInsertToken();
+        } // if: left is empty, insert left
+
+        else {
+          LeftInsertToken();
+        } // else: insert at the right
+      } // if: check if there's any tree
+      
+      return true;
+    } // if: <ATOM>
+    
+    // LEFT-PAREN
+    else if ( m_LineOfTokens.back().type == LEFT_PAREN ) {
+      // initialize or create node
+      if ( m_Root == NULL ) {
+        InitializeRoot();
+      } // if: initialize the root pointer
+
+      else {
+        CreateNode();
+      } // else: create a node
+
+      if ( NOT HasNextToken() ) {
+        return false;
+      } // if: check if there is any token left
+      cout << "LEFT-PAREN ";
+      
+      // LEFT-PAREN <S-exp>
+      if ( CheckSExp() == true ) {
+        if ( NOT HasNextToken() ) {
+          return false;
+        } // if: check if there is any token left
+
+        // LEFT-PAREN <S-exp> { <S-exp> }
+        while ( CheckSExp() == true ) {
+          if ( NOT HasNextToken() ) {
+            return false;
+          } // if: check if there is any token left
+        } // while: { <S-exp> }
+        
+        // LEFT-PAREN <S-exp> { <S-exp> } [ DOT ]
+        if ( m_LineOfTokens.back().type == DOT ) {
+          if ( NOT HasNextToken() ) {
+            return false;
+          } // if: check if there is any token left
+          cout << "DOT ";
+          
+          // LEFT-PAREN <S-exp> { <S-exp> } [ DOT <S-exp> ]
+          if ( CheckSExp() == true ) {
+            if ( NOT HasNextToken() ) {
+              return false;
+            } // if: check if there is any token left
+          } // if: <S-exp>
+          
+          else {
+            return false;
+          } // else: syntax error
+        } // if: [ DOT <S-exp> ]
+        
+        // LEFT-PAREN <S-exp> { <S-exp> } [ DOT <S-exp> ] RIGHT-PAREN
+        if ( m_LineOfTokens.back().type == RIGHT_PAREN ) {
+          cout << "RIGHT_PAREN ";
+          return true;
+        } // if: RIGHT-PAREN
+        
+        else {
+          return false;
+        } // else: syntax error
+      } // if: <S-exp>
+      
+      else {
+        return false;
+      } // else: syntax error
+    } // if: LEFT-PAREN
+    
+    // QUOTE
+    else if ( m_LineOfTokens.back().type == QUOTE ) {
+      if ( NOT HasNextToken() ) {
+        return false;
+      } // if: check if there is any token left
+      cout << "QUOTE ";
+      
+      // QUOTE <S-exp>
+      if ( CheckSExp() == true ) {
+        cout << "<S-exp" << endl;
+        return true;
+      } // if: <S-exp>
+      
+      else {
+        return false;
+      } // else: syntax error
+    } // if: QUOTE
+    
+    return false;
+  } // SyntaxAnalyze()
   
-//  void CreateTree() {
-//    TreeStruct *root = new TreeStruct;
-//    root->leftNode = NULL;
-//    root->rightNode = NULL;
-//    root->leftToken = NULL;
-//    root->rightToken = NULL;
-//    // initialize the first node
-//    TreeStruct *currentNode = root;
-//    // declare the walking pointer
-//    int leftParenthesisCount = 1;
-//    int rightParenthesisCount = 0;
-//    // count of the parenthesis
-//    string currentValue = "\0";
-//    cin >> currentValue;
-//
-//    if ( currentValue == "exit)") {
-//      m_IsExitCase = true;
-//      return;
-//    } // if: (exit)
-//
-//
-//  } // CreateTree()
-  
+  // --------------------------------------------------------------------- Tree Constructing -------------------------------------------------------------------------------
+  void InitializeRoot() {
+    m_Root = new TreeStruct;
+    m_Root->leftNode = NULL;
+    m_Root->rightNode = NULL;
+    m_Root->leftToken = NULL;
+    m_Root->rightToken = NULL;
+    m_CurrentTreeLocation = m_Root;
+  } // InitializeRoot()
+
+  void CreateNode() {
+    if ( m_CurrentTreeLocation->leftToken == NULL ) {
+      m_CurrentTreeLocation->leftNode = new TreeStruct;
+      m_CurrentTreeLocation = m_CurrentTreeLocation->leftNode;
+    } // if: check left or right
+    
+    else {
+      m_CurrentTreeLocation->rightNode = new TreeStruct;
+      m_CurrentTreeLocation = m_CurrentTreeLocation->rightNode;
+    } // else: create at right
+    
+    m_CurrentTreeLocation->leftNode = NULL;
+    m_CurrentTreeLocation->rightNode = NULL;
+    m_CurrentTreeLocation->leftToken = NULL;
+    m_CurrentTreeLocation->rightToken = NULL;
+  } // LeftCreateNode()
+
+  void LeftInsertToken() {
+    m_CurrentTreeLocation->leftToken = &m_LineOfTokens.back();
+  } // LeftInsertToken()
+
+  void RightInsertToken() {
+    m_CurrentTreeLocation->rightToken = &m_LineOfTokens.back();
+  } // RightInsertToken()
+  // ----------------------------------------------------------------------- Print Result ----------------------------------------------------------------------------------
   void PrintString() {
     char currentChar = cin.get();
     
@@ -205,173 +417,6 @@ public:
     
     cout << currentChar;
   } // PrintString()
-
-  string GetString() {
-    char currentChar = cin.get();
-    string currentString = "\0";
-
-    while ( currentChar != '\"' ) {
-      char peekChar = cin.peek();
-      
-      if ( currentChar == '\\' && peekChar == '\"' ) {
-        currentString.push_back( currentChar );
-        currentString.push_back( cin.get() );
-      } // if: "\"" case
-      
-      else {
-        currentString.push_back( currentChar );
-      } // else: normal string
-
-      currentChar = cin.get();
-    } // while: get the string
-
-    currentString.push_back( currentChar );
-    // push the last " into the string
-    return currentString;
-  } // GetString()
-  
-  bool HasNextToken() {
-    char currentChar = GetChar();
-    
-    if ( currentChar == '\0' ) {
-      return false;
-    } // if gets nothing
-    
-    TokenStruct newToken;
-    newToken.content.push_back( currentChar );
-    // initialize new token
-    
-    if ( currentChar == '(' ) {
-      char peekChar = cin.peek();
-      if ( peekChar == ')' ) {
-        newToken.content.push_back( cin.get() );
-        newToken.type = NIL;
-      } // if: () case
-      else {
-        newToken.type = LEFT_PAREN;
-      } // else: left parenthesis
-    } // if: left parenthesis
-
-    else if ( currentChar == ')' ) {
-      newToken.type = RIGHT_PAREN;
-    } // if: right parenthesis
-    
-    else if ( currentChar == '"' ) {
-      newToken.content.append( GetString() );
-      newToken.type = STRING;
-    } // if: string
-
-    else if ( currentChar == '\'' ) {
-      newToken.content = currentChar;
-      newToken.type = QUOTE;
-    } // if: quote
-    
-    else if ( currentChar == ';' ) {
-      while ( cin.get() != '\n' ) {
-        cin.get();
-      } // while: get rid off the remain line
-      
-      newToken.content = "\0";
-    } // if: comment
-    
-    else {
-      char peekChar = cin.peek();
-      
-      while ( peekChar != '\n' && peekChar != ' ' && peekChar != '\t' && peekChar != '\'' &&
-             peekChar != '"' && peekChar != '(' && peekChar != ')' && peekChar != ';' ) {
-        newToken.content.push_back( cin.get() );
-        peekChar = cin.peek();
-      } // while: get the rest of the token
-      
-      newToken.type = CheckTokenType( newToken );
-    } // else: other types
-    
-    cout << newToken.content << " " << newToken.type << endl;
-    
-    m_LineOfTokens.push_back( newToken ); // push the newToken to the vector
-    
-    if ( newToken.content != "\0" ) {
-      return true;
-    } // if: get a single token successfully
-    
-    else {
-      return false;
-    } // else: can't get any token
-  } // GetToken()
-
-  bool CheckSExp() {
-    if ( IsAtom( m_LineOfTokens.back() ) ) {
-      cout << "<ATOM> ";
-      return true;
-    } // if: <ATOM>
-    
-    else if ( m_LineOfTokens.back().type == LEFT_PAREN ) {
-      if ( NOT HasNextToken() ) {
-        return false;
-      } // if: check if there is any token left
-      cout << "LEFT-PAREN ";
-      
-      if ( CheckSExp() == true ) {
-        if ( NOT HasNextToken() ) {
-          return false;
-        } // if: check if there is any token left
-
-        while ( CheckSExp() == true ) {
-          if ( NOT HasNextToken() ) {
-            return false;
-          } // if: check if there is any token left
-        } // while: { <S-exp> }
-        
-        if ( m_LineOfTokens.back().type == DOT ) {
-          if ( NOT HasNextToken() ) {
-            return false;
-          } // if: check if there is any token left
-          cout << "DOT ";
-          
-          if ( CheckSExp() == true ) {
-            if ( NOT HasNextToken() ) {
-              return false;
-            } // if: check if there is any token left
-          } // if: <S-exp>
-          
-          else {
-            return false;
-          } // else: syntax error
-        } // if: [ DOT <S-exp> ]
-        
-        if ( m_LineOfTokens.back().type == RIGHT_PAREN ) {
-          cout << "RIGHT_PAREN";
-          return true;
-        } // if: RIGHT-PAREN
-        
-        else {
-          return false;
-        } // else: syntax error
-      } // if: <S-exp>
-      
-      else {
-        return false;
-      } // else: syntax error
-    } // if: LEFT-PAREN
-    
-    else if ( m_LineOfTokens.back().type == QUOTE ) {
-      if ( NOT HasNextToken() ) {
-        return false;
-      } // if: check if there is any token left
-      cout << "QUOTE ";
-      
-      if ( CheckSExp() == true ) {
-        cout << "<S-exp" << endl;
-        return true;
-      } // if: <S-exp>
-      
-      else {
-        return false;
-      } // else: syntax error
-    } // if: QUOTE
-    
-    return false;
-  } // SyntaxAnalyze()
   
 //  void PrintSExp() {
 //    if ( m_IsExitCase ) {
@@ -401,16 +446,19 @@ public:
   
   void ReadSExp() {
     m_LineOfTokens.clear();
-    if ( HasNextToken() ) {
+    m_Root = NULL;
+    while ( HasNextToken() ) {
       if ( CheckSExp() == true ) {
+        cout << m_Root->leftToken->content << endl;
         //      PrintSExp();
       } // if: no error
-      //    else {
-      //      PrintErrorMessage();
-      //    } // else: error
+      else {
+        //PrintErrorMessage();
+        cout << "error" << endl;
+      } // else: error
     } // if: check if there's any command
     
-    else return;
+    return;
   } // ReadSExp()
 }; // Project1Class
 
