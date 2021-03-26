@@ -35,12 +35,17 @@ struct TokenStruct{
   string content;
   TokenType type;
 }; // TokenStruct
+
 struct TreeStruct {
   TokenStruct* leftToken;
   TokenStruct* rightToken;
   TreeStruct* leftNode;
   TreeStruct* rightNode;
 }; // TreeStruct
+
+// define constant variable to track the cursor
+static int g_CursorColumn = 0;
+static int g_CursorRow = 1;
 
 class Project1Class {
 private:
@@ -83,7 +88,8 @@ public:
     m_Root = NULL;
     if ( HasNextToken() ) {
       if ( CheckSExp() == true ) {
-        cout << m_Root->leftToken->content << endl;
+        //cout << m_Root->leftToken->content << endl;
+        cout << "Cursor Position: Line " << g_CursorRow << " Column " << g_CursorColumn << endl;
         PrintSExp();
       } // if: no error
       else {
@@ -98,18 +104,29 @@ public:
   char PeekCharAndGetRidOfComment() {
     char peekChar = cin.peek();
     
-    while ( peekChar == ' ' || peekChar == '\n' ||
-            peekChar == '\r' || peekChar == '\t' ||
-            peekChar == ';' ) {
-      while ( peekChar == ';' ) {
+    while ( peekChar == ' ' || peekChar == '\n' || peekChar == '\r' || peekChar == '\t' || peekChar == ';' ) {
+      if ( peekChar == ';' ) {
         while ( peekChar != '\n' && peekChar != '\r' ) {
           peekChar = cin.get();
+          g_CursorColumn++;
         } // while: get the current line
         
-        cin.get();
-      } // while: check if there's any comment
-      cin.get();
-      peekChar = cin.peek();
+        g_CursorRow++;
+        peekChar = cin.peek();
+        g_CursorColumn = 0;
+      } // if: check if there's any comment
+      
+      else {
+        if ( cin.get() == '\n' ) {
+          g_CursorRow++;
+          g_CursorColumn = 0;
+        } // if: next line, modifiy cursor position
+        
+        else {
+          g_CursorColumn++;
+        } // else: cursor move right
+        peekChar = cin.peek();
+      } // else: get next char
     } // while: get the first non-whitespace
     
     return peekChar;
@@ -117,6 +134,7 @@ public:
   
   string GetString() {
     char currentChar = cin.get();
+    g_CursorColumn++;
     string currentString = "\0";
 
     while ( currentChar != '\"' ) {
@@ -125,6 +143,7 @@ public:
       if ( currentChar == '\\' && peekChar == '\"' ) {
         currentString.push_back( currentChar );
         currentString.push_back( cin.get() );
+        g_CursorColumn++;
       } // if: "\"" case
       
       else {
@@ -132,6 +151,7 @@ public:
       } // else: normal string
 
       currentChar = cin.get();
+      g_CursorColumn++;
     } // while: get the string
 
     currentString.push_back( currentChar );
@@ -147,13 +167,14 @@ public:
     } // if gets nothing
     
     TokenStruct newToken;
+    newToken.content.push_back( cin.get() );
+    g_CursorColumn++;
     // initialize new token
     
     if ( currentChar == '(' ) {
-      newToken.content.push_back( cin.get() );
-      
       if ( PeekCharAndGetRidOfComment() == ')' ) {
         newToken.content.push_back( cin.get() );
+        g_CursorColumn++;
         newToken.type = NIL;
       } // if: () case
       
@@ -163,36 +184,32 @@ public:
     } // if: left parenthesis
 
     else if ( currentChar == ')' ) {
-      newToken.content.push_back( cin.get() );
       newToken.type = RIGHT_PAREN;
     } // else if: right parenthesis
     
     else if ( currentChar == '"' ) {
-      newToken.content.push_back( cin.get() );
       newToken.content.append( GetString() );
       newToken.type = STRING;
     } // else if: string
 
     else if ( currentChar == '\'' ) {
-      newToken.content.push_back( cin.get() );
       newToken.type = QUOTE;
     } // else if: quote
 
     else {
-      newToken.content.push_back( cin.get() );
-      
       while ( cin.peek() != '\n' && cin.peek() != ' ' &&
               cin.peek() != '\t' && cin.peek() != '\'' &&
               cin.peek() != '"' && cin.peek() != '(' &&
               cin.peek() != ')' && cin.peek() != ';' &&
               cin.peek() != '\r' ) {
         newToken.content.push_back( cin.get() );
+        g_CursorColumn++;
       } // while: get the rest of the token
       
       newToken.type = CheckTokenType( newToken );
     } // else: other types
     
-//    cout << newToken.content << " " << newToken.type << endl;
+    // cout << newToken.content << endl;
     
     if ( newToken.content != "\0" ) {
       m_LineOfTokens.push_back( newToken ); // push the newToken to the vector
