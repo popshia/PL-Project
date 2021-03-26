@@ -98,6 +98,8 @@ public:
       } // else: error
     } // if: check if there's any command
     
+    g_CursorRow = 0;
+    g_CursorColumn = 0;
     return;
   } // ReadSExp()
   
