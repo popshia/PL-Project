@@ -44,8 +44,8 @@ struct TreeStruct {
 }; // TreeStruct
 
 // define constant variable to track the cursor
-static int g_CursorColumn = 0;
-static int g_CursorRow = 1;
+static int u_CursorColumn = 0;
+static int u_CursorRow = 1;
 
 class Project1Class {
 private:
@@ -55,7 +55,12 @@ private:
   TreeStruct *m_CurrentTreeLocation;
   
 public:
-  // ----------------------------------------------------------------------- Is function -----------------------------------------------------------------------------------
+  
+  /*
+    -------------------- Is --------------------
+    ----------------- function -----------------
+  */
+  
   bool IsFloat( TokenStruct newToken ) {
     for ( int i = 0 ; i < newToken.content.length() ; i++ ) {
       if ( newToken.content[i] == '.' ) {
@@ -73,7 +78,7 @@ public:
          currentToken.type == STRING ||
          currentToken.type == NIL ||
          currentToken.type == T ||
-        currentToken.content == "()" ) {
+         currentToken.content == "()" ) {
       return true;
     } // if: atom
     
@@ -82,61 +87,67 @@ public:
     } // else: not atom
   } // IsAtom()
   
-  // ---------------------------------------------------------------------- Token Process ----------------------------------------------------------------------------------
+  /*
+    ------------------- Token ------------------
+    ---------------- Processing ----------------
+  */
+  
   void ReadSExp() {
     m_LineOfTokens.clear();
     m_Root = NULL;
     if ( HasNextToken() ) {
       if ( CheckSExp() == true ) {
-        //cout << m_Root->leftToken->content << endl;
-        cout << "Cursor Position: Line " << g_CursorRow << " Column " << g_CursorColumn << endl;
+        // cout << m_Root->leftToken->content << endl;
+        cout << "Cursor Position: Line " << u_CursorRow << " Column " << u_CursorColumn << endl;
         PrintSExp();
       } // if: no error
       else {
-        //PrintErrorMessage();
+        // PrintErrorMessage();
         cout << "error" << endl;
       } // else: error
     } // if: check if there's any command
     
-    g_CursorRow = 0;
-    g_CursorColumn = 0;
+    u_CursorRow = 0;
+    u_CursorColumn = 0;
     return;
   } // ReadSExp()
   
   char PeekCharAndGetRidOfComment() {
     char peekChar = cin.peek();
     
-    while ( peekChar == ' ' || peekChar == '\n' || peekChar == '\r' || peekChar == '\t' || peekChar == ';' ) {
+    while ( peekChar == ' ' || peekChar == '\n' || peekChar == '\r' ||
+            peekChar == '\t' || peekChar == ';' ) {
       if ( peekChar == ';' ) {
         while ( peekChar != '\n' && peekChar != '\r' ) {
           peekChar = cin.get();
-          g_CursorColumn++;
+          u_CursorColumn++;
         } // while: get the current line
         
-        g_CursorRow++;
+        u_CursorRow++;
         peekChar = cin.peek();
-        g_CursorColumn = 0;
+        u_CursorColumn = 0;
       } // if: check if there's any comment
       
       else {
         if ( cin.get() == '\n' ) {
-          g_CursorRow++;
-          g_CursorColumn = 0;
+          u_CursorRow++;
+          u_CursorColumn = 0;
         } // if: next line, modifiy cursor position
         
         else {
-          g_CursorColumn++;
+          u_CursorColumn++;
         } // else: cursor move right
+        
         peekChar = cin.peek();
       } // else: get next char
     } // while: get the first non-whitespace
     
     return peekChar;
-  } // GetChar()
+  } // PeekCharAndGetRidOfComment()
   
   string GetString() {
     char currentChar = cin.get();
-    g_CursorColumn++;
+    u_CursorColumn++;
     string currentString = "\0";
 
     while ( currentChar != '\"' ) {
@@ -145,7 +156,7 @@ public:
       if ( currentChar == '\\' && peekChar == '\"' ) {
         currentString.push_back( currentChar );
         currentString.push_back( cin.get() );
-        g_CursorColumn++;
+        u_CursorColumn++;
       } // if: "\"" case
       
       else {
@@ -153,7 +164,7 @@ public:
       } // else: normal string
 
       currentChar = cin.get();
-      g_CursorColumn++;
+      u_CursorColumn++;
     } // while: get the string
 
     currentString.push_back( currentChar );
@@ -162,21 +173,21 @@ public:
   } // GetString()
   
   bool HasNextToken() {
-    char currentChar = PeekCharAndGetRidOfComment();
+    char peekChar = PeekCharAndGetRidOfComment();
     
-    if ( currentChar == '\0' ) {
+    if ( peekChar == '\0' ) {
       return false;
     } // if gets nothing
     
     TokenStruct newToken;
     newToken.content.push_back( cin.get() );
-    g_CursorColumn++;
+    u_CursorColumn++;
     // initialize new token
     
-    if ( currentChar == '(' ) {
+    if ( peekChar == '(' ) {
       if ( PeekCharAndGetRidOfComment() == ')' ) {
         newToken.content.push_back( cin.get() );
-        g_CursorColumn++;
+        u_CursorColumn++;
         newToken.type = NIL;
       } // if: () case
       
@@ -185,16 +196,16 @@ public:
       } // else: left parenthesis
     } // if: left parenthesis
 
-    else if ( currentChar == ')' ) {
+    else if ( peekChar == ')' ) {
       newToken.type = RIGHT_PAREN;
     } // else if: right parenthesis
     
-    else if ( currentChar == '"' ) {
+    else if ( peekChar == '"' ) {
       newToken.content.append( GetString() );
       newToken.type = STRING;
     } // else if: string
 
-    else if ( currentChar == '\'' ) {
+    else if ( peekChar == '\'' ) {
       newToken.type = QUOTE;
     } // else if: quote
 
@@ -205,7 +216,7 @@ public:
               cin.peek() != ')' && cin.peek() != ';' &&
               cin.peek() != '\r' ) {
         newToken.content.push_back( cin.get() );
-        g_CursorColumn++;
+        u_CursorColumn++;
       } // while: get the rest of the token
       
       newToken.type = CheckTokenType( newToken );
@@ -221,7 +232,7 @@ public:
     else {
       return false;
     } // else: can't get any token
-  } // GetToken()
+  } // HasNextToken()
   
   TokenType CheckTokenType( TokenStruct newToken ) {
     bool isNumber = false;
@@ -243,7 +254,8 @@ public:
       } // else if: there are digits in the token
     } // for: go through the token
     
-    if ( ( plusSignBitCount > 0 && minusSignBitCount > 0 ) || plusSignBitCount > 1 || minusSignBitCount > 1 ) {
+    if ( ( plusSignBitCount > 0 && minusSignBitCount > 0 ) ||
+         plusSignBitCount > 1 || minusSignBitCount > 1 ) {
       isNumber = false;
     } // if: more than one sign bit
 
@@ -282,7 +294,11 @@ public:
     } // else: check t, nil or dot
   } // CheckTokenType()
   
-  // ----------------------------------------------------------------------  Check Syntax ----------------------------------------------------------------------------------
+  /*
+    ------------------- Check ------------------
+    ------------------- Syntax -----------------
+  */
+  
   bool CheckSExp() {
     // <ATOM>
     if ( IsAtom( m_LineOfTokens.back() ) ) {
@@ -315,6 +331,7 @@ public:
       if ( NOT HasNextToken() ) {
         return false;
       } // if: check if there is any token left
+      
       cout << "LEFT-PAREN ";
       
       // LEFT-PAREN <S-exp>
@@ -335,6 +352,7 @@ public:
           if ( NOT HasNextToken() ) {
             return false;
           } // if: check if there is any token left
+          
           cout << "DOT ";
           
           // LEFT-PAREN <S-exp> { <S-exp> } [ DOT <S-exp> ]
@@ -370,6 +388,7 @@ public:
       if ( NOT HasNextToken() ) {
         return false;
       } // if: check if there is any token left
+      
       cout << "QUOTE ";
       
       // QUOTE <S-exp>
@@ -384,9 +403,13 @@ public:
     } // else if: QUOTE
     
     return false;
-  } // SyntaxAnalyze()
+  } // CheckSExp()
   
-  // --------------------------------------------------------------------- Tree Constructing -------------------------------------------------------------------------------
+  /*
+    ------------------- Tree -------------------
+    --------------- Constructing ---------------
+  */
+  
   void InitializeRoot() {
     m_Root = new TreeStruct;
     m_Root->leftNode = NULL;
@@ -411,23 +434,34 @@ public:
     m_CurrentTreeLocation->rightNode = NULL;
     m_CurrentTreeLocation->leftToken = NULL;
     m_CurrentTreeLocation->rightToken = NULL;
-  } // LeftCreateNode()
+  } // CreateNode()
 
   void LeftInsertToken() {
-    m_CurrentTreeLocation->leftToken = &m_LineOfTokens.back();
+    m_CurrentTreeLocation->leftToken = new TokenStruct;
+    m_CurrentTreeLocation->leftToken->content = m_LineOfTokens.back().content;
+    m_CurrentTreeLocation->leftToken->type = m_LineOfTokens.back().type;
   } // LeftInsertToken()
 
   void RightInsertToken() {
-    m_CurrentTreeLocation->rightToken = &m_LineOfTokens.back();
+    m_CurrentTreeLocation->rightToken = new TokenStruct;
+    m_CurrentTreeLocation->rightToken->content = m_LineOfTokens.back().content;
+    m_CurrentTreeLocation->rightToken->type = m_LineOfTokens.back().type;
   } // RightInsertToken()
-  // ----------------------------------------------------------------------- Print Result ----------------------------------------------------------------------------------
+  
+  /*
+    ------------------- Print ------------------
+    ------------------ Results -----------------
+  */
+  
   void PrintSExp() {
     if ( m_LineOfTokens.front().type == INT ) {
       cout << atoi( m_LineOfTokens.back().content.c_str() ) << endl;
-    } // else if: int case
+    } // if: int case
 
-    else if ( m_LineOfTokens.front().type== FLOAT ) {
-      cout << fixed << setprecision( 3 ) << round( atof( m_LineOfTokens.back().content.c_str() )*1000 ) / 1000 << endl;
+    else if ( m_LineOfTokens.front().type == FLOAT ) {
+      cout << fixed << setprecision( 3 )
+           << round( atof( m_LineOfTokens.back().content.c_str() )*1000 ) / 1000
+           << endl;
     } // else if: float case with precision and round
 
     else if ( m_LineOfTokens.front().type == NIL ) {
@@ -447,7 +481,7 @@ public:
     } // else if: quote
 
     else if ( m_LineOfTokens.front().type == LEFT_PAREN ) {
-      //PrintTree();
+      // PrintTree();
     } // else if: dot pair, print tree
 
     else {
@@ -466,7 +500,7 @@ public:
           cout << '\t';
         } // else if: '\t'
 
-        else if ( stringContent[ index + 1 ] == '"') {
+        else if ( stringContent[ index + 1 ] == '"' ) {
           cout << '"';
         } // else if: '"'
 
@@ -503,9 +537,9 @@ int main() {
     cout << "> ";
     project1.ReadSExp();
     
-//    if ( project1.CheckExit() ) {
-//      end = true;
-//    } // if: check exit
+    //  if ( project1.CheckExit() ) {
+    //  end = true;
+    //  } // if: check exit
     
     cout << endl;
   } while ( NOT end );
