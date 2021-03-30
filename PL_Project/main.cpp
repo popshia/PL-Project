@@ -39,6 +39,7 @@ struct TokenStruct{
 struct TreeStruct {
   TokenStruct* leftToken;
   TokenStruct* rightToken;
+  TreeStruct* previousNode;
   TreeStruct* leftNode;
   TreeStruct* rightNode;
 }; // TreeStruct
@@ -328,7 +329,7 @@ public:
         CreateNode();
       } // else: create a node
 
-      if ( NOT HasNextToken() ) {
+      if ( HasNextToken() == false ) {
         return false;
       } // if: check if there is any token left
       
@@ -336,20 +337,20 @@ public:
       
       // LEFT-PAREN <S-exp>
       if ( CheckSExp() == true ) {
-        if ( NOT HasNextToken() ) {
+        if ( HasNextToken() == false ) {
           return false;
         } // if: check if there is any token left
 
         // LEFT-PAREN <S-exp> { <S-exp> }
         while ( CheckSExp() == true ) {
-          if ( NOT HasNextToken() ) {
+          if ( HasNextToken() == false ) {
             return false;
           } // if: check if there is any token left
         } // while: { <S-exp> }
         
         // LEFT-PAREN <S-exp> { <S-exp> } [ DOT ]
         if ( m_LineOfTokens.back().type == DOT ) {
-          if ( NOT HasNextToken() ) {
+          if ( HasNextToken() == false ) {
             return false;
           } // if: check if there is any token left
           
@@ -357,7 +358,7 @@ public:
           
           // LEFT-PAREN <S-exp> { <S-exp> } [ DOT <S-exp> ]
           if ( CheckSExp() == true ) {
-            if ( NOT HasNextToken() ) {
+            if ( HasNextToken() == false ) {
               return false;
             } // if: check if there is any token left
           } // if: <S-exp>
@@ -370,6 +371,7 @@ public:
         // LEFT-PAREN <S-exp> { <S-exp> } [ DOT <S-exp> ] RIGHT-PAREN
         if ( m_LineOfTokens.back().type == RIGHT_PAREN ) {
           cout << "RIGHT_PAREN ";
+          m_CurrentTreeLocation = m_CurrentTreeLocation->previousNode;
           return true;
         } // if: RIGHT-PAREN
         
@@ -385,7 +387,7 @@ public:
     
     // QUOTE
     else if ( m_LineOfTokens.back().type == QUOTE ) {
-      if ( NOT HasNextToken() ) {
+      if ( HasNextToken() == false ) {
         return false;
       } // if: check if there is any token left
       
@@ -414,19 +416,22 @@ public:
     m_Root = new TreeStruct;
     m_Root->leftNode = NULL;
     m_Root->rightNode = NULL;
+    m_Root->previousNode = NULL;
     m_Root->leftToken = NULL;
     m_Root->rightToken = NULL;
     m_CurrentTreeLocation = m_Root;
   } // InitializeRoot()
 
   void CreateNode() {
-    if ( m_CurrentTreeLocation->leftToken == NULL ) {
+    if ( m_CurrentTreeLocation->leftNode == NULL ) {
       m_CurrentTreeLocation->leftNode = new TreeStruct;
+      m_CurrentTreeLocation->leftNode->previousNode = m_CurrentTreeLocation;
       m_CurrentTreeLocation = m_CurrentTreeLocation->leftNode;
     } // if: check left or right
     
     else {
       m_CurrentTreeLocation->rightNode = new TreeStruct;
+      m_CurrentTreeLocation->rightNode->previousNode = m_CurrentTreeLocation;
       m_CurrentTreeLocation = m_CurrentTreeLocation->rightNode;
     } // else: create at right
     
