@@ -31,6 +31,10 @@ enum TokenType {
   LEFT_PAREN, RIGHT_PAREN, INT, STRING, DOT, FLOAT, NIL, T, QUOTE, SYMBOL
 }; // token type enum
 
+enum ErrorType {
+  NO_CLOSING_QUOTE, UNEXPECTED_TOKEN_ATOM_LEFT_PAREN, UNEXPECTED_RIGHT_PAREN, NO_MORE_INPUT
+}; // error type enum
+
 // define structures
 struct TokenStruct{
   string content;
@@ -44,6 +48,11 @@ struct TreeStruct {
   TreeStruct* leftNode;
   TreeStruct* rightNode;
 }; // TreeStruct
+
+struct ErrorStruct {
+  ErrorType errorType;
+  string errorMessage;
+}; // ErrorStruct
 
 // define global variable to track the cursor
 int g_CursorColumn = 0;
@@ -81,8 +90,7 @@ public:
          currentToken.type == FLOAT ||
          currentToken.type == STRING ||
          currentToken.type == NIL ||
-         currentToken.type == T ||
-         currentToken.content == "()" ) {
+         currentToken.type == T ) {
       return true;
     } // if: atom
     
@@ -99,35 +107,38 @@ public:
   void ReadSExp() {
     m_LineOfTokens.clear();
     m_Root = NULL;
+    m_ErrorMessage.clear();
     
-    /*
     try {
       HasNextToken();
-      CheckSExp();
+      
+      if ( CheckSExp() == false ) {
+        throw ( m_ErrorMessage.c_str() );
+      } // if: if there's an error, throw
+      
       PrintSExp();
     } // try: run the code
     catch ( const char* errorMessage ) {
-      cout << errorMessage;
+      cout << errorMessage << endl;
+      GetRidOfErrorLeftOvers();
     } // catch: error message
-    */
     
-    if ( HasNextToken() ) {
-      if ( CheckSExp() == true ) {
-        PrintSExp();
-      } // if: no error
-      else {
-        cout << m_ErrorMessage << endl;
-      } // else: error
-    } // if: check if there's any command
-    
-    else {
-      cout << m_ErrorMessage << endl;
-    } // else: read nothing or EOF or encountered error
-    
-    g_CursorLine = 0;
+    g_CursorLine = 1;
     g_CursorColumn = 0;
     return;
   } // ReadSExp()
+  
+  void GetRidOfErrorLeftOvers() {
+    char peekChar = cin.peek();
+    
+    while ( peekChar != '\n' && peekChar != '\r' &&
+           peekChar != EOF && peekChar != '\0' ) {
+      cin.get();
+      peekChar = cin.peek();
+    } // while: get the left overs
+    
+    cin.get();
+  } // GetRidOfErrorLeftOvers()
   
   char PeekCharAndGetRidOfComment() {
     char peekChar = cin.peek();
@@ -167,11 +178,12 @@ public:
     
     if ( currentChar == '\n' || currentChar == EOF ) {
       stringstream m_ErrorStream;
-      m_ErrorStream << "ERROR(no closing quote) : END-OF-LINE encounterd at "
+      m_ErrorStream << "ERROR(no closing quote) : "
+                    << "END-OF-LINE encounterd at "
                     << "Line " << g_CursorLine << " Column " << g_CursorColumn+1;
       m_ErrorMessage = m_ErrorStream.str();
-      return m_ErrorMessage;
-    } // check closure erroe
+      throw ( m_ErrorMessage.c_str() );
+    } // check closure error
     
     g_CursorColumn++;
     string currentString = "\0";
@@ -193,10 +205,12 @@ public:
       
       if ( currentChar == '\n' || currentChar == EOF ) {
         stringstream m_ErrorStream;
-        m_ErrorStream << "ERROR(no closing quote) : END-OF-LINE encounterd at "
+        m_ErrorStream << "ERROR(no closing quote) : "
+                      << "END-OF-LINE encounterd at "
                       << "Line " << g_CursorLine << " Column " << g_CursorColumn+1;
         m_ErrorMessage = m_ErrorStream.str();
-        return m_ErrorMessage;
+        throw ( m_ErrorMessage.c_str() );
+        // throw m_ErrorMessage;
       } // check closure error
       
       g_CursorColumn++;
@@ -237,11 +251,6 @@ public:
     
     else if ( peekChar == '"' ) {
       newToken.content.append( GetString() );
-      
-      if ( m_ErrorMessage != "\0" ) {
-        return false;
-      } // if: closure error
-      
       newToken.type = STRING;
     } // else if: string
 
@@ -401,7 +410,17 @@ public:
           } // if: check if there is any token left
           
           // cout << "DOT ";
-          
+          if ( ( ( IsAtom( m_LineOfTokens.at( m_LineOfTokens.size() - 3 ) ) &&
+                   m_LineOfTokens.at( m_LineOfTokens.size() - 2 ).type == DOT ) &&
+                 ( m_LineOfTokens.at( m_LineOfTokens.size() - 2 ).type == DOT &&
+                   IsAtom(m_LineOfTokens.back() ) ) ) ||
+               ( ( IsAtom( m_LineOfTokens.at( m_LineOfTokens.size() - 3 ) ) &&
+                   m_LineOfTokens.at( m_LineOfTokens.size() - 2 ).type == DOT ) &&
+                 ( m_LineOfTokens.at( m_LineOfTokens.size() - 2 ).type == DOT &&
+                   m_LineOfTokens.back().type == LEFT_PAREN ) ) ) {
+            m_ErrorMessage = "\0";
+          } // if: if the dot isn't really error, reset it
+               
           // LEFT-PAREN <S-exp> { <S-exp> } [ DOT <S-exp> ]
           if ( CheckSExp() == true ) {
             if ( HasNextToken() == false ) {
@@ -423,10 +442,12 @@ public:
         
         else {
           stringstream m_ErrorStream;
-          m_ErrorStream << "ERROR(unexpected token) : ')' expected when token at "
+          m_ErrorStream << "ERROR(unexpected token) : "
+                        << "')' expected when token at "
                         << "Line " << g_CursorLine << " Column " << g_CursorColumn
-                        << " is >>" << m_LineOfTokens.back().content << "<<";
+                        << " is >>" << m_LineOfTokens.back().content << "<<"; 
           m_ErrorMessage = m_ErrorStream.str();
+          // throw m_ErrorMessage;
           return false;
         } // else: syntax error
       } // if: <S-exp>
@@ -459,11 +480,15 @@ public:
       m_ErrorStream.clear();
     } // if: clear previous error message
     
-    stringstream m_ErrorStream;
-    m_ErrorStream << "ERROR(unexpected token) : atom or '(' expected when token at "
-         << "Line " << g_CursorLine << " Column " << g_CursorColumn
-         << " is >>" << m_LineOfTokens.back().content << "<<";
-    m_ErrorMessage = m_ErrorStream.str();
+    if ( m_LineOfTokens.back().type != DOT ) {
+      stringstream m_ErrorStream;
+      m_ErrorStream << "ERROR(unexpected token) : "
+      << "atom or '(' expected when token at "
+      << "Line " << g_CursorLine << " Column " << g_CursorColumn
+      << " is >>" << m_LineOfTokens.back().content << "<<";
+      m_ErrorMessage = m_ErrorStream.str();
+    }
+    
     return false;
   } // CheckSExp()
   
@@ -499,7 +524,7 @@ public:
       m_CurrentTreeLocation->rightNode->previousNode = m_CurrentTreeLocation;
       m_CurrentTreeLocation = m_CurrentTreeLocation->rightNode;
     } // else: create at right
-    
+
     m_CurrentTreeLocation->leftNode = NULL;
     m_CurrentTreeLocation->rightNode = NULL;
     m_CurrentTreeLocation->leftToken = NULL;
@@ -524,39 +549,107 @@ public:
   */
   
   void PrintSExp() {
-    if ( m_LineOfTokens.front().type == INT ) {
-      cout << atoi( m_LineOfTokens.back().content.c_str() ) << endl;
-    } // if: int case
+    int leftParenCount = 0;
+    bool hasLineReturn = false;
+    
+    for ( int index = 0 ; index < m_LineOfTokens.size() ; index++ ) {
+      if ( hasLineReturn ) {
+        if ( m_LineOfTokens[index].type == DOT && m_LineOfTokens[index+1].type == NIL ) {
+        } // if: check dot nil case
+        
+        else {
+          if ( m_LineOfTokens[index].type == RIGHT_PAREN ) {
+            leftParenCount--;
+          } // if: print right parenthesis, minus leftParenCount by one
+          
+          int spaces = leftParenCount * 2;
+          
+          while ( spaces > 0 ) {
+            cout << " ";
+            spaces--;
+          } // while: print spaces
+        } // else: not dot nil case
+      } // if: the previous action is a line-return
+      
+      if ( IsAtom( m_LineOfTokens[index] ) ) {
+        if ( m_LineOfTokens[index].type == INT ) {
+          cout << atoi( m_LineOfTokens[index].content.c_str() ) << endl;
+          hasLineReturn = true;
+        } // if: int case
+        
+        else if ( m_LineOfTokens[index].type == FLOAT ) {
+          cout << fixed << setprecision( 3 )
+          << round( atof( m_LineOfTokens[index].content.c_str() )*1000 ) / 1000
+          << endl;
+          hasLineReturn = true;
+        } // else if: float case with precision and round
+        
+        else if ( m_LineOfTokens[index].type == NIL ) {
+          if ( m_LineOfTokens[index-1].type != DOT ) {
+            cout << "nil" << endl;
+            hasLineReturn = true;
+          } // if: check if previous token is dot
+          
+          else {
+            hasLineReturn = false;
+          } // else: reset hasLineReturn
+        } // else if: nil
+        
+        else if ( m_LineOfTokens[index].type == T ) {
+          cout << "#t" << endl;
+          hasLineReturn = true;
+        } // else if: #t
+        
+        else if ( m_LineOfTokens[index].type == STRING ) {
+          PrintString( m_LineOfTokens[index].content );
+          hasLineReturn = true;
+        } // else if: string
+        
+        else {
+          cout << m_LineOfTokens[index].content << endl;
+          hasLineReturn = true;
+        } // else: symbol
+      } // if: current token is an atom
 
-    else if ( m_LineOfTokens.front().type == FLOAT ) {
-      cout << fixed << setprecision( 3 )
-           << round( atof( m_LineOfTokens.back().content.c_str() )*1000 ) / 1000
-           << endl;
-    } // else if: float case with precision and round
-
-    else if ( m_LineOfTokens.front().type == NIL ) {
-      cout << "nil" << endl;
-    } // else if: nil
-
-    else if ( m_LineOfTokens.front().type == T ) {
-      cout << "#t" << endl;
-    } // else if: #t
-
-    else if ( m_LineOfTokens.front().type == STRING ) {
-      PrintString( m_LineOfTokens.front().content );
-    } // else if: string
-
-    else if ( m_LineOfTokens.front().type == QUOTE ) {
-      PrintQuote();
-    } // else if: quote
-
-    else if ( m_LineOfTokens.front().type == LEFT_PAREN ) {
-      // PrintTree();
-    } // else if: dot pair, print tree
-
-    else {
-      cout << m_LineOfTokens.front().content << endl;
-    } // else: symbol
+      else if ( m_LineOfTokens[index].type == LEFT_PAREN ) {
+        if ( m_LineOfTokens[index-1].type != DOT ) {
+          leftParenCount++;
+          hasLineReturn = false;
+          cout << "( ";
+        } // if: check if the previous one token is dot
+      } // else if: left paren
+      
+      else if ( m_LineOfTokens[index].type == RIGHT_PAREN ) {
+        cout << ")" << endl;
+        hasLineReturn = true;
+        if ( m_LineOfTokens[index-1].type == NIL ) {
+          leftParenCount--;
+        } // if: previous token is nil
+      } // else if: right paren
+      
+      else if ( m_LineOfTokens[index].type == QUOTE ) {
+        ;
+      } //
+      
+      else if ( m_LineOfTokens[index].type == DOT ) {
+        if ( m_LineOfTokens[index+1].type == LEFT_PAREN ) {
+          hasLineReturn = false;
+        } // if: if next token is left-paren
+        
+        else if ( m_LineOfTokens[index+1].type == NIL ) {
+          hasLineReturn = false;
+        } // if: check if the next one token is left-parenthesis
+        
+        else {
+          cout << "." << endl;
+          hasLineReturn = true;
+        } // else: reset hasLineReturn
+      } // else if: dot
+      
+      if ( leftParenCount == 0 ) {
+        return;
+      } // if: print complete
+    } // for: go through the vector
   } // PrintSExp()
 
   void PrintString( string stringContent ) {
@@ -585,20 +678,24 @@ public:
         cout << stringContent[ index ];
       } // else: normal character
     } // for: go through the string
+    
+    cout << endl;
   } // PrintString()
-  
-  void PrintQuote() {
-    ;
-  } // PrintQuote()
 }; // Project1Class
 
+void ReaduTestNumAndLabel() {
+  int uTestNum = 0;
+  char lineReturn = '\0';
+  cin >> uTestNum;
+  cin >> lineReturn;
+  
+  while ( cin.get() != '\n' ) {
+    cin.get();
+  } // while: get label line
+} // ReaduTestNumAndLabel()
+
 int main() {
-  //  int uTestNum = 0;
-  //  char lineReturn = '\0';
-  //  char * testLabel = new char[100];
-  //  cin >> uTestNum;
-  //  cin >> lineReturn;
-  //  cin.getline( testLabel, 90 );
+  // ReaduTestNumAndLabel();
   bool end = false;
   Project1Class project1;
   cout << "Welcome to OurScheme!" << endl;
@@ -607,9 +704,9 @@ int main() {
     cout << "> ";
     project1.ReadSExp();
     
-    //  if ( project1.CheckExit() ) {
-    //  end = true;
-    //  } // if: check exit
+    // if ( project1.CheckExit() ) {
+    // end = true;
+    // } // if: check exit
     
     cout << endl;
   } while ( NOT end );
