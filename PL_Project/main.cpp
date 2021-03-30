@@ -44,9 +44,9 @@ struct TreeStruct {
   TreeStruct* rightNode;
 }; // TreeStruct
 
-// define constant variable to track the cursor
-static int u_CursorColumn = 0;
-static int u_CursorRow = 1;
+// define global variable to track the cursor
+int g_CursorColumn = 0;
+int g_CursorRow = 1;
 
 class Project1Class {
 private:
@@ -99,7 +99,7 @@ public:
     if ( HasNextToken() ) {
       if ( CheckSExp() == true ) {
         // cout << m_Root->leftToken->content << endl;
-        cout << "Cursor Position: Line " << u_CursorRow << " Column " << u_CursorColumn << endl;
+        cout << "Cursor Position: Line " << g_CursorRow << " Column " << g_CursorColumn << endl;
         PrintSExp();
       } // if: no error
       else {
@@ -108,8 +108,8 @@ public:
       } // else: error
     } // if: check if there's any command
     
-    u_CursorRow = 0;
-    u_CursorColumn = 0;
+    g_CursorRow = 0;
+    g_CursorColumn = 0;
     return;
   } // ReadSExp()
   
@@ -121,22 +121,22 @@ public:
       if ( peekChar == ';' ) {
         while ( peekChar != '\n' && peekChar != '\r' ) {
           peekChar = cin.get();
-          u_CursorColumn++;
+          g_CursorColumn++;
         } // while: get the current line
         
-        u_CursorRow++;
+        g_CursorRow++;
         peekChar = cin.peek();
-        u_CursorColumn = 0;
+        g_CursorColumn = 0;
       } // if: check if there's any comment
       
       else {
         if ( cin.get() == '\n' ) {
-          u_CursorRow++;
-          u_CursorColumn = 0;
+          g_CursorRow++;
+          g_CursorColumn = 0;
         } // if: next line, modifiy cursor position
         
         else {
-          u_CursorColumn++;
+          g_CursorColumn++;
         } // else: cursor move right
         
         peekChar = cin.peek();
@@ -148,7 +148,7 @@ public:
   
   string GetString() {
     char currentChar = cin.get();
-    u_CursorColumn++;
+    g_CursorColumn++;
     string currentString = "\0";
 
     while ( currentChar != '\"' ) {
@@ -157,7 +157,7 @@ public:
       if ( currentChar == '\\' && peekChar == '\"' ) {
         currentString.push_back( currentChar );
         currentString.push_back( cin.get() );
-        u_CursorColumn++;
+        g_CursorColumn++;
       } // if: "\"" case
       
       else {
@@ -165,7 +165,7 @@ public:
       } // else: normal string
 
       currentChar = cin.get();
-      u_CursorColumn++;
+      g_CursorColumn++;
     } // while: get the string
 
     currentString.push_back( currentChar );
@@ -182,13 +182,13 @@ public:
     
     TokenStruct newToken;
     newToken.content.push_back( cin.get() );
-    u_CursorColumn++;
+    g_CursorColumn++;
     // initialize new token
     
     if ( peekChar == '(' ) {
       if ( PeekCharAndGetRidOfComment() == ')' ) {
         newToken.content.push_back( cin.get() );
-        u_CursorColumn++;
+        g_CursorColumn++;
         newToken.type = NIL;
       } // if: () case
       
@@ -217,7 +217,7 @@ public:
               cin.peek() != ')' && cin.peek() != ';' &&
               cin.peek() != '\r' ) {
         newToken.content.push_back( cin.get() );
-        u_CursorColumn++;
+        g_CursorColumn++;
       } // while: get the rest of the token
       
       newToken.type = CheckTokenType( newToken );
@@ -307,7 +307,14 @@ public:
 
       if ( m_Root != NULL ) {
         if ( m_CurrentTreeLocation->leftToken != NULL ) {
-          RightInsertToken();
+          if ( m_LineOfTokens.at( m_LineOfTokens.size() - 2 ).type != DOT ) {
+            CreateNode();
+            LeftInsertToken();
+          } // if: without dot case
+          
+          else {
+            RightInsertToken();
+          } // else: with case
         } // if: left is empty, insert left
 
         else {
@@ -423,7 +430,12 @@ public:
   } // InitializeRoot()
 
   void CreateNode() {
-    if ( m_CurrentTreeLocation->leftNode == NULL ) {
+    while ( m_CurrentTreeLocation->rightNode != NULL ) {
+      m_CurrentTreeLocation = m_CurrentTreeLocation->previousNode;
+    } // while: move currentTreeLocation to an available position
+    
+    if ( m_CurrentTreeLocation->leftToken == NULL &&
+        m_CurrentTreeLocation->leftNode == NULL) {
       m_CurrentTreeLocation->leftNode = new TreeStruct;
       m_CurrentTreeLocation->leftNode->previousNode = m_CurrentTreeLocation;
       m_CurrentTreeLocation = m_CurrentTreeLocation->leftNode;
