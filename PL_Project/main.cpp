@@ -15,6 +15,7 @@
 # include <math.h>
 # include <cctype>
 # include <iostream>
+# include <sstream>
 # include <iomanip>
 # include <string>
 # include <vector>
@@ -46,7 +47,7 @@ struct TreeStruct {
 
 // define global variable to track the cursor
 int g_CursorColumn = 0;
-int g_CursorRow = 1;
+int g_CursorLine = 1;
 
 class Project1Class {
 private:
@@ -54,6 +55,8 @@ private:
   vector<TokenStruct> m_LineOfTokens;
   TreeStruct *m_Root;
   TreeStruct *m_CurrentTreeLocation;
+  stringstream m_ErrorStream;
+  string m_ErrorMessage;
   
 public:
   
@@ -96,19 +99,32 @@ public:
   void ReadSExp() {
     m_LineOfTokens.clear();
     m_Root = NULL;
+    
+    /*
+    try {
+      HasNextToken();
+      CheckSExp();
+      PrintSExp();
+    } // try: run the code
+    catch ( const char* errorMessage ) {
+      cout << errorMessage;
+    } // catch: error message
+    */
+    
     if ( HasNextToken() ) {
       if ( CheckSExp() == true ) {
-        // cout << m_Root->leftToken->content << endl;
-        cout << "Cursor Position: Line " << g_CursorRow << " Column " << g_CursorColumn << endl;
         PrintSExp();
       } // if: no error
       else {
-        // PrintErrorMessage();
-        cout << "error" << endl;
+        cout << m_ErrorMessage << endl;
       } // else: error
     } // if: check if there's any command
     
-    g_CursorRow = 0;
+    else {
+      cout << m_ErrorMessage << endl;
+    } // else: read nothing or EOF or encountered error
+    
+    g_CursorLine = 0;
     g_CursorColumn = 0;
     return;
   } // ReadSExp()
@@ -124,14 +140,14 @@ public:
           g_CursorColumn++;
         } // while: get the current line
         
-        g_CursorRow++;
+        g_CursorLine++;
         peekChar = cin.peek();
         g_CursorColumn = 0;
       } // if: check if there's any comment
       
       else {
         if ( cin.get() == '\n' ) {
-          g_CursorRow++;
+          g_CursorLine++;
           g_CursorColumn = 0;
         } // if: next line, modifiy cursor position
         
@@ -148,6 +164,15 @@ public:
   
   string GetString() {
     char currentChar = cin.get();
+    
+    if ( currentChar == '\n' || currentChar == EOF ) {
+      stringstream m_ErrorStream;
+      m_ErrorStream << "ERROR(no closing quote) : END-OF-LINE encounterd at "
+                    << "Line " << g_CursorLine << " Column " << g_CursorColumn+1;
+      m_ErrorMessage = m_ErrorStream.str();
+      return m_ErrorMessage;
+    } // check closure erroe
+    
     g_CursorColumn++;
     string currentString = "\0";
 
@@ -165,6 +190,15 @@ public:
       } // else: normal string
 
       currentChar = cin.get();
+      
+      if ( currentChar == '\n' || currentChar == EOF ) {
+        stringstream m_ErrorStream;
+        m_ErrorStream << "ERROR(no closing quote) : END-OF-LINE encounterd at "
+                      << "Line " << g_CursorLine << " Column " << g_CursorColumn+1;
+        m_ErrorMessage = m_ErrorStream.str();
+        return m_ErrorMessage;
+      } // check closure error
+      
       g_CursorColumn++;
     } // while: get the string
 
@@ -203,6 +237,11 @@ public:
     
     else if ( peekChar == '"' ) {
       newToken.content.append( GetString() );
+      
+      if ( m_ErrorMessage != "\0" ) {
+        return false;
+      } // if: closure error
+      
       newToken.type = STRING;
     } // else if: string
 
@@ -223,7 +262,7 @@ public:
       newToken.type = CheckTokenType( newToken );
     } // else: other types
     
-    // cout << newToken.content << endl;
+    // cout << newToken.content << " " << newToken.type << endl;
     
     if ( newToken.content != "\0" ) {
       m_LineOfTokens.push_back( newToken ); // push the newToken to the vector
@@ -303,7 +342,7 @@ public:
   bool CheckSExp() {
     // <ATOM>
     if ( IsAtom( m_LineOfTokens.back() ) ) {
-      cout << "<ATOM> ";
+      // cout << "<ATOM> ";
 
       if ( m_Root != NULL ) {
         if ( m_CurrentTreeLocation->leftToken != NULL ) {
@@ -340,7 +379,7 @@ public:
         return false;
       } // if: check if there is any token left
       
-      cout << "LEFT-PAREN ";
+      // cout << "LEFT-PAREN ";
       
       // LEFT-PAREN <S-exp>
       if ( CheckSExp() == true ) {
@@ -361,7 +400,7 @@ public:
             return false;
           } // if: check if there is any token left
           
-          cout << "DOT ";
+          // cout << "DOT ";
           
           // LEFT-PAREN <S-exp> { <S-exp> } [ DOT <S-exp> ]
           if ( CheckSExp() == true ) {
@@ -377,12 +416,17 @@ public:
         
         // LEFT-PAREN <S-exp> { <S-exp> } [ DOT <S-exp> ] RIGHT-PAREN
         if ( m_LineOfTokens.back().type == RIGHT_PAREN ) {
-          cout << "RIGHT_PAREN ";
+          // cout << "RIGHT_PAREN ";
           m_CurrentTreeLocation = m_CurrentTreeLocation->previousNode;
           return true;
         } // if: RIGHT-PAREN
         
         else {
+          stringstream m_ErrorStream;
+          m_ErrorStream << "ERROR(unexpected token) : ')' expected when token at "
+                        << "Line " << g_CursorLine << " Column " << g_CursorColumn
+                        << " is >>" << m_LineOfTokens.back().content << "<<";
+          m_ErrorMessage = m_ErrorStream.str();
           return false;
         } // else: syntax error
       } // if: <S-exp>
@@ -398,11 +442,11 @@ public:
         return false;
       } // if: check if there is any token left
       
-      cout << "QUOTE ";
+      // cout << "QUOTE ";
       
       // QUOTE <S-exp>
       if ( CheckSExp() == true ) {
-        cout << "<S-exp>" << endl;
+        // cout << "<S-exp>" << endl;
         return true;
       } // if: <S-exp>
       
@@ -411,6 +455,15 @@ public:
       } // else: syntax error
     } // else if: QUOTE
     
+    if ( m_ErrorStream.str() != "\0" ) {
+      m_ErrorStream.clear();
+    } // if: clear previous error message
+    
+    stringstream m_ErrorStream;
+    m_ErrorStream << "ERROR(unexpected token) : atom or '(' expected when token at "
+         << "Line " << g_CursorLine << " Column " << g_CursorColumn
+         << " is >>" << m_LineOfTokens.back().content << "<<";
+    m_ErrorMessage = m_ErrorStream.str();
     return false;
   } // CheckSExp()
   
