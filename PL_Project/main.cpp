@@ -60,7 +60,6 @@ int g_CursorLine = 1;
 
 class Project1Class {
 private:
-  bool m_IsExit;
   vector<TokenStruct> m_LineOfTokens;
   TreeStruct *m_Root;
   TreeStruct *m_CurrentTreeLocation;
@@ -68,6 +67,30 @@ private:
   string m_ErrorMessage;
   
 public:
+  
+  /*
+    ------------------ Check -------------------
+    ------------------- exit -------------------
+  */
+  bool m_IsExit;
+  
+  void CheckExit() {
+    string exit = "\0";
+    
+    for ( int i = 0 ; i < m_LineOfTokens.size() ; i++ ) {
+      if ( ( IsAtom( m_LineOfTokens[i]) && m_LineOfTokens[i].type != NIL ) ||
+             m_LineOfTokens[i].type == LEFT_PAREN ||
+             m_LineOfTokens[i].type == RIGHT_PAREN ) {
+        exit += m_LineOfTokens[i].content;
+      } // if: attach the symbol
+    } // for: go through the tokens
+    
+    cout << exit;
+    
+    if ( exit == "(exit)" ) {
+      m_IsExit = true;
+    } // if: set exit case
+  } // IsExitCase()
   
   /*
     -------------------- Is --------------------
@@ -105,6 +128,7 @@ public:
   */
   
   void ReadSExp() {
+    m_IsExit = false;
     m_LineOfTokens.clear();
     m_Root = NULL;
     m_ErrorMessage.clear();
@@ -116,7 +140,15 @@ public:
         throw ( m_ErrorMessage.c_str() );
       } // if: if there's an error, throw
       
-      PrintSExp();
+      CheckExit();
+      
+      if ( m_IsExit == true ) {
+        return;
+      } // if: check exit or not
+      
+      else {
+        PrintSExp();
+      } // else: not exit print output
     } // try: run the code
     catch ( const char* errorMessage ) {
       cout << errorMessage << endl;
@@ -551,25 +583,24 @@ public:
   void PrintSExp() {
     int leftParenCount = 0;
     bool hasLineReturn = false;
+    bool HasRightParenMinus = false;
     
     for ( int index = 0 ; index < m_LineOfTokens.size() ; index++ ) {
+      HasRightParenMinus = false;
+      
       if ( hasLineReturn ) {
-        if ( m_LineOfTokens[index].type == DOT && m_LineOfTokens[index+1].type == NIL ) {
-        } // if: check dot nil case
+        if ( m_LineOfTokens[index].type == RIGHT_PAREN ) {
+          leftParenCount--;
+          HasRightParenMinus = true;
+        } // if: print right parenthesis, minus leftParenCount by one
         
-        else {
-          if ( m_LineOfTokens[index].type == RIGHT_PAREN ) {
-            leftParenCount--;
-          } // if: print right parenthesis, minus leftParenCount by one
-          
-          int spaces = leftParenCount * 2;
-          
-          while ( spaces > 0 ) {
-            cout << " ";
-            spaces--;
-          } // while: print spaces
-        } // else: not dot nil case
-      } // if: the previous action is a line-return
+        int spaces = leftParenCount * 2;
+        
+        while ( spaces > 0 ) {
+          cout << " ";
+          spaces--;
+        } // while: print spaces
+      } // if: the previous action has a line-return
       
       if ( IsAtom( m_LineOfTokens[index] ) ) {
         if ( m_LineOfTokens[index].type == INT ) {
@@ -585,7 +616,7 @@ public:
         } // else if: float case with precision and round
         
         else if ( m_LineOfTokens[index].type == NIL ) {
-          if ( m_LineOfTokens[index-1].type != DOT ) {
+          if ( m_LineOfTokens[index+1].type != RIGHT_PAREN ) {
             cout << "nil" << endl;
             hasLineReturn = true;
           } // if: check if previous token is dot
@@ -612,19 +643,14 @@ public:
       } // if: current token is an atom
 
       else if ( m_LineOfTokens[index].type == LEFT_PAREN ) {
-        if ( m_LineOfTokens[index-1].type != DOT ) {
-          leftParenCount++;
-          hasLineReturn = false;
-          cout << "( ";
-        } // if: check if the previous one token is dot
+        leftParenCount++;
+        hasLineReturn = false;
+        cout << "( ";
       } // else if: left paren
       
       else if ( m_LineOfTokens[index].type == RIGHT_PAREN ) {
         cout << ")" << endl;
         hasLineReturn = true;
-        if ( m_LineOfTokens[index-1].type == NIL ) {
-          leftParenCount--;
-        } // if: previous token is nil
       } // else if: right paren
       
       else if ( m_LineOfTokens[index].type == QUOTE ) {
@@ -632,18 +658,10 @@ public:
       } //
       
       else if ( m_LineOfTokens[index].type == DOT ) {
-        if ( m_LineOfTokens[index+1].type == LEFT_PAREN ) {
-          hasLineReturn = false;
-        } // if: if next token is left-paren
-        
-        else if ( m_LineOfTokens[index+1].type == NIL ) {
-          hasLineReturn = false;
-        } // if: check if the next one token is left-parenthesis
-        
-        else {
+        if ( m_LineOfTokens[index+1].type != LEFT_PAREN ) {
           cout << "." << endl;
           hasLineReturn = true;
-        } // else: reset hasLineReturn
+        } // if: check dot-leftParen case
       } // else if: dot
       
       if ( leftParenCount == 0 ) {
@@ -704,9 +722,9 @@ int main() {
     cout << "> ";
     project1.ReadSExp();
     
-    // if ( project1.CheckExit() ) {
-    // end = true;
-    // } // if: check exit
+    if ( project1.m_IsExit ) {
+      end = true;
+    } // if: check exit
     
     cout << endl;
   } while ( NOT end );
