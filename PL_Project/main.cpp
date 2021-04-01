@@ -32,7 +32,7 @@ enum TokenType {
 }; // token type enum
 
 enum ErrorType {
-  NO_CLOSING_QUOTE, UNEXPECTED_TOKEN_ATOM_LEFT_PAREN, UNEXPECTED_RIGHT_PAREN, NO_MORE_INPUT
+  NONE, NO_CLOSING_QUOTE, UNEXPECTED_TOKEN_ATOM_LEFT_PAREN, UNEXPECTED_RIGHT_PAREN, NO_MORE_INPUT
 }; // error type enum
 
 // define structures
@@ -63,8 +63,9 @@ private:
   vector<TokenStruct> m_LineOfTokens;
   TreeStruct *m_Root;
   TreeStruct *m_CurrentTreeLocation;
+  ErrorStruct m_Error;
   stringstream m_ErrorStream;
-  string m_ErrorMessage;
+  // string m_ErrorMessage;
   
 public:
   
@@ -72,9 +73,7 @@ public:
     ------------------ Check -------------------
     ------------------- exit -------------------
   */
-  bool m_IsExit;
-  
-  void CheckExit() {
+  bool CheckExit() {
     string exit = "\0";
     
     for ( int i = 0 ; i < m_LineOfTokens.size() ; i++ ) {
@@ -85,11 +84,15 @@ public:
       } // if: attach the symbol
     } // for: go through the tokens
     
-    cout << exit;
+    // cout << exit;
     
-    if ( exit == "(exit)" ) {
-      m_IsExit = true;
-    } // if: set exit case
+    if ( exit == "(exit)" || m_Error.errorType == NO_MORE_INPUT ) {
+      return true;
+    } // if: exit case
+    
+    else {
+      return false;
+    } // else: not exit case
   } // IsExitCase()
   
   /*
@@ -128,31 +131,25 @@ public:
   */
   
   void ReadSExp() {
-    m_IsExit = false;
-    m_LineOfTokens.clear();
     m_Root = NULL;
-    m_ErrorMessage.clear();
+    m_LineOfTokens.clear();
+    // m_ErrorMessage.clear();
+    // m_Error.errorMessage = "\0";
+    m_Error.errorType = NONE;
     
     try {
       HasNextToken();
       
       if ( CheckSExp() == false ) {
-        throw ( m_ErrorMessage.c_str() );
+        throw ( m_Error.errorMessage.c_str() );
       } // if: if there's an error, throw
-      
-      CheckExit();
-      
-      if ( m_IsExit == true ) {
-        return;
-      } // if: check exit or not
-      
-      else {
-        PrintSExp();
-      } // else: not exit print output
     } // try: run the code
+    
     catch ( const char* errorMessage ) {
       cout << errorMessage << endl;
-      GetRidOfErrorLeftOvers();
+      // else {
+        // GetRidOfErrorLeftOvers();
+      // } // else: get rid of the rest
     } // catch: error message
     
     g_CursorLine = 1;
@@ -160,7 +157,7 @@ public:
     return;
   } // ReadSExp()
   
-  void GetRidOfErrorLeftOvers() {
+  void GetRidOfTheRest() {
     char peekChar = cin.peek();
     
     while ( peekChar != '\n' && peekChar != '\r' &&
@@ -170,7 +167,7 @@ public:
     } // while: get the left overs
     
     cin.get();
-  } // GetRidOfErrorLeftOvers()
+  } // GetRidOfTheRest()
   
   char PeekCharAndGetRidOfComment() {
     char peekChar = cin.peek();
@@ -213,8 +210,8 @@ public:
       m_ErrorStream << "ERROR(no closing quote) : "
                     << "END-OF-LINE encounterd at "
                     << "Line " << g_CursorLine << " Column " << g_CursorColumn+1;
-      m_ErrorMessage = m_ErrorStream.str();
-      throw ( m_ErrorMessage.c_str() );
+      m_Error.errorMessage = m_ErrorStream.str();
+      throw ( m_Error.errorMessage.c_str() );
     } // check closure error
     
     g_CursorColumn++;
@@ -240,8 +237,8 @@ public:
         m_ErrorStream << "ERROR(no closing quote) : "
                       << "END-OF-LINE encounterd at "
                       << "Line " << g_CursorLine << " Column " << g_CursorColumn+1;
-        m_ErrorMessage = m_ErrorStream.str();
-        throw ( m_ErrorMessage.c_str() );
+        m_Error.errorMessage = m_ErrorStream.str();
+        throw ( m_Error.errorMessage.c_str() );
         // throw m_ErrorMessage;
       } // check closure error
       
@@ -256,7 +253,7 @@ public:
   bool HasNextToken() {
     char peekChar = PeekCharAndGetRidOfComment();
     
-    if ( peekChar == '\0' ) {
+    if ( peekChar == '\0' || peekChar == EOF ) {
       return false;
     } // if gets nothing
     
@@ -388,7 +385,7 @@ public:
       if ( m_Root != NULL ) {
         if ( m_CurrentTreeLocation->leftToken != NULL ) {
           if ( m_LineOfTokens.at( m_LineOfTokens.size() - 2 ).type != DOT ) {
-            CreateNode();
+            RightCreateNode();
             LeftInsertToken();
           } // if: without dot case
           
@@ -398,7 +395,13 @@ public:
         } // if: left is empty, insert left
 
         else {
-          LeftInsertToken();
+          if ( m_CurrentTreeLocation->leftNode != NULL ) {
+            RightInsertToken();
+          } // if : left node is not NULL
+          
+          else {
+            LeftInsertToken();
+          } // else: insert at left
         } // else: insert at the right
       } // if: check if there's any tree
       
@@ -413,10 +416,32 @@ public:
       } // if: initialize the root pointer
 
       else {
-        CreateNode();
+        if ( m_CurrentTreeLocation->leftToken != NULL ) {
+          if ( m_LineOfTokens.at( m_LineOfTokens.size() - 2 ).type == RIGHT_PAREN ) {
+            FindValidNodePosition();
+          } // if: right paren, find valid postion
+          
+          RightCreateNode();
+          
+          if ( m_LineOfTokens.at( m_LineOfTokens.size() - 2 ).type != DOT ) {
+            LeftCreateNode();
+          } // if: with out dot
+        } // if: right create case
+        
+        else {
+          if ( m_CurrentTreeLocation->leftNode != NULL ) {
+            RightCreateNode();
+          } // if: insert right
+          
+          else {
+            LeftCreateNode();
+          } // else: insert right
+        } // else: right insert node
       } // else: create a node
 
       if ( HasNextToken() == false ) {
+        m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
+        m_Error.errorType = NO_MORE_INPUT;
         return false;
       } // if: check if there is any token left
       
@@ -425,12 +450,16 @@ public:
       // LEFT-PAREN <S-exp>
       if ( CheckSExp() == true ) {
         if ( HasNextToken() == false ) {
+          m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
+          m_Error.errorType = NO_MORE_INPUT;
           return false;
         } // if: check if there is any token left
 
         // LEFT-PAREN <S-exp> { <S-exp> }
         while ( CheckSExp() == true ) {
           if ( HasNextToken() == false ) {
+            m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
+            m_Error.errorType = NO_MORE_INPUT;
             return false;
           } // if: check if there is any token left
         } // while: { <S-exp> }
@@ -438,24 +467,16 @@ public:
         // LEFT-PAREN <S-exp> { <S-exp> } [ DOT ]
         if ( m_LineOfTokens.back().type == DOT ) {
           if ( HasNextToken() == false ) {
+            m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
+            m_Error.errorType = NO_MORE_INPUT;
             return false;
           } // if: check if there is any token left
-          
-          // cout << "DOT ";
-          if ( ( ( IsAtom( m_LineOfTokens.at( m_LineOfTokens.size() - 3 ) ) &&
-                   m_LineOfTokens.at( m_LineOfTokens.size() - 2 ).type == DOT ) &&
-                 ( m_LineOfTokens.at( m_LineOfTokens.size() - 2 ).type == DOT &&
-                   IsAtom(m_LineOfTokens.back() ) ) ) ||
-               ( ( IsAtom( m_LineOfTokens.at( m_LineOfTokens.size() - 3 ) ) &&
-                   m_LineOfTokens.at( m_LineOfTokens.size() - 2 ).type == DOT ) &&
-                 ( m_LineOfTokens.at( m_LineOfTokens.size() - 2 ).type == DOT &&
-                   m_LineOfTokens.back().type == LEFT_PAREN ) ) ) {
-            m_ErrorMessage = "\0";
-          } // if: if the dot isn't really error, reset it
                
           // LEFT-PAREN <S-exp> { <S-exp> } [ DOT <S-exp> ]
           if ( CheckSExp() == true ) {
             if ( HasNextToken() == false ) {
+              m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
+              m_Error.errorType = NO_MORE_INPUT;
               return false;
             } // if: check if there is any token left
           } // if: <S-exp>
@@ -478,7 +499,7 @@ public:
                         << "')' expected when token at "
                         << "Line " << g_CursorLine << " Column " << g_CursorColumn
                         << " is >>" << m_LineOfTokens.back().content << "<<"; 
-          m_ErrorMessage = m_ErrorStream.str();
+          m_Error.errorMessage = m_ErrorStream.str();
           // throw m_ErrorMessage;
           return false;
         } // else: syntax error
@@ -512,14 +533,12 @@ public:
       m_ErrorStream.clear();
     } // if: clear previous error message
     
-    if ( m_LineOfTokens.back().type != DOT ) {
-      stringstream m_ErrorStream;
-      m_ErrorStream << "ERROR(unexpected token) : "
-      << "atom or '(' expected when token at "
-      << "Line " << g_CursorLine << " Column " << g_CursorColumn
-      << " is >>" << m_LineOfTokens.back().content << "<<";
-      m_ErrorMessage = m_ErrorStream.str();
-    }
+    stringstream m_ErrorStream;
+    m_ErrorStream << "ERROR(unexpected token) : "
+    << "atom or '(' expected when token at "
+    << "Line " << g_CursorLine << " Column " << g_CursorColumn
+    << " is >>" << m_LineOfTokens.back().content << "<<";
+    m_Error.errorMessage = m_ErrorStream.str();
     
     return false;
   } // CheckSExp()
@@ -540,10 +559,6 @@ public:
   } // InitializeRoot()
 
   void CreateNode() {
-    while ( m_CurrentTreeLocation->rightNode != NULL ) {
-      m_CurrentTreeLocation = m_CurrentTreeLocation->previousNode;
-    } // while: move currentTreeLocation to an available position
-    
     if ( m_CurrentTreeLocation->leftToken == NULL &&
         m_CurrentTreeLocation->leftNode == NULL) {
       m_CurrentTreeLocation->leftNode = new TreeStruct;
@@ -552,9 +567,20 @@ public:
     } // if: check left or right
     
     else {
-      m_CurrentTreeLocation->rightNode = new TreeStruct;
-      m_CurrentTreeLocation->rightNode->previousNode = m_CurrentTreeLocation;
-      m_CurrentTreeLocation = m_CurrentTreeLocation->rightNode;
+      if ( IsAtom( m_LineOfTokens.at( m_LineOfTokens.size() - 2 ) ) ) {
+        m_CurrentTreeLocation->rightNode = new TreeStruct;
+        m_CurrentTreeLocation->rightNode->previousNode = m_CurrentTreeLocation;
+        m_CurrentTreeLocation = m_CurrentTreeLocation->rightNode;
+        m_CurrentTreeLocation->leftNode = new TreeStruct;
+        m_CurrentTreeLocation->leftNode->previousNode = m_CurrentTreeLocation;
+        m_CurrentTreeLocation = m_CurrentTreeLocation->leftNode;
+      } // if: without dot case
+      
+      else {
+        m_CurrentTreeLocation->rightNode = new TreeStruct;
+        m_CurrentTreeLocation->rightNode->previousNode = m_CurrentTreeLocation;
+        m_CurrentTreeLocation = m_CurrentTreeLocation->rightNode;
+      } // else: normal dot case
     } // else: create at right
 
     m_CurrentTreeLocation->leftNode = NULL;
@@ -562,6 +588,32 @@ public:
     m_CurrentTreeLocation->leftToken = NULL;
     m_CurrentTreeLocation->rightToken = NULL;
   } // CreateNode()
+  
+  void LeftCreateNode() {
+    m_CurrentTreeLocation->leftNode = new TreeStruct;
+    m_CurrentTreeLocation->leftNode->previousNode = m_CurrentTreeLocation;
+    m_CurrentTreeLocation = m_CurrentTreeLocation->leftNode;
+    m_CurrentTreeLocation->leftNode = NULL;
+    m_CurrentTreeLocation->rightNode = NULL;
+    m_CurrentTreeLocation->leftToken = NULL;
+    m_CurrentTreeLocation->rightToken = NULL;
+  } // LeftCreateNode()
+  
+  void RightCreateNode() {
+    m_CurrentTreeLocation->rightNode = new TreeStruct;
+    m_CurrentTreeLocation->rightNode->previousNode = m_CurrentTreeLocation;
+    m_CurrentTreeLocation = m_CurrentTreeLocation->rightNode;
+    m_CurrentTreeLocation->leftNode = NULL;
+    m_CurrentTreeLocation->rightNode = NULL;
+    m_CurrentTreeLocation->leftToken = NULL;
+    m_CurrentTreeLocation->rightToken = NULL;
+  } // RightCreateNode()
+  
+  void FindValidNodePosition() {
+    while ( m_CurrentTreeLocation->rightNode != NULL ) {
+      m_CurrentTreeLocation = m_CurrentTreeLocation->previousNode;
+    } // while: move currentTreeLocation to an available position
+  } // FindValidNodePosition()
 
   void LeftInsertToken() {
     m_CurrentTreeLocation->leftToken = new TokenStruct;
@@ -585,11 +637,11 @@ public:
     bool hasLineReturn = false;
     bool HasRightParenMinus = false;
     
-    for ( int index = 0 ; index < m_LineOfTokens.size() ; index++ ) {
+    for ( int i = 0 ; i < m_LineOfTokens.size() ; i++ ) {
       HasRightParenMinus = false;
       
       if ( hasLineReturn ) {
-        if ( m_LineOfTokens[index].type == RIGHT_PAREN ) {
+        if ( m_LineOfTokens[i].type == RIGHT_PAREN ) {
           leftParenCount--;
           HasRightParenMinus = true;
         } // if: print right parenthesis, minus leftParenCount by one
@@ -600,68 +652,72 @@ public:
           cout << " ";
           spaces--;
         } // while: print spaces
+        
+        hasLineReturn = false;
       } // if: the previous action has a line-return
       
-      if ( IsAtom( m_LineOfTokens[index] ) ) {
-        if ( m_LineOfTokens[index].type == INT ) {
-          cout << atoi( m_LineOfTokens[index].content.c_str() ) << endl;
-          hasLineReturn = true;
+      if ( IsAtom( m_LineOfTokens[i] ) ) {
+        if ( m_LineOfTokens[i].type == INT ) {
+          cout << atoi( m_LineOfTokens[i].content.c_str() ) << endl;
         } // if: int case
         
-        else if ( m_LineOfTokens[index].type == FLOAT ) {
+        else if ( m_LineOfTokens[i].type == FLOAT ) {
           cout << fixed << setprecision( 3 )
-          << round( atof( m_LineOfTokens[index].content.c_str() )*1000 ) / 1000
+          << round( atof( m_LineOfTokens[i].content.c_str() )*1000 ) / 1000
           << endl;
-          hasLineReturn = true;
         } // else if: float case with precision and round
         
-        else if ( m_LineOfTokens[index].type == NIL ) {
-          if ( m_LineOfTokens[index+1].type != RIGHT_PAREN ) {
+        else if ( m_LineOfTokens[i].type == NIL ) {
+          if ( m_LineOfTokens[i+1].type != RIGHT_PAREN ) {
             cout << "nil" << endl;
-            hasLineReturn = true;
           } // if: check if previous token is dot
-          
-          else {
-            hasLineReturn = false;
-          } // else: reset hasLineReturn
         } // else if: nil
         
-        else if ( m_LineOfTokens[index].type == T ) {
+        else if ( m_LineOfTokens[i].type == T ) {
           cout << "#t" << endl;
-          hasLineReturn = true;
         } // else if: #t
         
-        else if ( m_LineOfTokens[index].type == STRING ) {
-          PrintString( m_LineOfTokens[index].content );
-          hasLineReturn = true;
+        else if ( m_LineOfTokens[i].type == STRING ) {
+          PrintString( m_LineOfTokens[i].content );
         } // else if: string
         
-        else {
-          cout << m_LineOfTokens[index].content << endl;
-          hasLineReturn = true;
+        else if ( m_LineOfTokens[i].type == SYMBOL ){
+          cout << m_LineOfTokens[i].content << endl;
         } // else: symbol
+        
+        hasLineReturn = true;
       } // if: current token is an atom
 
-      else if ( m_LineOfTokens[index].type == LEFT_PAREN ) {
-        leftParenCount++;
-        hasLineReturn = false;
-        cout << "( ";
+      else if ( m_LineOfTokens[i].type == LEFT_PAREN ) {
+        if ( m_LineOfTokens[i-1].type != DOT ) {
+          leftParenCount++;
+          hasLineReturn = false;
+          cout << "( ";
+        } // if: check dot-paren case
       } // else if: left paren
       
-      else if ( m_LineOfTokens[index].type == RIGHT_PAREN ) {
+      else if ( m_LineOfTokens[i].type == RIGHT_PAREN ) {
         cout << ")" << endl;
         hasLineReturn = true;
       } // else if: right paren
       
-      else if ( m_LineOfTokens[index].type == QUOTE ) {
+      else if ( m_LineOfTokens[i].type == QUOTE ) {
         ;
       } //
       
-      else if ( m_LineOfTokens[index].type == DOT ) {
-        if ( m_LineOfTokens[index+1].type != LEFT_PAREN ) {
+      else if ( m_LineOfTokens[i].type == DOT ) {
+        if ( m_LineOfTokens[i+1].type == LEFT_PAREN ) {
+          ;
+        } // if: check dot-leftParen case
+        
+        else if ( m_LineOfTokens[i+1].type == NIL ) {
+          hasLineReturn = false;
+        } // else if: dot-nil case
+        
+        else {
           cout << "." << endl;
           hasLineReturn = true;
-        } // if: check dot-leftParen case
+        } // else: normal case
       } // else if: dot
       
       if ( leftParenCount == 0 ) {
@@ -722,9 +778,13 @@ int main() {
     cout << "> ";
     project1.ReadSExp();
     
-    if ( project1.m_IsExit ) {
+    if ( project1.CheckExit() ) {
       end = true;
     } // if: check exit
+    
+    else {
+      project1.PrintSExp();
+    } // else: normal case
     
     cout << endl;
   } while ( NOT end );
