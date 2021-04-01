@@ -383,7 +383,10 @@ public:
       // cout << "<ATOM> ";
 
       if ( m_Root != NULL ) {
+        
         if ( m_CurrentTreeLocation->leftToken != NULL ) {
+          FindValidNodePosition();
+          
           if ( m_LineOfTokens.at( m_LineOfTokens.size() - 2 ).type != DOT ) {
             RightCreateNode();
             LeftInsertToken();
@@ -396,6 +399,13 @@ public:
 
         else {
           if ( m_CurrentTreeLocation->leftNode != NULL ) {
+            FindValidNodePosition();
+            
+            if ( m_LineOfTokens.at( m_LineOfTokens.size() - 2 ).type != DOT ) {
+              RightCreateNode();
+              LeftInsertToken();
+            } // if: without dot case
+            
             RightInsertToken();
           } // if : left node is not NULL
           
@@ -417,10 +427,7 @@ public:
 
       else {
         if ( m_CurrentTreeLocation->leftToken != NULL ) {
-          if ( m_LineOfTokens.at( m_LineOfTokens.size() - 2 ).type == RIGHT_PAREN ) {
-            FindValidNodePosition();
-          } // if: right paren, find valid postion
-          
+          FindValidNodePosition();
           RightCreateNode();
           
           if ( m_LineOfTokens.at( m_LineOfTokens.size() - 2 ).type != DOT ) {
@@ -430,10 +437,16 @@ public:
         
         else {
           if ( m_CurrentTreeLocation->leftNode != NULL ) {
+            FindValidNodePosition();
             RightCreateNode();
+            
+            if ( m_LineOfTokens.at( m_LineOfTokens.size() - 2 ).type != DOT ) {
+              LeftCreateNode();
+            } // if: with out dot
           } // if: insert right
           
           else {
+            FindValidNodePosition();
             LeftCreateNode();
           } // else: insert right
         } // else: right insert node
