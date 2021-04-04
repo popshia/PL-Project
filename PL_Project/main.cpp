@@ -130,31 +130,27 @@ public:
     ---------------- Processing ----------------
   */
   
-  void ReadSExp() {
+  bool ReadSExp() {
     m_Root = NULL;
     m_LineOfTokens.clear();
-    // m_ErrorMessage.clear();
-    // m_Error.errorMessage = "\0";
     m_Error.errorType = NONE;
-    
-    try {
-      HasNextToken();
-      
-      if ( CheckSExp() == false ) {
-        throw ( m_Error.errorMessage.c_str() );
-      } // if: if there's an error, throw
-    } // try: run the code
-    
-    catch ( const char* errorMessage ) {
-      cout << errorMessage << endl;
-      // else {
-        // GetRidOfErrorLeftOvers();
-      // } // else: get rid of the rest
-    } // catch: error message
-    
+    m_Error.errorMessage = "\0";
     g_CursorLine = 1;
     g_CursorColumn = 0;
-    return;
+    
+    if ( HasNextToken() == true ) {
+      if ( CheckSExp() == false ) {
+        return false;
+      } // if: handle the error
+      
+      else {
+        return true;
+      } // else: print <S-exp>
+    } // if: check the first input
+    
+    else {
+      return false;
+    } // else: first input error
   } // ReadSExp()
   
   void GetRidOfTheRest() {
@@ -210,8 +206,9 @@ public:
       m_ErrorStream << "ERROR(no closing quote) : "
                     << "END-OF-LINE encounterd at "
                     << "Line " << g_CursorLine << " Column " << g_CursorColumn+1;
+      m_Error.errorType = NO_CLOSING_QUOTE;
       m_Error.errorMessage = m_ErrorStream.str();
-      throw ( m_Error.errorMessage.c_str() );
+      return "\0";
     } // check closure error
     
     g_CursorColumn++;
@@ -237,8 +234,9 @@ public:
         m_ErrorStream << "ERROR(no closing quote) : "
                       << "END-OF-LINE encounterd at "
                       << "Line " << g_CursorLine << " Column " << g_CursorColumn+1;
+        m_Error.errorType = NO_CLOSING_QUOTE;
         m_Error.errorMessage = m_ErrorStream.str();
-        throw ( m_Error.errorMessage.c_str() );
+        return "\0";
         // throw m_ErrorMessage;
       } // check closure error
       
@@ -280,6 +278,11 @@ public:
     
     else if ( peekChar == '"' ) {
       newToken.content.append( GetString() );
+      
+      if ( newToken.content == "\"" ) {
+        return false;
+      } // if: no closing quote error
+      
       newToken.type = STRING;
     } // else if: string
 
@@ -383,7 +386,6 @@ public:
       // cout << "<ATOM> ";
 
       if ( m_Root != NULL ) {
-        
         if ( m_CurrentTreeLocation->leftToken != NULL ) {
           FindValidNodePosition();
           
@@ -453,8 +455,11 @@ public:
       } // else: create a node
 
       if ( HasNextToken() == false ) {
-        m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
-        m_Error.errorType = NO_MORE_INPUT;
+        if ( m_Error.errorType != NO_CLOSING_QUOTE ) {
+          m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
+          m_Error.errorType = NO_MORE_INPUT;
+        } // if: check if it's a closure or EOF error
+        
         return false;
       } // if: check if there is any token left
       
@@ -463,38 +468,62 @@ public:
       // LEFT-PAREN <S-exp>
       if ( CheckSExp() == true ) {
         if ( HasNextToken() == false ) {
-          m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
-          m_Error.errorType = NO_MORE_INPUT;
+          if ( m_Error.errorType != NO_CLOSING_QUOTE ) {
+            m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
+            m_Error.errorType = NO_MORE_INPUT;
+          } // if: check if it's a closure or EOF error
+          
           return false;
         } // if: check if there is any token left
 
         // LEFT-PAREN <S-exp> { <S-exp> }
         while ( CheckSExp() == true ) {
           if ( HasNextToken() == false ) {
-            m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
-            m_Error.errorType = NO_MORE_INPUT;
+            if ( m_Error.errorType != NO_CLOSING_QUOTE ) {
+              m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
+              m_Error.errorType = NO_MORE_INPUT;
+            } // if: check if it's a closure or EOF error
+            
             return false;
           } // if: check if there is any token left
         } // while: { <S-exp> }
         
+        if ( m_Error.errorType == UNEXPECTED_TOKEN_ATOM_LEFT_PAREN ) {
+          return false;
+        } // if: there's a syntax error in the while loop
+        
         // LEFT-PAREN <S-exp> { <S-exp> } [ DOT ]
         if ( m_LineOfTokens.back().type == DOT ) {
           if ( HasNextToken() == false ) {
-            m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
-            m_Error.errorType = NO_MORE_INPUT;
+            if ( m_Error.errorType != NO_CLOSING_QUOTE ) {
+              m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
+              m_Error.errorType = NO_MORE_INPUT;
+            } // if: check if it's a closure or EOF error
+            
             return false;
           } // if: check if there is any token left
                
           // LEFT-PAREN <S-exp> { <S-exp> } [ DOT <S-exp> ]
           if ( CheckSExp() == true ) {
             if ( HasNextToken() == false ) {
-              m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
-              m_Error.errorType = NO_MORE_INPUT;
+              if ( m_Error.errorType != NO_CLOSING_QUOTE ) {
+                m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
+                m_Error.errorType = NO_MORE_INPUT;
+              } // if: check if it's a closure or EOF error
+              
               return false;
             } // if: check if there is any token left
           } // if: <S-exp>
           
           else {
+            m_Error.errorType = UNEXPECTED_TOKEN_ATOM_LEFT_PAREN;
+            stringstream m_ErrorStream;
+            m_ErrorStream << "ERROR(unexpected token) : "
+                          << "atom or '(' expected when token at "
+                          << "Line " << g_CursorLine
+                          << " Column " << g_CursorColumn - ( m_LineOfTokens.back().content.size() - 1 )
+                          << " is >>" << m_LineOfTokens.back().content << "<<";
+            m_Error.errorMessage = m_ErrorStream.str();
             return false;
           } // else: syntax error
         } // if: [ DOT <S-exp> ]
@@ -507,10 +536,12 @@ public:
         } // if: RIGHT-PAREN
         
         else {
+          m_Error.errorType = UNEXPECTED_RIGHT_PAREN;
           stringstream m_ErrorStream;
           m_ErrorStream << "ERROR(unexpected token) : "
                         << "')' expected when token at "
-                        << "Line " << g_CursorLine << " Column " << g_CursorColumn
+                        << "Line " << g_CursorLine
+                        << " Column " << g_CursorColumn - ( m_LineOfTokens.back().content.size() - 1 )
                         << " is >>" << m_LineOfTokens.back().content << "<<"; 
           m_Error.errorMessage = m_ErrorStream.str();
           // throw m_ErrorMessage;
@@ -519,6 +550,14 @@ public:
       } // if: <S-exp>
       
       else {
+        m_Error.errorType = UNEXPECTED_TOKEN_ATOM_LEFT_PAREN;
+        stringstream m_ErrorStream;
+        m_ErrorStream << "ERROR(unexpected token) : "
+                      << "atom or '(' expected when token at "
+                      << "Line " << g_CursorLine
+                      << " Column " << g_CursorColumn - ( m_LineOfTokens.back().content.size() - 1 )
+                      << " is >>" << m_LineOfTokens.back().content << "<<";
+        m_Error.errorMessage = m_ErrorStream.str();
         return false;
       } // else: syntax error
     } // else if: LEFT-PAREN
@@ -526,6 +565,11 @@ public:
     // QUOTE
     else if ( m_LineOfTokens.back().type == QUOTE ) {
       if ( HasNextToken() == false ) {
+        if ( m_Error.errorType != NO_CLOSING_QUOTE ) {
+          m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
+          m_Error.errorType = NO_MORE_INPUT;
+        } // if: check if it's a closure or EOF error
+        
         return false;
       } // if: check if there is any token left
       
@@ -538,6 +582,13 @@ public:
       } // if: <S-exp>
       
       else {
+        stringstream m_ErrorStream;
+        m_ErrorStream << "ERROR(unexpected token) : "
+                      << "atom or '(' expected when token at "
+                      << "Line " << g_CursorLine
+                      << " Column " << g_CursorColumn - ( m_LineOfTokens.back().content.size() - 1 )
+                      << " is >>" << m_LineOfTokens.back().content << "<<";
+        m_Error.errorMessage = m_ErrorStream.str();
         return false;
       } // else: syntax error
     } // else if: QUOTE
@@ -548,9 +599,10 @@ public:
     
     stringstream m_ErrorStream;
     m_ErrorStream << "ERROR(unexpected token) : "
-    << "atom or '(' expected when token at "
-    << "Line " << g_CursorLine << " Column " << g_CursorColumn
-    << " is >>" << m_LineOfTokens.back().content << "<<";
+                  << "atom or '(' expected when token at "
+                  << "Line " << g_CursorLine
+                  << " Column " << g_CursorColumn - ( m_LineOfTokens.back().content.size() - 1 )
+                  << " is >>" << m_LineOfTokens.back().content << "<<";
     m_Error.errorMessage = m_ErrorStream.str();
     
     return false;
@@ -768,6 +820,20 @@ public:
     
     cout << endl;
   } // PrintString()
+  
+  /*
+    ------------------- Error ------------------
+    ------------------ Handling ----------------
+  */
+  
+  void ErrorHandling() {
+    cout << m_Error.errorMessage << endl;
+    
+    while ( cin.get() != '\n' ) {
+      cin.get();
+    } // while: get the left overs
+  } // ErrorHandling()
+  
 }; // Project1Class
 
 void ReaduTestNumAndLabel() {
@@ -789,15 +855,24 @@ int main() {
   
   do {
     cout << "> ";
-    project1.ReadSExp();
     
-    if ( project1.CheckExit() ) {
-      end = true;
-    } // if: check exit
+    if ( project1.ReadSExp() == true ) {
+      if ( project1.CheckExit() ) {
+        end = true;
+      } // if: check exit
+      
+      else {
+        project1.PrintSExp();
+      } // else: not exit case
+    } // if: no error
     
     else {
-      project1.PrintSExp();
-    } // else: normal case
+      project1.ErrorHandling();
+      
+      if ( project1.CheckExit() ) {
+        end = true;
+      } // if: check exit
+    } // else: error occured
     
     cout << endl;
   } while ( NOT end );
