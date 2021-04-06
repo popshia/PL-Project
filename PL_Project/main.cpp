@@ -77,9 +77,9 @@ public:
     string exit = "\0";
     
     for ( int i = 0 ; i < m_LineOfTokens.size() ; i++ ) {
-      if ( ( IsAtom( m_LineOfTokens[i]) && m_LineOfTokens[i].type != NIL ) ||
-             m_LineOfTokens[i].type == LEFT_PAREN ||
-             m_LineOfTokens[i].type == RIGHT_PAREN ) {
+      if ( ( IsAtom( m_LineOfTokens[i] ) && m_LineOfTokens[i].type != NIL ) ||
+           m_LineOfTokens[i].type == LEFT_PAREN ||
+           m_LineOfTokens[i].type == RIGHT_PAREN ) {
         exit += m_LineOfTokens[i].content;
       } // if: attach the symbol
     } // for: go through the tokens
@@ -93,7 +93,7 @@ public:
     else {
       return false;
     } // else: not exit case
-  } // IsExitCase()
+  } // CheckExit()
   
   /*
     -------------------- Is --------------------
@@ -157,7 +157,7 @@ public:
     char peekChar = cin.peek();
     
     while ( peekChar != '\n' && peekChar != '\r' &&
-           peekChar != EOF && peekChar != '\0' ) {
+            peekChar != EOF && peekChar != '\0' ) {
       cin.get();
       peekChar = cin.peek();
     } // while: get the left overs
@@ -209,7 +209,7 @@ public:
       m_Error.errorType = NO_CLOSING_QUOTE;
       m_Error.errorMessage = m_ErrorStream.str();
       return "\0";
-    } // check closure error
+    } // if: check closure error
     
     g_CursorColumn++;
     string currentString = "\0";
@@ -238,7 +238,7 @@ public:
         m_Error.errorMessage = m_ErrorStream.str();
         return "\0";
         // throw m_ErrorMessage;
-      } // check closure error
+      } // if: check closure error
       
       g_CursorColumn++;
     } // while: get the string
@@ -593,10 +593,6 @@ public:
       } // else: syntax error
     } // else if: QUOTE
     
-    if ( m_ErrorStream.str() != "\0" ) {
-      m_ErrorStream.clear();
-    } // if: clear previous error message
-    
     stringstream m_ErrorStream;
     m_ErrorStream << "ERROR(unexpected token) : "
                   << "atom or '(' expected when token at "
@@ -625,7 +621,7 @@ public:
 
   void CreateNode() {
     if ( m_CurrentTreeLocation->leftToken == NULL &&
-        m_CurrentTreeLocation->leftNode == NULL) {
+         m_CurrentTreeLocation->leftNode == NULL ) {
       m_CurrentTreeLocation->leftNode = new TreeStruct;
       m_CurrentTreeLocation->leftNode->previousNode = m_CurrentTreeLocation;
       m_CurrentTreeLocation = m_CurrentTreeLocation->leftNode;
@@ -700,15 +696,15 @@ public:
   void PrintSExp() {
     int leftParenCount = 0;
     bool hasLineReturn = false;
-    bool HasRightParenMinus = false;
+    bool hasRightParenMinus = false;
     
     for ( int i = 0 ; i < m_LineOfTokens.size() ; i++ ) {
-      HasRightParenMinus = false;
+      hasRightParenMinus = false;
       
       if ( hasLineReturn ) {
         if ( m_LineOfTokens[i].type == RIGHT_PAREN ) {
           leftParenCount--;
-          HasRightParenMinus = true;
+          hasRightParenMinus = true;
         } // if: print right parenthesis, minus leftParenCount by one
         
         int spaces = leftParenCount * 2;
@@ -746,9 +742,9 @@ public:
           PrintString( m_LineOfTokens[i].content );
         } // else if: string
         
-        else if ( m_LineOfTokens[i].type == SYMBOL ){
+        else if ( m_LineOfTokens[i].type == SYMBOL ) {
           cout << m_LineOfTokens[i].content << endl;
-        } // else: symbol
+        } // else if: symbol
         
         hasLineReturn = true;
       } // if: current token is an atom
@@ -767,8 +763,14 @@ public:
       } // else if: right paren
       
       else if ( m_LineOfTokens[i].type == QUOTE ) {
-        ;
-      } //
+        cout << "( quote" << endl;
+        leftParenCount++;
+        hasLineReturn = true;
+        TokenStruct quoteRightParen;
+        quoteRightParen.type = RIGHT_PAREN;
+        quoteRightParen.content = ")";
+        m_LineOfTokens.push_back(quoteRightParen);
+      } // else if: quote
       
       else if ( m_LineOfTokens[i].type == DOT ) {
         if ( m_LineOfTokens[i+1].type == LEFT_PAREN ) {
@@ -793,28 +795,34 @@ public:
 
   void PrintString( string stringContent ) {
     for ( int index = 0 ; index < stringContent.length() ; index++ ) {
-      if ( stringContent[ index ] == '\\' ) {
-        if ( stringContent[ index + 1 ] == 'n' ) {
+      if ( stringContent[index] == '\\' ) {
+        if ( stringContent[index + 1] == 'n' ) {
           cout << endl;
+          index++;
         } // if: '\n'
 
-        else if ( stringContent[ index + 1 ] == 't' ) {
+        else if ( stringContent[index + 1] == 't' ) {
           cout << '\t';
+          index++;
         } // else if: '\t'
 
-        else if ( stringContent[ index + 1 ] == '"' ) {
+        else if ( stringContent[index + 1] == '"' ) {
           cout << '"';
+          index++;
         } // else if: '"'
 
-        else if ( stringContent[ index + 1 ] == '\\' ) {
+        else if ( stringContent[index + 1] == '\\' ) {
           cout << '\\';
+          index++;
         } // else if: '\\'
         
-        index++;
+        else {
+          cout << stringContent[index];
+        } // normal '\\'
       } // if: escape
 
       else {
-        cout << stringContent[ index ];
+        cout << stringContent[index];
       } // else: normal character
     } // for: go through the string
     
@@ -849,6 +857,8 @@ void ReaduTestNumAndLabel() {
 
 int main() {
   // ReaduTestNumAndLabel();
+  // int uTestNum = 0;
+  // cin >> uTestNum;
   bool end = false;
   Project1Class project1;
   cout << "Welcome to OurScheme!" << endl;
