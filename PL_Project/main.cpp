@@ -1,12 +1,6 @@
 //  main.cpp
 //  PL_Project
 
-// project synatax
-// <S-exp> ::= <ATOM>
-//             | LEFT-PAREN <S-exp> { <S-exp> } [ DOT <S-exp> ] RIGHT-PAREN
-//             | QUOTE <S-exp>
-// <ATOM>  ::= SYMBOL | INT | FLOAT | STRING | NIL | T | LEFT-PAREN RIGHT-PAREN
-
 // include libraries
 # include <ctype.h>
 # include <stdio.h>
@@ -721,11 +715,11 @@ public:
       } // if: check index validility
     } // if: current token is left-paren
     
-    // else if ( m_LineOfTokens[i].type == RIGHT_PAREN ) {
-    //   if ( m_LineOfTokens[i-1].type == RIGHT_PAREN ) {
-    //     return false;
-    //   } // if: continuous two right paren
-    // } // else if: currrent token is right-paren
+    else if ( m_LineOfTokens[i].type == RIGHT_PAREN ) {
+      if ( m_LineOfTokens[i-1].type == RIGHT_PAREN ) {
+        return false;
+      } // if: continuous two right paren
+    } // else if: currrent token is right-paren
     
     else if ( m_LineOfTokens[i].type == NIL ) {
       if ( i >= 1 ) {
@@ -878,9 +872,11 @@ public:
     else {
       cout << m_Error.errorMessage << endl;
       
-      while ( cin.get() != '\n' ) {
-        cin.get();
-      } // while: get the left overs
+      if ( m_Error.errorType != NO_CLOSING_QUOTE ) {
+        while ( cin.get() != '\n' ) {
+          cin.get();
+        } // while: get the left overs
+      } // if: not no closing quote, get the leftovers
     } // else: not eof
   } // ErrorHandling()
   
@@ -890,7 +886,6 @@ int main() {
   int uTestNum = 0;
   cin >> uTestNum;
   bool end = false;
-  Project1Class project1;
   cout << "Welcome to OurScheme!" << endl << endl;
   
   if ( uTestNum == 4 )
@@ -898,6 +893,7 @@ int main() {
   
   else {
     do {
+      Project1Class project1;
       cout << "> ";
       
       if ( project1.ReadSExp() == true ) {
