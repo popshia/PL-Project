@@ -93,7 +93,6 @@ public:
   */
   
   bool IsFloat( TokenStruct newToken ) {
-    
     for ( int i = 0 ; i < newToken.content.length() ; i++ ) {
       if ( newToken.content[i] == '.' ) {
         return true;
@@ -128,8 +127,6 @@ public:
     m_Root = NULL;
     m_Error.errorType = NONE;
     m_Error.errorMessage = "\0";
-    g_CursorLine = 1;
-    g_CursorColumn = 0;
     
     if ( HasNextToken() == true ) {
       if ( CheckSExp() == false ) {
@@ -174,7 +171,7 @@ public:
       } // if: check if there's any comment
       
       else {
-        if ( cin.get() == '\n' ) {
+        if ( peekChar == '\n' ) {
           g_CursorLine++;
           g_CursorColumn = 0;
         } // if: next line, modifiy cursor position
@@ -183,6 +180,7 @@ public:
           g_CursorColumn++;
         } // else: cursor move right
         
+        cin.get();
         peekChar = cin.peek();
       } // else: get next char
     } // while: get the first non-whitespace
@@ -250,8 +248,8 @@ public:
     } // if gets nothing
     
     TokenStruct newToken;
-    g_CursorColumn++;
     newToken.content.push_back( cin.get() );
+    g_CursorColumn++;
     // initialize new token
     
     if ( peekChar == '(' ) {
@@ -491,7 +489,8 @@ public:
           } // if: check if there is any token left
         } // while: { <S-exp> }
         
-        if ( m_Error.errorType == UNEXPECTED_TOKEN_ATOM_LEFT_PAREN ) {
+        if ( m_Error.errorType == UNEXPECTED_TOKEN_ATOM_LEFT_PAREN ||
+             m_Error.errorType == UNEXPECTED_RIGHT_PAREN ) {
           return false;
         } // if: there's a syntax error in the while loop
         
@@ -567,6 +566,16 @@ public:
     
     // QUOTE
     else if ( m_LineOfTokens.back().type == QUOTE ) {
+      m_LineOfTokens.pop_back();
+      TokenStruct quoteLeftParen;
+      quoteLeftParen.type = LEFT_PAREN;
+      quoteLeftParen.content = "(";
+      TokenStruct quoteString;
+      quoteString.type = SYMBOL;
+      quoteString.content = "quote";
+      m_LineOfTokens.push_back( quoteLeftParen );
+      m_LineOfTokens.push_back( quoteString );
+      
       if ( HasNextToken() == false ) {
         if ( m_Error.errorType != NO_CLOSING_QUOTE ) {
           m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
@@ -581,6 +590,10 @@ public:
       // QUOTE <S-exp>
       if ( CheckSExp() == true ) {
         // cout << "<S-exp>" << endl;
+        TokenStruct quoteRightParen;
+        quoteRightParen.type = RIGHT_PAREN;
+        quoteRightParen.content = ")";
+        m_LineOfTokens.push_back( quoteRightParen );
         return true;
       } // if: <S-exp>
       
@@ -802,13 +815,7 @@ public:
         } // else if: right paren
         
         else if ( m_LineOfTokens[i].type == QUOTE ) {
-          cout << "( quote" << endl;
-          leftParenCount++;
-          hasLineReturn = true;
-          TokenStruct quoteRightParen;
-          quoteRightParen.type = RIGHT_PAREN;
-          quoteRightParen.content = ")";
-          m_LineOfTokens.push_back( quoteRightParen );
+          ;
         } // else if: quote
         
         else if ( m_LineOfTokens[i].type == DOT ) {
@@ -820,6 +827,14 @@ public:
       if ( leftParenCount == 0 ) {
         return;
       } // if: check print complete
+      
+      else if ( i == m_LineOfTokens.size()-1 && leftParenCount > 0 ) {
+        while ( leftParenCount > 0 ) {
+          leftParenCount--;
+          PrintIndentation( leftParenCount );
+          cout << ")" << endl;
+        } // while: loop print right-paren
+      } // if: for loop is end but leftParenCount still greater than zero
     } // for: go through the vector
   } // PrintSExp()
 
@@ -873,13 +888,51 @@ public:
       cout << m_Error.errorMessage << endl;
       
       if ( m_Error.errorType != NO_CLOSING_QUOTE ) {
-        while ( cin.get() != '\n' ) {
+        char peekChar = cin.peek();
+        
+        while ( peekChar != '\n' ) {
           cin.get();
+          peekChar = cin.peek();
         } // while: get the left overs
+        
+        cin.get();
       } // if: not no closing quote, get the leftovers
     } // else: not eof
   } // ErrorHandling()
   
+  /*
+    ------------------- Clear ------------------
+    -------------------- Line ------------------
+  */
+  
+  void ClearTheLine() {
+    g_CursorLine = 1;
+    g_CursorColumn = 0;
+    
+    char peekChar = cin.peek();
+    
+    while ( peekChar == ' ' ) {
+      cin.get();
+      g_CursorColumn++;
+      peekChar = cin.peek();
+    } // while: get space
+    
+    if ( peekChar == '\n' ) {
+      cin.get();
+      g_CursorLine = 1;
+      g_CursorColumn = 0;
+    } // if: get the useless line return
+    
+    else if ( peekChar == ';' ) {
+      PeekCharAndGetRidOfComment();
+      g_CursorLine = 1;
+      g_CursorColumn = 0;
+    } // else if: get rid of comment
+    
+    else {
+      return;
+    } // else: get valid character
+  } // ClearTheLine()
 }; // Project1Class
 
 int main() {
@@ -903,11 +956,14 @@ int main() {
         
         else {
           project1.PrintSExp();
+          project1.ClearTheLine();
         } // else: not exit case
       } // if: no error
       
       else {
         project1.ErrorHandling();
+        g_CursorLine = 1;
+        g_CursorColumn = 0;
         
         if ( project1.CheckExit() == true ) {
           end = true;
