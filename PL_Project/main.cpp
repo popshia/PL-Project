@@ -300,18 +300,8 @@ public:
       newToken.type = CheckTokenType( newToken );
     } // else: other types
     
-    // cout << newToken.content << " " << newToken.type << endl;
-    
-    if ( newToken.content != "\0" ) {
-      m_LineOfTokens.push_back( newToken ); // push the newToken to the vector
-      return true;
-    } // if: get a single token successfully
-    
-    else {
-      m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
-      m_Error.errorType = NO_MORE_INPUT;
-      return false;
-    } // else: can't get any token
+    m_LineOfTokens.push_back( newToken ); // push the newToken to the vector
+    return true;
   } // HasNextToken()
   
   TokenType CheckTokenType( TokenStruct newToken ) {
@@ -913,6 +903,10 @@ public:
       
       if ( m_Error.errorType != NO_CLOSING_QUOTE ) {
         char peekChar = cin.peek();
+        
+        if ( peekChar == EOF ) {
+          return;
+        } // if: eof
         
         while ( peekChar != '\n' ) {
           cin.get();
