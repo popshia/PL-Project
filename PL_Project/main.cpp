@@ -1,5 +1,5 @@
-//  main.cpp
-//  PL_Project
+// main.cpp
+// PL_Project
 
 // include libraries
 # include <ctype.h>
@@ -143,27 +143,20 @@ public:
     } // else: first input error
   } // ReadSExp()
   
-  void GetRidOfTheRest() {
-    char peekChar = cin.peek();
-    
-    while ( peekChar != '\n' ) {
-      cin.get();
-      peekChar = cin.peek();
-    } // while: get the left overs
-    
-    cin.get();
-  } // GetRidOfTheRest()
-  
   char PeekCharAndGetRidOfComment() {
     char peekChar = cin.peek();
     
     while ( peekChar == ' ' || peekChar == '\n' || peekChar == '\r' ||
             peekChar == '\t' || peekChar == ';' || peekChar == '\0' ) {
       if ( peekChar == ';' ) {
-        while ( peekChar != '\n' && peekChar != '\r' ) {
+        while ( peekChar != '\n' && peekChar != '\r' && peekChar != EOF ) {
           peekChar = cin.get();
           g_CursorColumn++;
         } // while: get the current line
+        
+        if ( peekChar == EOF ) {
+          return EOF;
+        } // if: eof
         
         g_CursorLine++;
         peekChar = cin.peek();
@@ -191,7 +184,7 @@ public:
   string GetString() {
     char currentChar = cin.get();
     
-    if ( currentChar == '\n' || currentChar == EOF ) {
+    if ( currentChar == '\n' ) {
       stringstream m_ErrorStream;
       m_ErrorStream << "ERROR (no closing quote) : "
                     << "END-OF-LINE encountered at "
@@ -200,6 +193,12 @@ public:
       m_Error.errorMessage = m_ErrorStream.str();
       return "\0";
     } // if: check closure error
+    
+    else if ( currentChar == EOF ) {
+      m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
+      m_Error.errorType = NO_MORE_INPUT;
+      return "\0";
+    } // else if: eof
     
     g_CursorColumn++;
     string currentString = "\0";
@@ -219,7 +218,7 @@ public:
 
       currentChar = cin.get();
       
-      if ( currentChar == '\n' || currentChar == EOF ) {
+      if ( currentChar == '\n' ) {
         stringstream m_ErrorStream;
         m_ErrorStream << "ERROR (no closing quote) : "
                       << "END-OF-LINE encountered at "
@@ -227,8 +226,13 @@ public:
         m_Error.errorType = NO_CLOSING_QUOTE;
         m_Error.errorMessage = m_ErrorStream.str();
         return "\0";
-        // throw m_ErrorMessage;
       } // if: check closure error
+      
+      else if ( currentChar == EOF ) {
+        m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
+        m_Error.errorType = NO_MORE_INPUT;
+        return "\0";
+      } // if: eof
       
       g_CursorColumn++;
     } // while: get the string
@@ -292,7 +296,7 @@ public:
         newToken.content.push_back( cin.get() );
         g_CursorColumn++;
       } // while: get the rest of the token
-      
+
       newToken.type = CheckTokenType( newToken );
     } // else: other types
     
@@ -599,6 +603,7 @@ public:
       
       else {
         stringstream m_ErrorStream;
+        m_Error.errorType = UNEXPECTED_TOKEN_ATOM_LEFT_PAREN;
         m_ErrorStream << "ERROR (unexpected token) : "
                       << "atom or '(' expected when token at "
                       << "Line " << g_CursorLine
@@ -709,7 +714,7 @@ public:
     ------------------ Results -----------------
   */
   
-  bool NeedToPrint( int i ) {
+  bool NeedToPrint( int i, int leftParenCount ) {
     if ( m_LineOfTokens[i].type == DOT ) {
       if ( m_LineOfTokens[i+1].type == LEFT_PAREN ) {
         return false;
@@ -729,9 +734,32 @@ public:
     } // if: current token is left-paren
     
     else if ( m_LineOfTokens[i].type == RIGHT_PAREN ) {
-      if ( m_LineOfTokens[i-1].type == RIGHT_PAREN ) {
+      if ( IsAtom( m_LineOfTokens[i-1] ) ) {
+        return true;
+      } // if: printing after an atom
+      
+      else {
+        if ( leftParenCount > 1 ) {
+          return true;
+        } // if: still have spaces for continious rightParen
+        
         return false;
-      } // if: continuous two right paren
+      } // else if: continious rightParen
+      // i++;
+      
+      // if ( leftParenCount > 1 ) {
+      //   return true;
+      // } // if: no more space
+      
+      // while ( i < m_LineOfTokens.size() ) {
+      //  if ( m_LineOfTokens[i].type != RIGHT_PAREN ) {
+      //     return true;
+      //   } // if: there's still any thing at the back
+      //
+      //   i++;
+      // } // while: see if there's still data after
+      
+      // return false;
     } // else if: currrent token is right-paren
     
     else if ( m_LineOfTokens[i].type == NIL ) {
@@ -758,15 +786,11 @@ public:
   void PrintSExp() {
     int leftParenCount = 0;
     bool hasLineReturn = false;
-    bool alreagyRightParenMinus = false;
     
     for ( int i = 0 ; i < m_LineOfTokens.size() ; i++ ) {
-      alreagyRightParenMinus = false;
-      
-      if ( NeedToPrint( i ) ) {
+      if ( NeedToPrint( i, leftParenCount ) ) {
         if ( m_LineOfTokens[i].type == RIGHT_PAREN ) {
           leftParenCount--;
-          alreagyRightParenMinus = true;
         } // if: print right parenthesis, minus leftParenCount by one
         
         if ( hasLineReturn ) {
