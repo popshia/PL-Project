@@ -1,11 +1,1 @@
-right paren print principle???
-
-(define (f z)
-   (let ((x 5)
-         (y "Hi Hello"
-        )
-    (define foo (lambda (y) (bar x y)exit))
-    (define bar (lambda (a b) (+ (* a b) a)))
-    (+ (foo (+ x 3))
-       z)
-   )))
+( exit () )

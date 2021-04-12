@@ -58,8 +58,6 @@ private:
   TreeStruct *m_Root;
   TreeStruct *m_CurrentTreeLocation;
   ErrorStruct m_Error;
-  stringstream m_ErrorStream;
-  // string m_ErrorMessage;
   
 public:
   
@@ -185,18 +183,12 @@ public:
     char currentChar = cin.get();
     
     if ( currentChar == '\n' ) {
-      stringstream m_ErrorStream;
-      m_ErrorStream << "ERROR (no closing quote) : "
-                    << "END-OF-LINE encountered at "
-                    << "Line " << g_CursorLine << " Column " << g_CursorColumn+1;
-      m_Error.errorType = NO_CLOSING_QUOTE;
-      m_Error.errorMessage = m_ErrorStream.str();
+      SetError( NO_CLOSING_QUOTE );
       return "\0";
     } // if: check closure error
     
     else if ( currentChar == EOF ) {
-      m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
-      m_Error.errorType = NO_MORE_INPUT;
+      SetError( NO_MORE_INPUT );
       return "\0";
     } // else if: eof
     
@@ -219,18 +211,12 @@ public:
       currentChar = cin.get();
       
       if ( currentChar == '\n' ) {
-        stringstream m_ErrorStream;
-        m_ErrorStream << "ERROR (no closing quote) : "
-                      << "END-OF-LINE encountered at "
-                      << "Line " << g_CursorLine << " Column " << g_CursorColumn+1;
-        m_Error.errorType = NO_CLOSING_QUOTE;
-        m_Error.errorMessage = m_ErrorStream.str();
+        SetError( NO_CLOSING_QUOTE );
         return "\0";
       } // if: check closure error
       
       else if ( currentChar == EOF ) {
-        m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
-        m_Error.errorType = NO_MORE_INPUT;
+        SetError( NO_MORE_INPUT );
         return "\0";
       } // if: eof
       
@@ -246,8 +232,7 @@ public:
     char peekChar = PeekCharAndGetRidOfComment();
     
     if ( peekChar == EOF || peekChar == '\0' ) {
-      m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
-      m_Error.errorType = NO_MORE_INPUT;
+      SetError( NO_MORE_INPUT );
       return false;
     } // if gets nothing
     
@@ -338,7 +323,7 @@ public:
     for ( int i = 0 ; i < newToken.content.length() ; i++ ) {
       if ( isupper( newToken.content[i] ) || islower( newToken.content[i] ) ) {
         isSymbol = true;
-      } // if: there are alphabatic characters in the token
+      } // if: there are alphabetic characters in the token
     } // for: go through the token
 
     if ( isNumber && NOT isSymbol ) {
@@ -403,7 +388,9 @@ public:
               LeftInsertToken();
             } // if: without dot case
             
-            RightInsertToken();
+            else {
+              RightInsertToken();
+            } // else: with dot case
           } // if : left node is not NULL
           
           else {
@@ -450,11 +437,6 @@ public:
       } // else: create a node
 
       if ( HasNextToken() == false ) {
-        if ( m_Error.errorType != NO_CLOSING_QUOTE ) {
-          m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
-          m_Error.errorType = NO_MORE_INPUT;
-        } // if: check if it's a closure or EOF error
-        
         return false;
       } // if: check if there is any token left
       
@@ -463,63 +445,38 @@ public:
       // LEFT-PAREN <S-exp>
       if ( CheckSExp() == true ) {
         if ( HasNextToken() == false ) {
-          if ( m_Error.errorType != NO_CLOSING_QUOTE ) {
-            m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
-            m_Error.errorType = NO_MORE_INPUT;
-          } // if: check if it's a closure or EOF error
-          
           return false;
         } // if: check if there is any token left
 
         // LEFT-PAREN <S-exp> { <S-exp> }
         while ( CheckSExp() == true ) {
           if ( HasNextToken() == false ) {
-            if ( m_Error.errorType != NO_CLOSING_QUOTE ) {
-              m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
-              m_Error.errorType = NO_MORE_INPUT;
-            } // if: check if it's a closure or EOF error
-            
             return false;
           } // if: check if there is any token left
         } // while: { <S-exp> }
         
-        if ( m_Error.errorType == UNEXPECTED_TOKEN_ATOM_LEFT_PAREN ||
-             m_Error.errorType == UNEXPECTED_RIGHT_PAREN ) {
+        if ( m_Error.errorType != NONE ) {
           return false;
         } // if: there's a syntax error in the while loop
         
         // LEFT-PAREN <S-exp> { <S-exp> } [ DOT ]
         if ( m_LineOfTokens.back().type == DOT ) {
           if ( HasNextToken() == false ) {
-            if ( m_Error.errorType != NO_CLOSING_QUOTE ) {
-              m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
-              m_Error.errorType = NO_MORE_INPUT;
-            } // if: check if it's a closure or EOF error
-            
             return false;
           } // if: check if there is any token left
                
           // LEFT-PAREN <S-exp> { <S-exp> } [ DOT <S-exp> ]
           if ( CheckSExp() == true ) {
             if ( HasNextToken() == false ) {
-              if ( m_Error.errorType != NO_CLOSING_QUOTE ) {
-                m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
-                m_Error.errorType = NO_MORE_INPUT;
-              } // if: check if it's a closure or EOF error
-              
               return false;
             } // if: check if there is any token left
           } // if: <S-exp>
           
           else {
-            m_Error.errorType = UNEXPECTED_TOKEN_ATOM_LEFT_PAREN;
-            stringstream m_ErrorStream;
-            m_ErrorStream << "ERROR (unexpected token) : "
-                          << "atom or '(' expected when token at "
-                          << "Line " << g_CursorLine
-                          << " Column " << g_CursorColumn - ( m_LineOfTokens.back().content.size() - 1 )
-                          << " is >>" << m_LineOfTokens.back().content << "<<";
-            m_Error.errorMessage = m_ErrorStream.str();
+            if ( m_Error.errorType == NONE ) {
+              SetError( UNEXPECTED_TOKEN_ATOM_LEFT_PAREN );
+            } // if: overwrite error
+            
             return false;
           } // else: syntax error
         } // if: [ DOT <S-exp> ]
@@ -532,28 +489,16 @@ public:
         } // if: RIGHT-PAREN
         
         else {
-          m_Error.errorType = UNEXPECTED_RIGHT_PAREN;
-          stringstream m_ErrorStream;
-          m_ErrorStream << "ERROR (unexpected token) : "
-                        << "')' expected when token at "
-                        << "Line " << g_CursorLine
-                        << " Column " << g_CursorColumn - ( m_LineOfTokens.back().content.size() - 1 )
-                        << " is >>" << m_LineOfTokens.back().content << "<<"; 
-          m_Error.errorMessage = m_ErrorStream.str();
-          // throw m_ErrorMessage;
+          SetError( UNEXPECTED_RIGHT_PAREN );
           return false;
         } // else: syntax error
       } // if: <S-exp>
       
       else {
-        m_Error.errorType = UNEXPECTED_TOKEN_ATOM_LEFT_PAREN;
-        stringstream m_ErrorStream;
-        m_ErrorStream << "ERROR (unexpected token) : "
-                      << "atom or '(' expected when token at "
-                      << "Line " << g_CursorLine
-                      << " Column " << g_CursorColumn - ( m_LineOfTokens.back().content.size() - 1 )
-                      << " is >>" << m_LineOfTokens.back().content << "<<";
-        m_Error.errorMessage = m_ErrorStream.str();
+        if ( m_Error.errorType == NONE ) {
+          SetError( UNEXPECTED_TOKEN_ATOM_LEFT_PAREN );
+        } // if: overwrite error
+        
         return false;
       } // else: syntax error
     } // else if: LEFT-PAREN
@@ -571,11 +516,6 @@ public:
       m_LineOfTokens.push_back( quoteString );
       
       if ( HasNextToken() == false ) {
-        if ( m_Error.errorType != NO_CLOSING_QUOTE ) {
-          m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
-          m_Error.errorType = NO_MORE_INPUT;
-        } // if: check if it's a closure or EOF error
-        
         return false;
       } // if: check if there is any token left
       
@@ -592,25 +532,12 @@ public:
       } // if: <S-exp>
       
       else {
-        stringstream m_ErrorStream;
-        m_Error.errorType = UNEXPECTED_TOKEN_ATOM_LEFT_PAREN;
-        m_ErrorStream << "ERROR (unexpected token) : "
-                      << "atom or '(' expected when token at "
-                      << "Line " << g_CursorLine
-                      << " Column " << g_CursorColumn - ( m_LineOfTokens.back().content.size() - 1 )
-                      << " is >>" << m_LineOfTokens.back().content << "<<";
-        m_Error.errorMessage = m_ErrorStream.str();
+        SetError( UNEXPECTED_TOKEN_ATOM_LEFT_PAREN );
         return false;
       } // else: syntax error
     } // else if: QUOTE
     
-    stringstream m_ErrorStream;
-    m_ErrorStream << "ERROR (unexpected token) : "
-                  << "atom or '(' expected when token at "
-                  << "Line " << g_CursorLine
-                  << " Column " << g_CursorColumn - ( m_LineOfTokens.back().content.size() - 1 )
-                  << " is >>" << m_LineOfTokens.back().content << "<<";
-    m_Error.errorMessage = m_ErrorStream.str();
+    SetError( NONE );
     
     return false;
   } // CheckSExp()
@@ -893,6 +820,53 @@ public:
     ------------------ Handling ----------------
   */
   
+  void SetError( ErrorType errorType ) {
+    stringstream errorStream;
+    
+    if ( errorType == NO_CLOSING_QUOTE ) {
+      errorStream << "ERROR (no closing quote) : "
+                    << "END-OF-LINE encountered at "
+                    << "Line " << g_CursorLine << " Column " << g_CursorColumn+1;
+      m_Error.errorType = NO_CLOSING_QUOTE;
+      m_Error.errorMessage = errorStream.str();
+    } // if: no closing quote
+    
+    else if ( errorType == UNEXPECTED_TOKEN_ATOM_LEFT_PAREN ) {
+      errorStream << "ERROR (unexpected token) : "
+                    << "atom or '(' expected when token at "
+                    << "Line " << g_CursorLine
+                    << " Column " << g_CursorColumn - ( m_LineOfTokens.back().content.size() - 1 )
+                    << " is >>" << m_LineOfTokens.back().content << "<<";
+      m_Error.errorType = UNEXPECTED_TOKEN_ATOM_LEFT_PAREN;
+      m_Error.errorMessage = errorStream.str();
+    } // else if: unexpected atom or left paren
+    
+    else if ( errorType == UNEXPECTED_RIGHT_PAREN ) {
+      errorStream << "ERROR (unexpected token) : "
+                    << "')' expected when token at "
+                    << "Line " << g_CursorLine
+                    << " Column " << g_CursorColumn - ( m_LineOfTokens.back().content.size() - 1 )
+                    << " is >>" << m_LineOfTokens.back().content << "<<";
+      m_Error.errorType = UNEXPECTED_RIGHT_PAREN;
+      m_Error.errorMessage = errorStream.str();
+    } // else if: unexpected right paren
+    
+    else if ( errorType == NO_MORE_INPUT ) {
+      m_Error.errorType = NO_MORE_INPUT;
+      m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
+    } // else if: no more input
+    
+    else {
+      errorStream << "ERROR (unexpected token) : "
+                    << "atom or '(' expected when token at "
+                    << "Line " << g_CursorLine
+                    << " Column " << g_CursorColumn - ( m_LineOfTokens.back().content.size() - 1 )
+                    << " is >>" << m_LineOfTokens.back().content << "<<";
+      m_Error.errorType = NONE;
+      m_Error.errorMessage = errorStream.str();
+    } // else: none above
+  } // SetError()
+  
   void ErrorHandling() {
     if ( m_Error.errorType == NO_MORE_INPUT ) {
       cout << m_Error.errorMessage;
@@ -904,11 +878,11 @@ public:
       if ( m_Error.errorType != NO_CLOSING_QUOTE ) {
         char peekChar = cin.peek();
         
-        if ( peekChar == EOF ) {
-          return;
-        } // if: eof
-        
         while ( peekChar != '\n' ) {
+          if ( cin.peek() == EOF ) {
+            return;
+          } // if: eof
+          
           cin.get();
           peekChar = cin.peek();
         } // while: get the left overs
@@ -942,10 +916,22 @@ public:
     } // if: get the useless line return
     
     else if ( peekChar == ';' ) {
-      PeekCharAndGetRidOfComment();
+      cin.get();
+      peekChar = cin.peek();
+      
+      while ( peekChar != '\n' ) {
+        if ( cin.peek() == EOF ) {
+          return;
+        } // if: eof
+        
+        cin.get();
+        peekChar = cin.peek();
+      } // while: get the rest off the comment
+      
+      cin.get();
       g_CursorLine = 1;
       g_CursorColumn = 0;
-    } // else if: get rid of comment
+    } // else if: comment
     
     else {
       return;
