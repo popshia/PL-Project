@@ -26,7 +26,7 @@ enum TokenType {
 }; // token type enum
 
 enum ErrorType {
-  NONE, NO_CLOSING_QUOTE, UNEXPECTED_TOKEN_ATOM_LEFT_PAREN, UNEXPECTED_RIGHT_PAREN, NO_MORE_INPUT
+  NOT_S_EXP, NO_CLOSING_QUOTE, UNEXPECTED_TOKEN_ATOM_LEFT_PAREN, UNEXPECTED_RIGHT_PAREN, NO_MORE_INPUT
 }; // error type enum
 
 // define structures
@@ -67,16 +67,29 @@ public:
   */
   bool CheckExit() {
     string exit = "\0";
+    int tokenCount = 0;
     
     for ( int i = 0 ; i < m_LineOfTokens.size() ; i++ ) {
-      if ( ( IsAtom( m_LineOfTokens[i] ) && m_LineOfTokens[i].type != NIL ) ||
+      if ( IsAtom( m_LineOfTokens[i] ) ||
            m_LineOfTokens[i].type == LEFT_PAREN ||
            m_LineOfTokens[i].type == RIGHT_PAREN ) {
-        exit += m_LineOfTokens[i].content;
+        if ( m_LineOfTokens[i].type == NIL ) {
+          if ( m_LineOfTokens[i-1].type != DOT &&
+               m_LineOfTokens[i+1].type != DOT ) {
+            exit += m_LineOfTokens[i].content;
+            tokenCount++;
+          } // if: nil with no dot
+        } // if: nil
+        
+        else {
+          exit += m_LineOfTokens[i].content;
+          tokenCount++;
+        } // else: not nil
       } // if: attach the symbol
     } // for: go through the tokens
     
-    if ( exit == "(exit)" || m_Error.errorType == NO_MORE_INPUT ) {
+    if ( ( exit == "(exit)" && tokenCount == 3 ) ||
+         m_Error.errorType == NO_MORE_INPUT ) {
       return true;
     } // if: exit case
     
@@ -123,7 +136,7 @@ public:
   bool ReadSExp() {
     m_LineOfTokens.clear();
     m_Root = NULL;
-    m_Error.errorType = NONE;
+    m_Error.errorType = NOT_S_EXP;
     m_Error.errorMessage = "\0";
     
     if ( HasNextToken() == true ) {
@@ -440,8 +453,6 @@ public:
         return false;
       } // if: check if there is any token left
       
-      // cout << "LEFT-PAREN ";
-      
       // LEFT-PAREN <S-exp>
       if ( CheckSExp() == true ) {
         if ( HasNextToken() == false ) {
@@ -455,7 +466,7 @@ public:
           } // if: check if there is any token left
         } // while: { <S-exp> }
         
-        if ( m_Error.errorType != NONE ) {
+        if ( m_Error.errorType != NOT_S_EXP ) {
           return false;
         } // if: there's a syntax error in the while loop
         
@@ -473,7 +484,7 @@ public:
           } // if: <S-exp>
           
           else {
-            if ( m_Error.errorType == NONE ) {
+            if ( m_Error.errorType == NOT_S_EXP ) {
               SetError( UNEXPECTED_TOKEN_ATOM_LEFT_PAREN );
             } // if: overwrite error
             
@@ -495,7 +506,7 @@ public:
       } // if: <S-exp>
       
       else {
-        if ( m_Error.errorType == NONE ) {
+        if ( m_Error.errorType == NOT_S_EXP ) {
           SetError( UNEXPECTED_TOKEN_ATOM_LEFT_PAREN );
         } // if: overwrite error
         
@@ -537,8 +548,7 @@ public:
       } // else: syntax error
     } // else if: QUOTE
     
-    SetError( NONE );
-    
+    SetError( NOT_S_EXP );
     return false;
   } // CheckSExp()
   
@@ -856,13 +866,13 @@ public:
       m_Error.errorMessage = "ERROR (no more input) : END-OF-FILE encountered";
     } // else if: no more input
     
-    else {
+    else if ( errorType == NOT_S_EXP ){
       errorStream << "ERROR (unexpected token) : "
                     << "atom or '(' expected when token at "
                     << "Line " << g_CursorLine
                     << " Column " << g_CursorColumn - ( m_LineOfTokens.back().content.size() - 1 )
                     << " is >>" << m_LineOfTokens.back().content << "<<";
-      m_Error.errorType = NONE;
+      m_Error.errorType = NOT_S_EXP;
       m_Error.errorMessage = errorStream.str();
     } // else: none above
   } // SetError()

@@ -1,1 +1,4 @@
 ( exit () )
+
+(;abc
+2 .);error on line 2
