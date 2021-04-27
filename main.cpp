@@ -975,7 +975,7 @@ class Project2Class {
 	} // EvalSExp()
 	
 	PrimitiveType CheckPrimitiveType() {
-		return OPERATOR;
+	
 	} // CheckPrimitiveType()
 }; // Project2Class
 
