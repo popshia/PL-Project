@@ -48,6 +48,7 @@ struct TreeStruct {
 		TreeStruct *previousNode;
 		TreeStruct *leftNode;
 		TreeStruct *rightNode;
+		bool leftParenCreate;
 }; // TreeStruct
 
 struct ErrorStruct {
@@ -387,6 +388,10 @@ public:
 				return DOT;
 			} // else if: dot
 			
+			else if ( newToken.content == "quote" ) {
+				return QUOTE;
+			} // else if: quote
+			
 			else {
 				return SYMBOL;
 			} // else: symbols
@@ -441,6 +446,7 @@ public:
 			// initialize or create node
 			if ( m_Root == NULL ) {
 				InitializeRoot();
+				m_CurrentTreeLocation->leftParenCreate = true;
 			} // if: initialize the root pointer
 			
 			else {
@@ -468,6 +474,8 @@ public:
 						LeftCreateNode();
 					} // else: insert right
 				} // else: right insert node
+				
+				m_CurrentTreeLocation->leftParenCreate = true;
 			} // else: create a node
 			
 			if ( HasNextToken() == false ) {
@@ -1097,10 +1105,24 @@ public:
 		// GetParameters();
 		// ProcessSExp();
 		return true;
-	} // EvalSExp(): TODO: need to be written in recursion, due to multiple layers of <S-Exp>s
+	} // EvalSExp()
 	
 	void PostorderTraversal( TreeStruct *walk ) {
+		static bool underQuote = false;
+		
 		if ( walk ) {
+			if ( walk->leftToken ) {
+				if ( walk->leftToken->tokenType == QUOTE ) {
+					underQuote = true;
+				} // if: under quote function
+				
+				else {
+					if ( IsPrimitive( walk->leftToken ) ) {
+						underQuote = false;
+					} // if: check if the leftToken is primitive, then reset underQuote
+				} // else: reset underQuote
+			} // if: has leftToken
+			
 			if ( walk->leftNode ) {
 				PostorderTraversal( walk->leftNode );
 			} // if: has a left node, go left
@@ -1110,19 +1132,28 @@ public:
 			} // if: has a right node, go right
 			
 			if ( walk->leftToken ) {
-				if ( IsPrimitive( walk->leftToken ) ) {
-					cout << walk->leftToken->content << endl;
-					CallCorrespondingFunction( walk );
-				} // if: if is primitive
+				if ( walk->leftParenCreate ) {
+					if ( IsPrimitive( walk->leftToken ) ) {
+						cout << walk->leftToken->content << endl;
+						if ( CheckArguments( walk ) ) {
+							CallCorrespondingFunction( walk );
+						} // if: check the parameters
+						
+						else {
+							cout << "<ERROR>: incorrect number of arguments." << endl;
+						} // else if: arguments error
+					} // if: if is primitive
+					
+					else {
+						if ( underQuote == false ) {
+							cout << "<ERROR>: " << walk->leftToken->content
+									 << " is created by left-paren, but not a function." << endl;
+						} // if: not under quote function
+					} // else: left token but not function
+				} // if: this node is created by left-paren
 			} // if: has a left token
-			
-			// if ( walk->rightToken ) {
-			// 	if ( IsPrimitive( walk->rightToken ) ) {
-			// 		cout << walk->leftToken->content << endl;
-			// 	} // if: if is primitive
-			// } // if: has a right token
 		} // if: walk != NULL
-	} // PostorderTraversal(): TODO: a sketch of the whole structure? preprocessing?
+	} // PostorderTraversal()
 	
 	/*
 		------------------ Function ----------------
@@ -1132,8 +1163,7 @@ public:
 	void CallCorrespondingFunction( TreeStruct *functionNode ) {
 		if ( functionNode->leftToken->primitiveType == CONSTRUCTOR ) {
 			if ( functionNode->leftToken->content == "cons" ) {
-				return;
-			}
+			} // if: cons
 		}
 	} // CallCorrespondingFunction()
 	
@@ -1142,8 +1172,130 @@ public:
 		----------------- Processing ---------------
 	*/
 	
-	bool GetParameters() {
-	
+	bool CheckArguments( TreeStruct *current ) {
+		if ( current->leftToken->primitiveType == CONSTRUCTOR ) {
+			if ( current->leftToken->content == "cons" ) {
+				if ( current->rightNode ) {
+					if ( current->rightNode->rightNode ) {
+						if ( current->rightNode->rightNode->rightNode == NULL ) {
+							return true;
+						} // if: no third argument
+					} // if: has two arguments
+				} // if: has one argument
+			} // if: cons
+			
+			else if ( current->leftToken->content == "list" ) {
+				return true;
+			} // else if: list
+			
+			return false;
+		} // if: constuctor
+		
+		else if ( current->leftToken->primitiveType == QUOTE_BYPASSING ) {
+			if ( current->rightNode ) {
+				if ( current->rightNode->rightNode == NULL ) {
+					return true;
+				} // if: no second argument
+			} // if: has one argument
+			
+			return false;
+		} // else if: quote
+		
+		else if ( current->leftToken->primitiveType == DEFINE_BINDING ) {
+			if ( current->rightNode ) {
+				if ( current->rightNode->rightNode ) {
+					if ( current->rightNode->rightNode->rightNode == NULL ) {
+						return true;
+					} // if: no third argument
+				} // if: has two arguments
+			} // if: has one argument
+			
+			return false;
+		} // else if: define binding
+		
+		else if ( current->leftToken->primitiveType == PART_ACCESSOR ) {
+			if ( current->rightNode ) {
+				if ( current->rightNode->rightNode == NULL ) {
+					return true;
+				} // if: no second argument
+			} // if: has one arguments
+			
+			return false;
+		} // else if: part accessors
+		
+		else if ( current->leftToken->primitiveType == PRIMITIVE_PREDICATE ) {
+			if ( current->rightNode ) {
+				if ( current->rightNode->rightNode == NULL ) {
+					return true;
+				} // if: no second argument
+			} // if: has one arguments
+			
+			return false;
+		} // else if: primitive predicate
+		
+		else if ( current->leftToken->primitiveType == OPERATOR ) {
+			if ( current->leftToken->content == "not" ) {
+				if ( current->rightNode ) {
+					if ( current->rightNode->rightNode == NULL ) {
+						return true;
+					} // if: no second argument
+				} // if: hos one argument
+			} // if: not
+			
+			else {
+				if ( current->rightNode ) {
+					if ( current->rightNode->rightNode ) {
+						return true;
+					} // if: has greater than two arguments
+				} // if: has one arguments
+			} // else: other operators
+		} // else if: operators
+		
+		else if ( current->leftToken->primitiveType == EQUIVALENCE ) {
+			if ( current->rightNode ) {
+				if ( current->rightNode->rightNode ) {
+					if ( current->rightNode->rightNode->rightNode == NULL ) {
+						return true;
+					} // if: no third argument
+				} // if: has two arguments
+			} // if: has one argument
+			
+			return false;
+		} // else if: equivalence
+		
+		else if ( current->leftToken->primitiveType == BEGIN ) {
+			if ( current->rightNode ) {
+				return true;
+			} // if: has more than one arguments
+			
+			return false;
+		} // else if: begin
+		
+		else if ( current->leftToken->primitiveType == CONDITIONAL ) {
+			if ( current->leftToken->content == "if" ) {
+				if ( current->rightNode ) {
+					if ( current->rightNode->rightNode ) {
+						if ( current->rightNode->rightNode->rightNode == NULL ) {
+							return true;
+						} // if: no third argument
+						
+						else if ( current->rightNode->rightNode->rightNode ) {
+							if ( current->rightNode->rightNode->rightNode->rightNode == NULL ) {
+								return true;
+							} // if: no forth argument
+						} // if: has three arguments
+					} // if: has two arguments
+				} // if: has one argument
+			} // if: if
+			
+			else if ( current->leftToken->content == "cond" ) {
+				if ( current->rightNode ) {
+					return true;
+				} // if: has more than one argument
+			} // else if: cond
+			
+			return false;
+		} // else if: conditional
 	} // GerParameters()
 	
 	/*
