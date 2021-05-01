@@ -1417,6 +1417,11 @@ public:
 		
 		TokenStruct *function = functionNode->leftToken;
 		ResultStruct result;
+		result.hasStringResult = false;
+		result.hasBoolResult = false;
+		result.hasIntResult = false;
+		result.hasFloatResult = false;
+		result.hasNodeResult = false;
 		
 		if ( function->primitiveType == CONSTRUCTOR ) {
 			if ( function->content == "cons" ) {
@@ -1429,7 +1434,7 @@ public:
 		} // if: constructor
 		
 		else if ( function->primitiveType == QUOTE_BYPASSING ) {
-			// Quote( argumnets );
+			Quote( arguments, result );
 		} // else if: quote
 		
 		else if ( function->primitiveType == DEFINE_BINDING ) {
@@ -1592,8 +1597,10 @@ public:
 		;
 	} // List()
 	
-	void Quote( vector<TreeStruct *> arguments ) {
-		;
+	void Quote( vector<TreeStruct *> arguments, ResultStruct result ) {
+		result.nodeResult = arguments.front()->leftNode;
+		result.hasNodeResult = true;
+		resultList.push_back( result );
 	} // Quote()
 	
 	void Define( vector<TreeStruct *> arguments, ResultStruct result ) {
