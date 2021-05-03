@@ -1801,7 +1801,7 @@ public:
 		TreeStruct *resultWalk = resultRoot;
 		TreeStruct *listWalk = arguments[0];
 		
-		while ( listWalk->rightNode ) {
+		if ( listWalk->rightNode == NULL ) {
 			if ( listWalk->leftToken ) {
 				if ( listWalk->leftToken->tokenType == SYMBOL ) {
 					resultWalk->leftNode = GetDefineBindings( listWalk->leftToken->content );
@@ -1813,20 +1813,13 @@ public:
 			} // if: leftToken exist
 			
 			else {
-				resultWalk->leftNode = m_ResultList.front()->nodeResult;
-				m_ResultList.erase( m_ResultList.begin() );
+				resultWalk->leftNode = m_ResultList.back()->nodeResult;
+				m_ResultList.pop_back();
 			} // else: get previous result
-			
-			listWalk = listWalk->rightNode;
-			resultWalk->rightNode = new TreeStruct;
-			resultWalk = resultWalk->rightNode;
-			// initialization
-			resultWalk->leftNode = NULL;
-			resultWalk->rightNode = NULL;
-			resultWalk->leftToken = NULL;
-			resultWalk->rightToken = NULL;
-			
-			if ( listWalk->rightNode == NULL ) {
+		} // if: only one data
+		
+		else {
+			while ( listWalk->rightNode ) {
 				if ( listWalk->leftToken ) {
 					if ( listWalk->leftToken->tokenType == SYMBOL ) {
 						resultWalk->leftNode = GetDefineBindings( listWalk->leftToken->content );
@@ -1838,11 +1831,38 @@ public:
 				} // if: leftToken exist
 				
 				else {
-					resultWalk->leftNode = m_ResultList.front()->nodeResult;
-					m_ResultList.erase( m_ResultList.begin() );
+					resultWalk->leftNode = m_ResultList.back()->nodeResult;
+					m_ResultList.pop_back();
 				} // else: get previous result
-			} // if: last node
-		} // while: go through all the nodes on the right side
+				
+				listWalk = listWalk->rightNode;
+				resultWalk->rightNode = new TreeStruct;
+				resultWalk->rightNode->previousNode = resultWalk;
+				resultWalk = resultWalk->rightNode;
+				// initialization
+				resultWalk->leftNode = NULL;
+				resultWalk->rightNode = NULL;
+				resultWalk->leftToken = NULL;
+				resultWalk->rightToken = NULL;
+				
+				if ( listWalk->rightNode == NULL ) {
+					if ( listWalk->leftToken ) {
+						if ( listWalk->leftToken->tokenType == SYMBOL ) {
+							resultWalk->leftNode = GetDefineBindings( listWalk->leftToken->content );
+						} // if: defined bindings
+						
+						else {
+							resultWalk->leftToken = listWalk->leftToken;
+						} // else: not defined
+					} // if: leftToken exist
+					
+					else {
+						resultWalk->leftNode = m_ResultList.back()->nodeResult;
+						m_ResultList.pop_back();
+					} // else: get previous result
+				} // if: last node
+			} // while: go through all the nodes on the right side
+		} // else: more than one data
 		
 		result->hasNodeResult = true;
 		result->nodeResult = resultRoot;
