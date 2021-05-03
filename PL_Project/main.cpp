@@ -1491,6 +1491,34 @@ public:
 		} // if: quoteWalk is not NULL
 	} // PrintQuoteArguments()
 	
+	TokenType CheckResultType( ResultStruct *result ) {
+		if ( result->hasNodeResult ) {
+			return LEFT_PAREN;
+		} // if: node
+		
+		else if ( result->hasStringResult ) {
+			return SYMBOL;
+		} // if: symbol
+		
+		else if ( result->hasIntResult ) {
+			return INT;
+		} // else if: int
+		
+		else if ( result->hasFloatResult ) {
+			return FLOAT;
+		} // else if: float
+		
+		else if ( result->hasBoolResult ) {
+			if ( result->boolResult->tokenType == T ) {
+				return T;
+			} // if: #t
+			
+			else {
+				return NIL;
+			} // else: nil
+		} // else if: boolean
+	} // CheckResultType()
+	
 	/*
 	------------------ Function ----------------
 	------------------- Entry ------------------
@@ -1717,27 +1745,24 @@ public:
 		} // if: token form, get leftToken
 		
 		else {
-			if ( m_ResultList.front()->hasNodeResult ) {
-				resultRoot->leftNode = m_ResultList.front()->nodeResult;
-				m_ResultList.erase( m_ResultList.begin() );
+			if ( CheckResultType( m_ResultList.back() ) == LEFT_PAREN ) {
+				resultRoot->leftNode = m_ResultList.back()->nodeResult;
+				m_ResultList.pop_back();
 			} // if: previous result is node
 			
-			else if ( m_ResultList.front()->hasIntResult ) {
-				resultRoot->leftToken = m_ResultList.front()->intResult;
-				m_ResultList.erase( m_ResultList.begin() );
+			else if ( CheckResultType( m_ResultList.back() ) == INT ||
+								CheckResultType( m_ResultList.back() ) == FLOAT ) {
+				resultRoot->leftToken = m_ResultList.back()->intResult;
+				m_ResultList.pop_back();
 			} // else if: previous result is int
-			
-			else if ( m_ResultList.front()->hasFloatResult ) {
-				resultRoot->leftToken = m_ResultList.front()->floatResult;
-				m_ResultList.erase( m_ResultList.begin() );
-			} // else if: previous result is float
 			
 			else {
 				string errorMessage = "ERROR (cons with incorrect argument type) : ";
 				
-				if ( m_ResultList.front()->hasStringResult ) {
-					errorMessage += m_ResultList.front()->stringResult->content;
+				if ( m_ResultList.back()->hasStringResult ) {
+					errorMessage += m_ResultList.back()->stringResult->content;
 					SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+					return;
 				} // if: previous result has wrong error type
 			} // else: wrong result type
 		} // else: get from previous result
@@ -1759,27 +1784,24 @@ public:
 		} // if: no previous result
 		
 		else {
-			if ( m_ResultList.front()->hasNodeResult ) {
-				resultRoot->rightNode = m_ResultList.front()->nodeResult;
-				m_ResultList.erase( m_ResultList.begin() );
+			if ( CheckResultType( m_ResultList.back() ) == LEFT_PAREN ) {
+				resultRoot->leftNode = m_ResultList.back()->nodeResult;
+				m_ResultList.pop_back();
 			} // if: previous result is node
 			
-			else if ( m_ResultList.front()->hasIntResult ) {
-				resultRoot->rightToken = m_ResultList.front()->intResult;
-				m_ResultList.erase( m_ResultList.begin() );
+			else if ( CheckResultType( m_ResultList.back() ) == INT ||
+								CheckResultType( m_ResultList.back() ) == FLOAT ) {
+				resultRoot->leftToken = m_ResultList.back()->intResult;
+				m_ResultList.pop_back();
 			} // else if: previous result is int
-			
-			else if ( m_ResultList.front()->hasFloatResult ) {
-				resultRoot->rightToken = m_ResultList.front()->floatResult;
-				m_ResultList.erase( m_ResultList.begin() );
-			} // else if: previous result is float
 			
 			else {
 				string errorMessage = "ERROR (cons with incorrect argument type) : ";
 				
-				if ( m_ResultList.front()->hasStringResult ) {
-					errorMessage += m_ResultList.front()->stringResult->content;
+				if ( m_ResultList.back()->hasStringResult ) {
+					errorMessage += m_ResultList.back()->stringResult->content;
 					SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+					return;
 				} // if: previous result has wrong error type
 			} // else: wrong result type
 		} // else: has previous result
