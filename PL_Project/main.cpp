@@ -1194,13 +1194,13 @@ public:
 				} // else: reset underQuote
 			} // if: has leftToken
 			
-			if ( walk->leftNode ) {
-				ProcessSExp( walk->leftNode );
-			} // if: has a left node, go left
-			
 			if ( walk->rightNode ) {
 				ProcessSExp( walk->rightNode );
 			} // if: has a right node, go right
+			
+			if ( walk->leftNode ) {
+				ProcessSExp( walk->leftNode );
+			} // if: has a left node, go left
 			
 			if ( walk->leftToken && hasError == false ) {
 				if ( walk->leftParenCreate ) {
