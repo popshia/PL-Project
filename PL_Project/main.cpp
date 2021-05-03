@@ -26,7 +26,9 @@ enum TokenType {
 }; // token types
 
 enum ErrorType {
-		NOT_S_EXP, NO_CLOSING_QUOTE, UNEXPECTED_TOKEN_ATOM_LEFT_PAREN, UNEXPECTED_RIGHT_PAREN, NO_MORE_INPUT
+		NOT_S_EXP, NO_CLOSING_QUOTE, UNEXPECTED_TOKEN_ATOM_LEFT_PAREN, UNEXPECTED_RIGHT_PAREN, NO_MORE_INPUT,
+		INCORRECT_NUM_ARGUMENTS, INCORRECT_ARGUMENT_TYPE, DEFINE_UNBOUND, APPLY_NON_FUNCITON, NO_RETURN_VALUE,
+		DIVISION_BY_ZERO, NOT_LIST
 }; // error types
 
 enum PrimitiveType {
@@ -57,13 +59,13 @@ struct ErrorStruct {
 }; // ErrorStruct
 
 struct ResultStruct {
-		string stringResult;
+		TokenStruct *stringResult;
 		bool hasStringResult;
-		bool boolResult;
+		TokenStruct *boolResult;
 		bool hasBoolResult;
-		int intResult;
+		TokenStruct *intResult;
 		bool hasIntResult;
-		float floatResult;
+		TokenStruct *floatResult;
 		bool hasFloatResult;
 		TreeStruct *nodeResult;
 		bool hasNodeResult;
@@ -1031,8 +1033,9 @@ public:
 
 class Project2Class {
 	Project1Class m_project1;
-	vector<TreeStruct *> defineBindingList;
-	vector<ResultStruct> resultList;
+	vector<TreeStruct *> m_DefineBindingList;
+	vector<ResultStruct *> m_ResultList;
+	ErrorStruct m_Error;
 	// TODO: add a vector that contains expression results
 
 public:
@@ -1111,32 +1114,72 @@ public:
 	} // IsFunction()
 	
 	/*
-		---------------- Preprocessing -------------
-		-------------------- Tree ------------------
+		-------------------- New -------------------
+		----------------- Structures ---------------
 	*/
 	
+	ResultStruct *NewResult() {
+		ResultStruct *newResult = new ResultStruct;
+		newResult->hasStringResult = false;
+		newResult->hasBoolResult = false;
+		newResult->hasIntResult = false;
+		newResult->hasFloatResult = false;
+		newResult->hasNodeResult = false;
+		newResult->stringResult = new TokenStruct;
+		newResult->stringResult->tokenType = SYMBOL;
+		newResult->boolResult = new TokenStruct;
+		newResult->intResult = new TokenStruct;
+		newResult->intResult->tokenType = INT;
+		newResult->floatResult = new TokenStruct;
+		newResult->floatResult->tokenType = FLOAT;
+		newResult->nodeResult = new TreeStruct;
+		// initialization
+		newResult->nodeResult->leftNode = NULL;
+		newResult->nodeResult->rightNode = NULL;
+		newResult->nodeResult->previousNode = NULL;
+		newResult->nodeResult->leftToken = NULL;
+		newResult->nodeResult->rightToken = NULL;
+		return newResult;
+	} // NewResult()
+	
+	/*
+		------------------- Error ------------------
+		------------------ Handling ----------------
+	*/
+	
+	void SetError( ErrorType errorType, string errorMessage ) {
+		m_Error.errorType = errorType;
+		m_Error.errorMessage = errorMessage;
+	} // SetError()
+	
+	void ErrorHandling() {
+		cout << "Project 2 outputs:" << endl;
+		cout << m_Error.errorMessage << endl;
+	} // ErrorHandling()
 	/*
 		------------------- Start ------------------
 		---------------- Evaluation ----------------
 	*/
 	
 	bool EvalSExp( Project1Class project1Result ) {
-		resultList.clear();
+		m_ResultList.clear();
 		m_project1 = project1Result;
-		cout << "Project 2 outputs:" << endl;
+		cout << endl << "----------- DEBUG MESSAGES -----------" << endl;
 		
 		if ( ProcessSExp( m_project1.GetRoot() ) ) {
-			PrintResult();
+			cout << "--------------------------------------" << endl;
+			return true;
 		} // if: sucessfully process
 		
 		else {
-			// ErrorHandling();
+			cout << "--------------------------------------" << endl << endl;
+			return false;
 		} // else: error, handle it
-		return true;
 	} // EvalSExp()
 	
 	bool ProcessSExp( TreeStruct *walk ) {
 		static bool underQuote = false;
+		static bool hasError = false;
 		
 		if ( walk ) {
 			if ( walk->leftToken ) {
@@ -1159,7 +1202,7 @@ public:
 				ProcessSExp( walk->rightNode );
 			} // if: has a right node, go right
 			
-			if ( walk->leftToken ) {
+			if ( walk->leftToken && hasError == false ) {
 				if ( walk->leftParenCreate ) {
 					if ( IsPrimitive( walk->leftToken ) ) {
 						vector<TreeStruct *> argumentList;
@@ -1169,16 +1212,17 @@ public:
 						} // if: check the parameters
 						
 						else {
-							cout << "<ERROR>: incorrect number of arguments." << endl;
-							return false;
+							string errorMessage = "ERROR (incorrect number of arguments) : " + walk->leftToken->content;
+							SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+							hasError = true;
 						} // else if: arguments error TODO: INCORRECT NUMBER OF ARGUMENTS ERROR
 					} // if: if is primitive
 					
 					else {
 						if ( underQuote == false ) {
-							cout << "<ERROR>: " << walk->leftToken->content
-									 << " is created by left-paren, but not a function." << endl;
-							return false;
+							string errorMessage = "ERROR (attempt to apply non-funciton) : " + walk->leftToken->content;
+							SetError( APPLY_NON_FUNCITON, errorMessage );
+							hasError = true;
 						} // if: not under quote function
 					} // else: left token but not function TODO: NOT AN FUNCTION ERROR
 				} // if: this node is created by left-paren
@@ -1186,25 +1230,52 @@ public:
 		} // if: walk != NULL
 		
 		else {
-			bool findDefineBinding = false;
-			TokenStruct currentWord = m_project1.GetSExp()[0];
-			
-			for ( int i = 0 ; i < defineBindingList.size() ; i++ ) {
-				if ( currentWord.content == defineBindingList[i]->leftToken->content ) {
-					cout << defineBindingList[i]->rightNode->leftToken->content << endl;
-					findDefineBinding = true;
-				} // if: find
-			} // for: go through defineBindingList
-			
-			if ( findDefineBinding == false ) {
-				cout << "<ERROR>: " << currentWord.content << " is not a defined term." << endl;
+			if ( FindDefineBindings( false, m_project1.GetSExp()[0].content ) == false ) {
+				string errorMessage = "ERROR (unbound symbol) : " + m_project1.GetSExp()[0].content;
+				SetError( DEFINE_UNBOUND, errorMessage );
+				hasError = true;
 			} // if: doesn't find a binding
-			
-			return false;
-		} // else: only inputs a word, check defineBindingList TODO: hasn't implement defining quote
+		} // else: only inputs a word, check m_DefineBindingList TODO: hasn't implement defining quote
 		
-		return true;
+		if ( hasError == true ) {
+			hasError = false;
+			return false;
+		} // if: has error, reset and return false
+		
+		else {
+			return true;
+		} // else: no error
 	} // ProcessSExp(): go through the data tree while using postorder traversal
+	
+	/*
+		------------------- Define -----------------
+		------------------ Bindings ----------------
+	*/
+	
+	bool FindDefineBindings( bool duringCheckArguments, string currentWord ) {
+		for ( int i = 0 ; i < m_DefineBindingList.size() ; i++ ) {
+			if ( currentWord == m_DefineBindingList[i]->leftToken->content ) {
+				if ( NOT duringCheckArguments ) {
+					ResultStruct *result = NewResult();
+					result->hasStringResult = true;
+					result->stringResult->content = m_DefineBindingList[i]->rightNode->leftToken->content;
+					m_ResultList.push_back( result );
+				} // if: not checking
+				
+				return true;
+			} // if: find
+		} // for: go through m_DefineBindingList
+		
+		return false;
+	} // FindDefineBindings()
+	
+	TreeStruct *GetDefineBindings( string currentWord ) {
+		for ( int i = 0 ; i < m_DefineBindingList.size() ; i++ ) {
+			if ( currentWord == m_DefineBindingList[i]->leftToken->content ) {
+				return m_DefineBindingList[i]->rightNode;
+			} // if: find
+		} // for: go through m_DefineBindingList
+	} // GetDefineBindings()
 	
 	/*
 		----------------- Parameters ---------------
@@ -1215,10 +1286,42 @@ public:
 		if ( current->leftToken->primitiveType == CONSTRUCTOR ) {
 			if ( current->leftToken->content == "cons" ) {
 				if ( current->rightNode ) {
-					argumentList.push_back( current->rightNode );
+					if ( current->rightNode->leftToken->tokenType == SYMBOL ) {
+						if ( FindDefineBindings( true, current->rightNode->leftToken->content ) ) {
+							argumentList.push_back( current->rightNode );
+						} // if: find defineList
+						
+						else {
+							string errorMessage =
+											"ERROR (" + current->leftToken->content + " with incorrect argument type : " +
+											current->rightNode->leftToken->content;
+							SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+							return false;
+						} // else: false argument type
+					} // if: current is symbol
+					
+					else {
+						argumentList.push_back( current->rightNode );
+					} // else: not symbol
 					
 					if ( current->rightNode->rightNode ) {
-						argumentList.push_back( current->rightNode->rightNode );
+						if ( current->rightNode->rightNode->leftToken->tokenType == SYMBOL ) {
+							if ( FindDefineBindings( true, current->rightNode->rightNode->leftToken->content ) ) {
+								argumentList.push_back( current->rightNode->rightNode );
+							} // if: find defineList
+							
+							else {
+								string errorMessage =
+												"ERROR (" + current->leftToken->content + " with incorrect argument type : " +
+												current->rightNode->rightNode->leftToken->content;
+								SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+								return false;
+							} // else: false argument type
+						} // if: current is symbol
+						
+						else {
+							argumentList.push_back( current->rightNode->rightNode );
+						} // else: not symbol
 						
 						if ( current->rightNode->rightNode->rightNode == NULL ) {
 							return true;
@@ -1371,6 +1474,23 @@ public:
 		return false;
 	} // CheckParameters()
 	
+	void PrintQuoteArguments( TreeStruct *quoteWalk ) {
+		if ( quoteWalk ) {
+			if ( quoteWalk->leftToken ) {
+				cout << quoteWalk->leftToken->content << " ";
+			} // if: has leftToken
+			if ( quoteWalk->rightToken ) {
+				cout << quoteWalk->rightToken->content << " ";
+			} // if: has rightToken
+			if ( quoteWalk->leftNode ) {
+				PrintQuoteArguments( quoteWalk->leftNode );
+			} // if: has leftNode
+			if ( quoteWalk->rightNode ) {
+				PrintQuoteArguments( quoteWalk->rightNode );
+			} // if: has rightNode
+		} // if: quoteWalk is not NULL
+	} // PrintQuoteArguments()
+	
 	/*
 	------------------ Function ----------------
 	------------------- Entry ------------------
@@ -1379,7 +1499,14 @@ public:
 	void CallCorrespondingFunction( TreeStruct *functionNode, vector<TreeStruct *> arguments ) {
 		// ------------------------------------------- DEBUG COUT ------------------------------------------------
 		if ( g_uTestNum == 4 ) {
-			cout << "<FUNCTION>: " << functionNode->leftToken->content << "\t<ARGUMENTS>: ";
+			cout << "<FUNCTION>: " << functionNode->leftToken->content;
+			
+			if ( functionNode->leftToken->content.length() < 4 ) {
+				cout << "\t";
+			} // if: just to pretty print debug message
+			
+			cout << "\t<ARGUMENTS>: ";
+			
 			for ( int i = 0 ; i < arguments.size() ; i++ ) {
 				if ( functionNode->leftToken->primitiveType != QUOTE_BYPASSING ) {
 					if ( arguments[i]->leftToken ) {
@@ -1393,21 +1520,7 @@ public:
 				
 				else {
 					TreeStruct *quoteWalk = arguments[i]->leftNode;
-					
-					while ( quoteWalk->rightNode ) {
-						cout << quoteWalk->leftToken->content << " ";
-						quoteWalk = quoteWalk->rightNode;
-						
-						if ( quoteWalk->rightNode == NULL ) {
-							if ( quoteWalk->leftToken ) {
-								cout << quoteWalk->leftToken->content << " ";
-							} // if: last node leftToken
-							
-							if ( quoteWalk->rightToken ) {
-								cout << quoteWalk->rightToken->content << " ";
-							} // if: last node rightToken
-						} // if: last
-					} // while: go through the quote
+					PrintQuoteArguments( quoteWalk );
 				} // else: quote case
 			} // for: print arguments
 			
@@ -1416,20 +1529,15 @@ public:
 		// ------------------------------------------- DEBUG COUT ------------------------------------------------
 		
 		TokenStruct *function = functionNode->leftToken;
-		ResultStruct result;
-		result.hasStringResult = false;
-		result.hasBoolResult = false;
-		result.hasIntResult = false;
-		result.hasFloatResult = false;
-		result.hasNodeResult = false;
+		ResultStruct *result = NewResult();
 		
 		if ( function->primitiveType == CONSTRUCTOR ) {
 			if ( function->content == "cons" ) {
-				// Cons( arguments );
+				Cons( arguments, result );
 			} // if: cons
 			
 			else {
-				// List( arguments );
+				List( arguments, result );
 			} // else if: list
 		} // if: constructor
 		
@@ -1443,107 +1551,107 @@ public:
 		
 		else if ( function->primitiveType == PART_ACCESSOR ) {
 			if ( function->content == "car" ) {
-				// Car( arguments );
+				// Car( arguments, result );
 			} // if: car
 			
 			else {
-				// Cdr( arguments );
+				// Cdr( arguments, result );
 			} // else: cdr
 		} // else if: part accessor
 		
 		else if ( function->primitiveType == PRIMITIVE_PREDICATE ) {
 			if ( function->content == "atom?" ) {
-				// IsAtom( arguments );
+				// IsAtom( arguments, result );
 			} // if: atom?
 			
 			else if ( function->content == "pair?" ) {
-				// IsPair( arguments );
+				// IsPair( arguments, result );
 			} // else if: pair?
 			
 			else if ( function->content == "list?" ) {
-				// IsList( arguments );
+				// IsList( arguments, result );
 			} // else if: list?
 			
 			else if ( function->content == "null?" ) {
-				// IsNull( arguments );
+				// IsNull( arguments, result );
 			} // else if: null?
 			
 			else if ( function->content == "integer?" ) {
-				// IsInteger( arguments );
+				// IsInteger( arguments, result );
 			} // else if: integer?
 			
 			else if ( function->content == "real?" || function->content == "number?" ) {
-				// IsRealOrNumber( arguments );
+				// IsRealOrNumber( arguments, result );
 			} // else if: real? or number?
 			
 			else if ( function->content == "string?" ) {
-				// IsString( arguments );
+				// IsString( arguments, result );
 			} // else if: string?
 			
 			else if ( function->content == "boolean?" ) {
-				// IsBoolean( arguments );
+				// IsBoolean( arguments, result );
 			} // else if: boolean?
 			
 			else if ( function->content == "symbol?" ) {
-				// IsSymbol( arguments );
+				// IsSymbol( arguments, result );
 			} // else if: symbol?
 		} // else if: primitive predicate
 		
 		else if ( function->primitiveType == OPERATOR ) {
 			if ( function->content == "+" ) {
-				// Addition( arguments );
+				// Addition( arguments, result );
 			} // if: +
 			
 			else if ( function->content == "-" ) {
-				// Subtraction( arguments );
+				// Subtraction( arguments, result );
 			} // else if: -
 			
 			else if ( function->content == "*" ) {
-				// Mutiplication( arguments );
+				// Mutiplication( arguments, result );
 			} // else if: *
 			
 			else if ( function->content == "/" ) {
-				// Division( arguments );
+				// Division( arguments, result );
 			} // else if: /
 			
 			else if ( function->content == "not" ) {
-				// Not( arguments );
+				// Not( arguments, result );
 			} // else if: not
 			
 			else if ( function->content == "and" ) {
-				// And( arguments );
+				// And( arguments, result );
 			} // else if: and
 			
 			else if ( function->content == "or" ) {
-				// Or( arguments );
+				// Or( arguments, result );
 			} // else if: or
 			
 			else if ( function->content == ">" ) {
-				// GreaterThan( arguments );
+				// GreaterThan( arguments, result );
 			} // else if: >
 			
 			else if ( function->content == ">=" ) {
-				// GreaterThanOrEqualTo( arguments );
+				// GreaterThanOrEqualTo( arguments, result );
 			} // else if: >=
 			
 			else if ( function->content == "<" ) {
-				// LessThen( arguments );
+				// LessThen( arguments, result );
 			} // else if: <
 			
 			else if ( function->content == "<=" ) {
-				// LessThenOrEaualTo( arguments );
+				// LessThenOrEaualTo( arguments, result );
 			} // else if: <=
 			
 			else if ( function->content == "=" ) {
-				// EqualTo( arguments );
+				// EqualTo( arguments, result );
 			} // else if: =
 			
 			else if ( function->content == "string-append" ) {
-				// StringAppend( arguments );
+				// StringAppend( arguments, result );
 			} // else if: string-append
 			
 			else if ( function->content == "string>?" ) {
-				// StringGreatenThan( arguments );
+				// StringGreatenThan( arguments, result );
 			} // else if: string>?
 			
 			else if ( function->content == "string<?" ) {
@@ -1551,31 +1659,31 @@ public:
 			} // else if: string<?
 			
 			else if ( function->content == "string=?" ) {
-				// StringEqualTo( arguments );
+				// StringEqualTo( arguments, result );
 			} // else if: string=?
 		} // else if; operator
 		
 		else if ( function->primitiveType == EQUIVALENCE ) {
 			if ( function->content == "eqv?" ) {
-				// Eqv( arguments );
+				// Eqv( arguments, result );
 			} // if: eqv?
 			
 			else if ( function->content == "equal?" ) {
-				// Equal( arguments );
+				// Equal( arguments, result );
 			} // else if: equal?
 		} // else if: equivalence
 		
 		else if ( function->primitiveType == BEGIN ) {
-			// Begin( arguments );
+			// Begin( arguments, result );
 		} // else if: begin
 		
 		else if ( function->primitiveType == CONDITIONAL ) {
 			if ( function->content == "if" ) {
-				// If( arguments );
+				// If( arguments, result );
 			} // if: if
 			
 			else if ( function->content == "cond" ) {
-				// Cond( arguments );
+				// Cond( arguments, result );
 			} // else if: cond
 		} // else if: conditional
 		
@@ -1589,25 +1697,169 @@ public:
 	----------------- Definition ---------------
 	*/
 	
-	void Cons( vector<TreeStruct *> arguments ) {
-		;
+	void Cons( vector<TreeStruct *> arguments, ResultStruct *result ) {
+		TreeStruct *resultRoot = new TreeStruct;
+		// initialization
+		resultRoot->leftNode = NULL;
+		resultRoot->rightNode = NULL;
+		resultRoot->previousNode = NULL;
+		resultRoot->leftToken = NULL;
+		resultRoot->rightToken = NULL;
+		
+		if ( arguments[0]->leftToken ) {
+			if ( arguments[0]->leftToken->tokenType == SYMBOL ) {
+				resultRoot->leftNode = GetDefineBindings( arguments[0]->leftToken->content );
+			} // if: defined bindings
+			
+			else {
+				resultRoot->leftToken = arguments[0]->leftToken;
+			} // else: not defined simple data
+		} // if: token form, get leftToken
+		
+		else {
+			if ( m_ResultList.front()->hasNodeResult ) {
+				resultRoot->leftNode = m_ResultList.front()->nodeResult;
+				m_ResultList.erase( m_ResultList.begin() );
+			} // if: previous result is node
+			
+			else if ( m_ResultList.front()->hasIntResult ) {
+				resultRoot->leftToken = m_ResultList.front()->intResult;
+				m_ResultList.erase( m_ResultList.begin() );
+			} // else if: previous result is int
+			
+			else if ( m_ResultList.front()->hasFloatResult ) {
+				resultRoot->leftToken = m_ResultList.front()->floatResult;
+				m_ResultList.erase( m_ResultList.begin() );
+			} // else if: previous result is float
+			
+			else {
+				string errorMessage = "ERROR (cons with incorrect argument type) : ";
+				
+				if ( m_ResultList.front()->hasStringResult ) {
+					errorMessage += m_ResultList.front()->stringResult->content;
+					SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+				} // if: previous result has wrong error type
+			} // else: wrong result type
+		} // else: get from previous result
+		
+		if ( m_ResultList.empty() ) {
+			if ( arguments[1]->leftToken ) {
+				if ( arguments[1]->leftToken->tokenType == SYMBOL ) {
+					resultRoot->rightNode = GetDefineBindings( arguments[1]->leftToken->content );
+				} // if: defined bindings
+				
+				else {
+					resultRoot->rightToken = arguments[1]->leftToken;
+				} // else: not defined binding
+			} // if: token form
+			
+			else {
+				resultRoot->rightNode = arguments[1]->leftNode;
+			} // else: node form
+		} // if: no previous result
+		
+		else {
+			if ( m_ResultList.front()->hasNodeResult ) {
+				resultRoot->rightNode = m_ResultList.front()->nodeResult;
+				m_ResultList.erase( m_ResultList.begin() );
+			} // if: previous result is node
+			
+			else if ( m_ResultList.front()->hasIntResult ) {
+				resultRoot->rightToken = m_ResultList.front()->intResult;
+				m_ResultList.erase( m_ResultList.begin() );
+			} // else if: previous result is int
+			
+			else if ( m_ResultList.front()->hasFloatResult ) {
+				resultRoot->rightToken = m_ResultList.front()->floatResult;
+				m_ResultList.erase( m_ResultList.begin() );
+			} // else if: previous result is float
+			
+			else {
+				string errorMessage = "ERROR (cons with incorrect argument type) : ";
+				
+				if ( m_ResultList.front()->hasStringResult ) {
+					errorMessage += m_ResultList.front()->stringResult->content;
+					SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+				} // if: previous result has wrong error type
+			} // else: wrong result type
+		} // else: has previous result
+		
+		result->hasNodeResult = true;
+		result->nodeResult = resultRoot;
+		m_ResultList.push_back( result );
 	} // Cons()
 	
-	void List( vector<TreeStruct *> arguments ) {
-		;
+	void List( vector<TreeStruct *> arguments, ResultStruct *result ) {
+		TreeStruct *resultRoot = new TreeStruct;
+		// initialization
+		resultRoot->leftNode = NULL;
+		resultRoot->rightNode = NULL;
+		resultRoot->previousNode = NULL;
+		resultRoot->leftToken = NULL;
+		resultRoot->rightToken = NULL;
+		
+		TreeStruct *resultWalk = resultRoot;
+		TreeStruct *listWalk = arguments[0];
+		
+		while ( listWalk->rightNode ) {
+			if ( listWalk->leftToken ) {
+				if ( listWalk->leftToken->tokenType == SYMBOL ) {
+					resultWalk->leftNode = GetDefineBindings( listWalk->leftToken->content );
+				} // if: defined bindings
+				
+				else {
+					resultWalk->leftToken = listWalk->leftToken;
+				} // else: not defined
+			} // if: leftToken exist
+			
+			else {
+				resultWalk->leftNode = m_ResultList.front()->nodeResult;
+				m_ResultList.erase( m_ResultList.begin() );
+			} // else: get previous result
+			
+			listWalk = listWalk->rightNode;
+			resultWalk->rightNode = new TreeStruct;
+			resultWalk = resultWalk->rightNode;
+			// initialization
+			resultWalk->leftNode = NULL;
+			resultWalk->rightNode = NULL;
+			resultWalk->leftToken = NULL;
+			resultWalk->rightToken = NULL;
+			
+			if ( listWalk->rightNode == NULL ) {
+				if ( listWalk->leftToken ) {
+					if ( listWalk->leftToken->tokenType == SYMBOL ) {
+						resultWalk->leftNode = GetDefineBindings( listWalk->leftToken->content );
+					} // if: defined bindings
+					
+					else {
+						resultWalk->leftToken = listWalk->leftToken;
+					} // else: not defined
+				} // if: leftToken exist
+				
+				else {
+					resultWalk->leftNode = m_ResultList.front()->nodeResult;
+					m_ResultList.erase( m_ResultList.begin() );
+				} // else: get previous result
+			} // if: last node
+		} // while: go through all the nodes on the right side
+		
+		result->hasNodeResult = true;
+		result->nodeResult = resultRoot;
+		m_ResultList.push_back( result );
 	} // List()
 	
-	void Quote( vector<TreeStruct *> arguments, ResultStruct result ) {
-		result.nodeResult = arguments.front()->leftNode;
-		result.hasNodeResult = true;
-		resultList.push_back( result );
+	void Quote( vector<TreeStruct *> arguments, ResultStruct *result ) {
+		result->nodeResult = arguments.front()->leftNode;
+		result->hasNodeResult = true;
+		m_ResultList.push_back( result );
 	} // Quote()
 	
-	void Define( vector<TreeStruct *> arguments, ResultStruct result ) {
-		result.stringResult = arguments.front()->leftToken->content + " defined";
-		result.hasStringResult = true;
-		defineBindingList.push_back( arguments.front() );
-		resultList.push_back( result );
+	void Define( vector<TreeStruct *> arguments, ResultStruct *result ) {
+		result->stringResult->content = arguments.front()->leftToken->content + " defined";
+		result->hasStringResult = true;
+		m_DefineBindingList.push_back( arguments.front() );
+		m_ResultList.push_back( result );
 	} // Define()
 	
 	/*
@@ -1616,31 +1868,33 @@ public:
 	*/
 	
 	void PrintResult() {
-		if ( resultList.front().hasStringResult ) {
-			cout << resultList.front().stringResult << endl;
+		cout << "Project 2 outputs:" << endl;
+		
+		if ( m_ResultList.front()->hasStringResult ) {
+			cout << m_ResultList.front()->stringResult->content << endl;
 		} // if: string form result
 		
-		else if ( resultList.front().hasBoolResult ) {
-			if ( resultList.front().boolResult == true ) {
+		else if ( m_ResultList.front()->hasBoolResult ) {
+			if ( m_ResultList.front()->boolResult->tokenType == T ) {
 				cout << "#t" << endl;
 			} // if: boolean result is true, #t
 			
-			else if ( resultList.front().boolResult == false ) {
+			else if ( m_ResultList.front()->boolResult->tokenType == NIL ) {
 				cout << "nil" << endl;
 			} // else if: boolean result is false, nil
 		} // else if: boolean form result
 		
-		else if ( resultList.front().hasFloatResult ) {
+		else if ( m_ResultList.front()->hasFloatResult ) {
 			cout << fixed << setprecision( 3 )
-					 << round( resultList.front().floatResult*1000 )/1000
+					 << round( atof( m_ResultList.front()->floatResult->content.c_str() )*1000 )/1000
 					 << endl;
 		} // else if: float form result
 		
-		else if ( resultList.front().hasIntResult ) {
-			cout << resultList.front().intResult << endl;
+		else if ( m_ResultList.front()->hasIntResult ) {
+			cout << m_ResultList.front()->intResult << endl;
 		} // else if: int form result
 		
-		else if ( resultList.front().hasNodeResult ) {
+		else if ( m_ResultList.front()->hasNodeResult ) {
 			// PrintTree();
 		} // else if: tree structre form result
 	} // PrintResult()
@@ -1671,11 +1925,12 @@ int main() {
 					if ( project2.EvalSExp( project1 ) == true ) {
 						cout << endl << "Project 1 outputs:" << endl;
 						project1.PrintSExp();
+						project2.PrintResult();
 					} // if: evaluate correct
 					
-					// else {
-					//   project2.PrintEvaluationError();
-					// } // else: evaluation error
+					else {
+						project2.ErrorHandling();
+					} // else: evaluation error
 					project1.ClearTheLine();
 				} // else: not exit case
 			} // if: valid syntax
