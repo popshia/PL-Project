@@ -1158,7 +1158,9 @@ public:
 	} // SetError()
 	
 	void ErrorHandling() {
-		cout << "Project 2 outputs:" << endl;
+		if ( g_uTestNum == 4 )
+			cout << "Project 2 outputs:" << endl;
+		
 		cout << m_Error.errorMessage << endl;
 	} // ErrorHandling()
 	/*
@@ -1169,16 +1171,22 @@ public:
 	bool EvalSExp( Project1Class project1Result ) {
 		m_ResultList.clear();
 		m_project1 = project1Result;
-		cout << endl << "----------- DEBUG MESSAGES -----------" << endl;
+		
+		if ( g_uTestNum == 4 )
+			cout << endl << "------------- PROJECT 2 --------------" << endl;
+		
 		bool hasError = false;
 		
 		if ( ProcessSExp( m_project1.GetRoot(), hasError ) ) {
-			cout << "--------------------------------------" << endl;
+			if ( g_uTestNum == 4 )
+				cout << "----------- DEBUG MESSAGES -----------" << endl << endl;
 			return true;
 		} // if: sucessfully process
 		
 		else {
-			cout << "--------------------------------------" << endl << endl;
+			if ( g_uTestNum == 4 )
+				cout << "----------- DEBUG MESSAGES -----------" << endl << endl;
+			
 			return false;
 		} // else: error, handle it
 	} // EvalSExp()
@@ -1205,25 +1213,51 @@ public:
 			
 			if ( walk->leftToken && hasError == false ) {
 				if ( walk->leftParenCreate ) {
-					if ( IsPrimitive( walk->leftToken ) ) {
+					if ( walk->leftToken->tokenType == SYMBOL || IsPrimitive( walk->leftToken ) ) {
 						vector<TreeStruct *> argumentList;
 						
-						if ( CheckArguments( walk, argumentList ) ) {
+						if ( IsPrimitive( walk->leftToken ) == false ) {
+							if ( FindDefineBindings( true, walk->leftToken->content ) ) {
+								walk->leftToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+							} // if: check if there's a bounded symbol
+							
+							else {
+								if ( hasError == false ) {
+									string errorMessage = "ERROR (unbound symbol) : " + walk->leftToken->content;
+									SetError( DEFINE_UNBOUND, errorMessage );
+									hasError = true;
+								} // if: no previous error
+							} // else: not find bounded symbol
+						} // if: current token is a symbol
+						
+						if ( hasError == false && CheckArguments( walk, argumentList ) ) {
 							CallCorrespondingFunction( walk, argumentList );
 						} // if: check the parameters
 						
 						else {
-							string errorMessage = "ERROR (incorrect number of arguments) : " + walk->leftToken->content;
-							SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
-							hasError = true;
-						} // else if: arguments error TODO: INCORRECT NUMBER OF ARGUMENTS ERROR
-					} // if: if is primitive
+							if ( hasError == false ) {
+								if ( IsPrimitive( walk->leftToken ) == false ) {
+									string errorMessage = "ERROR (attempt to apply non-funciton) : " + walk->leftToken->content;
+									SetError( APPLY_NON_FUNCITON, errorMessage );
+									hasError = true;
+								} // if: find pre-defined symbol, but not a function
+								
+								else {
+									string errorMessage = "ERROR (incorrect number of arguments) : " + walk->leftToken->content;
+									SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+									hasError = true;
+								} // else: incorrect numbers of arguments
+							} // if: there's no previous error
+						} // else: arguments error TODO: INCORRECT NUMBER OF ARGUMENTS ERROR
+					} // if: if is primitive or symbol
 					
 					else {
 						if ( underQuote == false ) {
-							string errorMessage = "ERROR (attempt to apply non-funciton) : " + walk->leftToken->content;
-							SetError( APPLY_NON_FUNCITON, errorMessage );
-							hasError = true;
+							if ( hasError == false ) {
+								string errorMessage = "ERROR (attempt to apply non-funciton) : " + walk->leftToken->content;
+								SetError( APPLY_NON_FUNCITON, errorMessage );
+								hasError = true;
+							} // if: there's no previous error
 						} // if: not under quote function
 					} // else: left token but not function TODO: NOT AN FUNCTION ERROR
 				} // if: this node is created by left-paren
@@ -1326,9 +1360,15 @@ public:
 								argumentList.push_back( current->rightNode );
 							} // if: find defineList
 							
+							else if ( FindDefineBindings( true, current->rightNode->leftToken->content ) == false ) {
+								string errorMessage = "ERROR (unbound symbol) : " + current->rightNode->leftToken->content;
+								SetError( DEFINE_UNBOUND, errorMessage );
+								return false;
+							} // else if: find no pre-defined bindings for arguments
+							
 							else {
 								string errorMessage =
-												"ERROR (" + current->leftToken->content + " with incorrect argument type : " +
+												"ERROR (" + current->leftToken->content + " with incorrect argument type) : " +
 												current->rightNode->leftToken->content;
 								SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
 								return false;
@@ -1351,9 +1391,17 @@ public:
 									argumentList.push_back( current->rightNode->rightNode );
 								} // if: find defineList
 								
+								else if ( FindDefineBindings( true, current->rightNode->rightNode->leftToken->content ) ==
+													false ) {
+									string errorMessage =
+													"ERROR (unbound symbol) : " + current->rightNode->rightNode->leftToken->content;
+									SetError( DEFINE_UNBOUND, errorMessage );
+									return false;
+								} // else if: find no pre-defined bindings for arguments
+								
 								else {
 									string errorMessage =
-													"ERROR (" + current->leftToken->content + " with incorrect argument type : " +
+													"ERROR (" + current->leftToken->content + " with incorrect argument type) : " +
 													current->rightNode->rightNode->leftToken->content;
 									SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
 									return false;
@@ -2058,7 +2106,8 @@ public:
 	*/
 	
 	void PrintResult() {
-		cout << "Project 2 outputs:" << endl;
+		if ( g_uTestNum == 4 )
+			cout << "Project 2 outputs:" << endl;
 		
 		if ( m_ResultList.back()->hasStringResult ) {
 			PrintString( m_ResultList.back()->stringResult->content );
@@ -2217,7 +2266,7 @@ public:
 }; // Project2Class
 
 int main() {
-	cout << "Enter 1 for standard outputs, 4 for debugging informations." << endl;
+	cout << endl << "Enter 1 for standard outputs, 4 for debugging informations." << endl;
 	cin >> g_uTestNum;
 	bool end = false;
 	cout << "Welcome to OurScheme!" << endl << endl;
@@ -2239,8 +2288,12 @@ int main() {
 				
 				else {
 					if ( project2.EvalSExp( project1 ) == true ) {
-						cout << endl << "Project 1 outputs:" << endl;
-						project1.PrintSExp();
+						if ( g_uTestNum == 4 ) {
+							cout << endl << "Project 1 outputs:" << endl;
+							project1.PrintSExp();
+							cout << endl;
+						} // if: debug
+						
 						project2.PrintResult();
 					} // if: evaluate correct
 					
