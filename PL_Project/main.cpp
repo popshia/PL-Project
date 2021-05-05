@@ -1890,7 +1890,13 @@ public:
 		if ( listWalk->rightNode == NULL ) {
 			if ( listWalk->leftToken ) {
 				if ( listWalk->leftToken->tokenType == SYMBOL ) {
-					resultWalk->leftNode = GetDefineBindings( listWalk->leftToken->content );
+					if ( GetDefineBindings( listWalk->leftToken->content )->leftNode ) {
+						resultWalk->leftNode = GetDefineBindings( listWalk->leftToken->content )->leftNode;
+					} // if: return a node
+					
+					else {
+						resultWalk->leftToken = GetDefineBindings( listWalk->leftToken->content )->leftToken;
+					} // else: return a token
 				} // if: defined bindings
 				
 				else {
@@ -1926,7 +1932,13 @@ public:
 			while ( listWalk->rightNode ) {
 				if ( listWalk->leftToken ) {
 					if ( listWalk->leftToken->tokenType == SYMBOL ) {
-						resultWalk->leftNode = GetDefineBindings( listWalk->leftToken->content );
+						if ( GetDefineBindings( listWalk->leftToken->content )->leftNode ) {
+							resultWalk->leftNode = GetDefineBindings( listWalk->leftToken->content )->leftNode;
+						} // if: return a node
+						
+						else {
+							resultWalk->leftToken = GetDefineBindings( listWalk->leftToken->content )->leftToken;
+						} // else: return a token
 					} // if: defined bindings
 					
 					else {
@@ -1970,7 +1982,13 @@ public:
 				if ( listWalk->rightNode == NULL ) {
 					if ( listWalk->leftToken ) {
 						if ( listWalk->leftToken->tokenType == SYMBOL ) {
-							resultWalk->leftNode = GetDefineBindings( listWalk->leftToken->content );
+							if ( GetDefineBindings( listWalk->leftToken->content )->leftNode ) {
+								resultWalk->leftNode = GetDefineBindings( listWalk->leftToken->content )->leftNode;
+							} // if: return a node
+							
+							else {
+								resultWalk->leftToken = GetDefineBindings( listWalk->leftToken->content )->leftToken;
+							} // else: return a token
 						} // if: defined bindings
 						
 						else {
