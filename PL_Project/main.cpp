@@ -658,41 +658,11 @@ public:
 		m_CurrentTreeLocation = m_Root;
 	} // InitializeRoot()
 	
-	void CreateNode() {
-		if ( m_CurrentTreeLocation->leftToken == NULL &&
-				 m_CurrentTreeLocation->leftNode == NULL ) {
-			m_CurrentTreeLocation->leftNode = new TreeStruct;
-			m_CurrentTreeLocation->leftNode->previousNode = m_CurrentTreeLocation;
-			m_CurrentTreeLocation = m_CurrentTreeLocation->leftNode;
-		} // if: check left or right
-		
-		else {
-			if ( IsAtom( m_LineOfTokens.at( m_LineOfTokens.size() - 2 ) ) ) {
-				m_CurrentTreeLocation->rightNode = new TreeStruct;
-				m_CurrentTreeLocation->rightNode->previousNode = m_CurrentTreeLocation;
-				m_CurrentTreeLocation = m_CurrentTreeLocation->rightNode;
-				m_CurrentTreeLocation->leftNode = new TreeStruct;
-				m_CurrentTreeLocation->leftNode->previousNode = m_CurrentTreeLocation;
-				m_CurrentTreeLocation = m_CurrentTreeLocation->leftNode;
-			} // if: without dot case
-			
-			else {
-				m_CurrentTreeLocation->rightNode = new TreeStruct;
-				m_CurrentTreeLocation->rightNode->previousNode = m_CurrentTreeLocation;
-				m_CurrentTreeLocation = m_CurrentTreeLocation->rightNode;
-			} // else: normal dot case
-		} // else: create at right
-		
-		m_CurrentTreeLocation->leftNode = NULL;
-		m_CurrentTreeLocation->rightNode = NULL;
-		m_CurrentTreeLocation->leftToken = NULL;
-		m_CurrentTreeLocation->rightToken = NULL;
-	} // CreateNode()
-	
 	void LeftCreateNode() {
 		m_CurrentTreeLocation->leftNode = new TreeStruct;
 		m_CurrentTreeLocation->leftNode->previousNode = m_CurrentTreeLocation;
 		m_CurrentTreeLocation = m_CurrentTreeLocation->leftNode;
+		m_CurrentTreeLocation->leftParenCreate = false;
 		m_CurrentTreeLocation->leftNode = NULL;
 		m_CurrentTreeLocation->rightNode = NULL;
 		m_CurrentTreeLocation->leftToken = NULL;
@@ -703,6 +673,7 @@ public:
 		m_CurrentTreeLocation->rightNode = new TreeStruct;
 		m_CurrentTreeLocation->rightNode->previousNode = m_CurrentTreeLocation;
 		m_CurrentTreeLocation = m_CurrentTreeLocation->rightNode;
+		m_CurrentTreeLocation->leftParenCreate = false;
 		m_CurrentTreeLocation->leftNode = NULL;
 		m_CurrentTreeLocation->rightNode = NULL;
 		m_CurrentTreeLocation->leftToken = NULL;
@@ -1219,6 +1190,12 @@ public:
 						if ( IsPrimitive( walk->leftToken ) == false ) {
 							if ( FindDefineBindings( true, walk->leftToken->content ) ) {
 								walk->leftToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+								
+								if ( IsPrimitive( walk->leftToken ) == false ) {
+									string errorMessage = "ERROR (attempt to apply non-funciton) : " + walk->leftToken->content;
+									SetError( APPLY_NON_FUNCITON, errorMessage );
+									hasError = true;
+								} // if: find pre-defined symbol, but not a function
 							} // if: check if there's a bounded symbol
 							
 							else {
@@ -1230,25 +1207,15 @@ public:
 							} // else: not find bounded symbol
 						} // if: current token is a symbol
 						
-						if ( hasError == false && CheckArguments( walk, argumentList ) ) {
-							CallCorrespondingFunction( walk, argumentList );
+						if ( hasError == false ) {
+							if ( CheckArguments( walk, argumentList ) ) {
+								CallCorrespondingFunction( walk, argumentList );
+							} // if: arguments has no problem
+							
+							else {
+								hasError = true;
+							} // else: arguments has error
 						} // if: check the parameters
-						
-						else {
-							if ( hasError == false ) {
-								if ( IsPrimitive( walk->leftToken ) == false ) {
-									string errorMessage = "ERROR (attempt to apply non-funciton) : " + walk->leftToken->content;
-									SetError( APPLY_NON_FUNCITON, errorMessage );
-									hasError = true;
-								} // if: find pre-defined symbol, but not a function
-								
-								else {
-									string errorMessage = "ERROR (incorrect number of arguments) : " + walk->leftToken->content;
-									SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
-									hasError = true;
-								} // else: incorrect numbers of arguments
-							} // if: there's no previous error
-						} // else: arguments error TODO: INCORRECT NUMBER OF ARGUMENTS ERROR
 					} // if: if is primitive or symbol
 					
 					else {
@@ -1429,6 +1396,8 @@ public:
 				return true;
 			} // else if: list
 			
+			string errorMessage = "ERROR (incorrect number of arguments) : " + current->leftToken->content;
+			SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
 			return false;
 		} // if: constuctor
 		
@@ -1625,7 +1594,7 @@ public:
 	*/
 	
 	void CallCorrespondingFunction( TreeStruct *functionNode, vector<TreeStruct *> arguments ) {
-		/* ------------------------------------------- DEBUG COUT ------------------------------------------------
+		// ------------------------------------------- DEBUG COUT ------------------------------------------------
 		if ( g_uTestNum == 4 ) {
 			cout << "<FUNCTION>: " << functionNode->leftToken->content;
 			
@@ -1799,7 +1768,7 @@ public:
 			else if ( function->content == "equal?" ) {
 				// Equal( arguments, result );
 			} // else if: equal?
-		} // else if: equivalence
+		}// else if: equivalence
 		
 		else if ( function->primitiveType == BEGIN ) {
 			// Begin( arguments, result );
@@ -2087,7 +2056,7 @@ public:
 		
 		for ( int i = 0 ; i < m_DefineBindingList.size() ; i++ ) {
 			if ( arguments.front()->leftToken->content == m_DefineBindingList[i]->leftToken->content ) {
-				m_DefineBindingList.erase( m_DefineBindingList.begin() + ( i - 1 ) );
+				m_DefineBindingList.erase( m_DefineBindingList.begin() + i );
 			} // if: find pre-defined , delete it
 		} // for: find any pre-defined
 		
