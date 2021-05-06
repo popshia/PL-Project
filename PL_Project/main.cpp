@@ -28,7 +28,7 @@ enum TokenType {
 enum ErrorType {
 		NOT_S_EXP, NO_CLOSING_QUOTE, UNEXPECTED_TOKEN_ATOM_LEFT_PAREN, UNEXPECTED_RIGHT_PAREN, NO_MORE_INPUT,
 		INCORRECT_NUM_ARGUMENTS, INCORRECT_ARGUMENT_TYPE, DEFINE_UNBOUND, APPLY_NON_FUNCITON, NO_RETURN_VALUE,
-		DIVISION_BY_ZERO, NOT_LIST
+		DIVISION_BY_ZERO, NON_LIST
 }; // error types
 
 enum PrimitiveType {
@@ -1009,7 +1009,6 @@ class Project2Class {
 	vector<TreeStruct *> m_DefineBindingList;
 	vector<ResultStruct *> m_ResultList;
 	ErrorStruct m_Error;
-	// TODO: add a vector that contains expression results
 
 public:
 	/*
@@ -1132,7 +1131,14 @@ public:
 		if ( g_uTestNum == 4 )
 			cout << "Project 2 outputs:" << endl;
 		
-		cout << m_Error.errorMessage << endl;
+		cout << m_Error.errorMessage;
+		
+		if ( m_Error.errorType == NON_LIST ) {
+			m_project1.PrintSExp();
+			return;
+		} // if: non-list error, print the expression
+		
+		cout << endl;
 	} // ErrorHandling()
 	/*
 		------------------- Start ------------------
@@ -1142,6 +1148,8 @@ public:
 	bool EvalSExp( Project1Class project1Result ) {
 		m_ResultList.clear();
 		m_project1 = project1Result;
+		m_Error.errorType = NOT_S_EXP;
+		m_Error.errorMessage = "\0";
 		
 		if ( g_uTestNum == 4 )
 			cout << endl << "------------- PROJECT 2 --------------" << endl;
@@ -1209,7 +1217,7 @@ public:
 						
 						if ( hasError == false ) {
 							if ( CheckArguments( walk, argumentList ) ) {
-								CallCorrespondingFunction( walk, argumentList );
+								hasError = CallCorrespondingFunction( walk, argumentList );
 							} // if: arguments has no problem
 							
 							else {
@@ -1391,6 +1399,33 @@ public:
 			} // if: cons
 			
 			else if ( current->leftToken->content == "list" ) {
+				TreeStruct *listCheckWalk = current->rightNode;
+				
+				while ( listCheckWalk->rightNode ) {
+					if ( listCheckWalk->leftToken && listCheckWalk->leftToken->tokenType == SYMBOL ) {
+						if ( FindDefineBindings( true, listCheckWalk->leftToken->content ) == false ) {
+							string errorMessage =
+											"ERROR (unbound symbol) : " + listCheckWalk->leftToken->content;
+							SetError( DEFINE_UNBOUND, errorMessage );
+							return false;
+						} // if: find no bounded symbol
+					} // if: has leftToken and tokenType is symbol
+					
+					listCheckWalk = listCheckWalk->rightNode;
+					
+					if ( listCheckWalk->rightNode == NULL ) {
+						if ( listCheckWalk->leftToken ) {
+							if ( listCheckWalk->leftToken->tokenType == SYMBOL ) {
+								if ( FindDefineBindings( true, listCheckWalk->leftToken->content ) == false ) {
+									string errorMessage = "ERROR (unbound symbol) : " + listCheckWalk->leftToken->content;
+									SetError( DEFINE_UNBOUND, errorMessage );
+									return false;
+								} // if: find no bounded symbol
+							} // if: leftToken tokenType is SYMBOL
+						} // if: have leftToken
+					} // if: last node
+				} // while: go through the tree
+				
 				argumentList.push_back( current->rightNode );
 				return true;
 			} // else if: list
@@ -1439,20 +1474,20 @@ public:
 						else {
 							string errorMessage = "ERROR (unbound symbol) : " + current->rightNode->leftToken->content;
 							SetError( DEFINE_UNBOUND, errorMessage );
-							return false;
 						} // else if: find no pre-defined bindings for arguments
-						
-						// else {
-						// 	string errorMessage =
-						// 					"ERROR (" + current->leftToken->content + " with incorrect argument type) : " +
-						// 					current->rightNode->leftToken->content;
-						// 	SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
-						// 	return false;
-						// } // else: false argument type
 					} // if: current token is symbol
 					
-					else {
+					
+					else if ( current->rightNode->leftToken->tokenType == LEFT_PAREN ||
+										current->rightNode->leftToken->tokenType == QUOTE ) {
 						argumentList.push_back( current->rightNode );
+					} // else: false argument type
+					
+					else {
+						string errorMessage =
+										"ERROR (" + current->leftToken->content + " with incorrect argument type) : " +
+										current->rightNode->leftToken->content;
+						SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
 					} // else: current token not symbol
 				} // if: leftToken exist
 				
@@ -1461,8 +1496,25 @@ public:
 				} // else: push rightNode in
 				
 				if ( current->rightNode->rightNode == NULL ) {
-					return true;
+					if ( current->rightNode->rightToken ) {
+						string errorMessage = "ERROR (non-list) : ";
+						SetError( NON_LIST, errorMessage );
+					} // if: TODO: STRANGE non-list ERROR
+					
+					if ( m_Error.errorMessage == "\0" ) {
+						return true;
+					} // if: no error
+					
+					else {
+						return false;
+					} // else: error
 				} // if: no second argument
+				
+				else {
+					string errorMessage = "ERROR (incorrect number of arguments) : " + current->leftToken->content;
+					SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+					return false;
+				} // else: more than one arguments
 			} // if: has one arguments
 			
 			string errorMessage = "ERROR (incorrect number of arguments) : " + current->leftToken->content;
@@ -1583,7 +1635,7 @@ public:
 		} // if: quoteWalk is not NULL
 	} // PrintQuoteArguments()
 	
-	TokenType CheckResultType( ResultStruct *result ) {
+	TokenType CheckPreviousResultType( ResultStruct *result ) {
 		if ( result->hasNodeResult ) {
 			return LEFT_PAREN;
 		} // if: node
@@ -1615,14 +1667,14 @@ public:
 		} // else if: boolean
 		
 		return NIL;
-	} // CheckResultType()
+	} // CheckPreviousResultType()
 	
 	/*
 	------------------ Function ----------------
 	------------------- Entry ------------------
 	*/
 	
-	void CallCorrespondingFunction( TreeStruct *functionNode, vector<TreeStruct *> arguments ) {
+	bool CallCorrespondingFunction( TreeStruct *functionNode, vector<TreeStruct *> arguments ) {
 		// ------------------------------------------- DEBUG COUT ------------------------------------------------
 		if ( g_uTestNum == 4 ) {
 			cout << "<FUNCTION>: " << functionNode->leftToken->content;
@@ -1656,32 +1708,33 @@ public:
 		
 		TokenStruct *function = functionNode->leftToken;
 		ResultStruct *result = NewResult();
+		bool hasError = false;
 		
 		if ( function->primitiveType == CONSTRUCTOR ) {
 			if ( function->content == "cons" ) {
-				Cons( arguments, result );
+				hasError = Cons( arguments, result );
 			} // if: cons
 			
 			else {
-				List( arguments, result );
+				hasError = List( arguments, result );
 			} // else if: list
 		} // if: constructor
 		
 		else if ( function->primitiveType == QUOTE_BYPASSING ) {
-			Quote( arguments, result );
+			hasError = Quote( arguments, result );
 		} // else if: quote
 		
 		else if ( function->primitiveType == DEFINE_BINDING ) {
-			Define( arguments, result );
+			hasError = Define( arguments, result );
 		} // else if: define
 		
 		else if ( function->primitiveType == PART_ACCESSOR ) {
 			if ( function->content == "car" ) {
-				Car( arguments, result );
+				hasError = Car( arguments, result );
 			} // if: car
 			
 			else {
-				// Cdr( arguments, result );
+				hasError = Cdr( arguments, result );
 			} // else: cdr
 		} // else if: part accessor
 		
@@ -1816,6 +1869,8 @@ public:
 		else if ( function->primitiveType == CLEAN_ENVIRONMENT ) {
 			// CleanEnvironment();
 		} // else if: clean-environment
+		
+		return !hasError;
 	} // CallCorrespondingFunction()
 	
 	/*
@@ -1823,7 +1878,7 @@ public:
 	----------------- Definition ---------------
 	*/
 	
-	void Cons( vector<TreeStruct *> arguments, ResultStruct *result ) {
+	bool Cons( vector<TreeStruct *> arguments, ResultStruct *result ) {
 		TreeStruct *resultRoot = new TreeStruct;
 		// initialization
 		resultRoot->leftNode = NULL;
@@ -1849,13 +1904,13 @@ public:
 		} // if: token form, get leftToken
 		
 		else {
-			if ( CheckResultType( m_ResultList.back() ) == LEFT_PAREN ) {
+			if ( CheckPreviousResultType( m_ResultList.back() ) == LEFT_PAREN ) {
 				resultRoot->leftNode = m_ResultList.back()->nodeResult;
 				m_ResultList.pop_back();
 			} // if: previous result is node
 			
-			else if ( CheckResultType( m_ResultList.back() ) == INT ||
-								CheckResultType( m_ResultList.back() ) == FLOAT ) {
+			else if ( CheckPreviousResultType( m_ResultList.back() ) == INT ||
+								CheckPreviousResultType( m_ResultList.back() ) == FLOAT ) {
 				resultRoot->leftToken = m_ResultList.back()->intResult;
 				m_ResultList.pop_back();
 			} // else if: previous result is int
@@ -1866,7 +1921,7 @@ public:
 				if ( m_ResultList.back()->hasStringResult ) {
 					errorMessage += m_ResultList.back()->stringResult->content;
 					SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
-					return;
+					return false;
 				} // if: previous result has wrong error type
 			} // else: wrong result type
 		} // else: get from previous result
@@ -1894,13 +1949,13 @@ public:
 		} // if: no previous result
 		
 		else {
-			if ( CheckResultType( m_ResultList.back() ) == LEFT_PAREN ) {
+			if ( CheckPreviousResultType( m_ResultList.back() ) == LEFT_PAREN ) {
 				resultRoot->rightNode = m_ResultList.back()->nodeResult;
 				m_ResultList.pop_back();
 			} // if: previous result is node
 			
-			else if ( CheckResultType( m_ResultList.back() ) == INT ||
-								CheckResultType( m_ResultList.back() ) == FLOAT ) {
+			else if ( CheckPreviousResultType( m_ResultList.back() ) == INT ||
+								CheckPreviousResultType( m_ResultList.back() ) == FLOAT ) {
 				resultRoot->rightToken = m_ResultList.back()->intResult;
 				m_ResultList.pop_back();
 			} // else if: previous result is int
@@ -1911,7 +1966,7 @@ public:
 				if ( m_ResultList.back()->hasStringResult ) {
 					errorMessage += m_ResultList.back()->stringResult->content;
 					SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
-					return;
+					return false;
 				} // if: previous result has wrong error type
 			} // else: wrong result type
 		} // else: has previous result
@@ -1919,9 +1974,10 @@ public:
 		result->hasNodeResult = true;
 		result->nodeResult = resultRoot;
 		m_ResultList.push_back( result );
+		return true;
 	} // Cons()
 	
-	void List( vector<TreeStruct *> arguments, ResultStruct *result ) {
+	bool List( vector<TreeStruct *> arguments, ResultStruct *result ) {
 		TreeStruct *resultRoot = new TreeStruct;
 		// initialization
 		resultRoot->leftNode = NULL;
@@ -1951,13 +2007,13 @@ public:
 			} // if: leftToken exist
 			
 			else {
-				if ( CheckResultType( m_ResultList.back() ) == LEFT_PAREN ) {
+				if ( CheckPreviousResultType( m_ResultList.back() ) == LEFT_PAREN ) {
 					resultRoot->leftNode = m_ResultList.back()->nodeResult;
 					m_ResultList.pop_back();
 				} // if: previous result is node
 				
-				else if ( CheckResultType( m_ResultList.back() ) == INT ||
-									CheckResultType( m_ResultList.back() ) == FLOAT ) {
+				else if ( CheckPreviousResultType( m_ResultList.back() ) == INT ||
+									CheckPreviousResultType( m_ResultList.back() ) == FLOAT ) {
 					resultRoot->leftToken = m_ResultList.back()->intResult;
 					m_ResultList.pop_back();
 				} // else if: previous result is int
@@ -1968,7 +2024,7 @@ public:
 					if ( m_ResultList.back()->hasStringResult ) {
 						errorMessage += m_ResultList.back()->stringResult->content;
 						SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
-						return;
+						return false;
 					} // if: previous result has wrong error type
 				} // else: wrong result type
 			} // else: get previous result
@@ -1993,13 +2049,13 @@ public:
 				} // if: leftToken exist
 				
 				else {
-					if ( CheckResultType( m_ResultList.back() ) == LEFT_PAREN ) {
+					if ( CheckPreviousResultType( m_ResultList.back() ) == LEFT_PAREN ) {
 						resultWalk->leftNode = m_ResultList.back()->nodeResult;
 						m_ResultList.pop_back();
 					} // if: previous result is node
 					
-					else if ( CheckResultType( m_ResultList.back() ) == INT ||
-										CheckResultType( m_ResultList.back() ) == FLOAT ) {
+					else if ( CheckPreviousResultType( m_ResultList.back() ) == INT ||
+										CheckPreviousResultType( m_ResultList.back() ) == FLOAT ) {
 						resultWalk->leftToken = m_ResultList.back()->intResult;
 						m_ResultList.pop_back();
 					} // else if: previous result is int
@@ -2010,7 +2066,7 @@ public:
 						if ( m_ResultList.back()->hasStringResult ) {
 							errorMessage += m_ResultList.back()->stringResult->content;
 							SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
-							return;
+							return false;
 						} // if: previous result has wrong error type
 					} // else: wrong result type
 				} // else: get previous result
@@ -2043,13 +2099,13 @@ public:
 					} // if: leftToken exist
 					
 					else {
-						if ( CheckResultType( m_ResultList.back() ) == LEFT_PAREN ) {
+						if ( CheckPreviousResultType( m_ResultList.back() ) == LEFT_PAREN ) {
 							resultWalk->leftNode = m_ResultList.back()->nodeResult;
 							m_ResultList.pop_back();
 						} // if: previous result is node
 						
-						else if ( CheckResultType( m_ResultList.back() ) == INT ||
-											CheckResultType( m_ResultList.back() ) == FLOAT ) {
+						else if ( CheckPreviousResultType( m_ResultList.back() ) == INT ||
+											CheckPreviousResultType( m_ResultList.back() ) == FLOAT ) {
 							resultWalk->leftToken = m_ResultList.back()->intResult;
 							m_ResultList.pop_back();
 						} // else if: previous result is int
@@ -2060,7 +2116,7 @@ public:
 							if ( m_ResultList.back()->hasStringResult ) {
 								errorMessage += m_ResultList.back()->stringResult->content;
 								SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
-								return;
+								return false;
 							} // if: previous result has wrong error type
 						} // else: wrong result type
 					} // else: get previous result
@@ -2071,15 +2127,17 @@ public:
 		result->hasNodeResult = true;
 		result->nodeResult = resultRoot;
 		m_ResultList.push_back( result );
+		return true;
 	} // List()
 	
-	void Quote( vector<TreeStruct *> arguments, ResultStruct *result ) {
+	bool Quote( vector<TreeStruct *> arguments, ResultStruct *result ) {
 		result->nodeResult = arguments.front()->leftNode;
 		result->hasNodeResult = true;
 		m_ResultList.push_back( result );
+		return true;
 	} // Quote()
 	
-	void Define( vector<TreeStruct *> arguments, ResultStruct *result ) {
+	bool Define( vector<TreeStruct *> arguments, ResultStruct *result ) {
 		result->stringResult->content = arguments.front()->leftToken->content + " defined";
 		result->hasStringResult = true;
 		
@@ -2096,11 +2154,147 @@ public:
 		
 		m_DefineBindingList.push_back( arguments.front() );
 		m_ResultList.push_back( result );
+		return true;
 	} // Define()
 	
-	void Car( vector<TreeStruct *> arguments, ResultStruct *result ) {
-	
+	bool Car( vector<TreeStruct *> arguments, ResultStruct *result ) {
+		if ( arguments.front()->leftToken ) {
+			if ( GetDefineBindings( arguments.front()->leftToken->content )->leftNode ) {
+				if ( GetDefineBindings( arguments.front()->leftToken->content )->leftNode->leftNode ) {
+					result->hasNodeResult = true;
+					result->nodeResult = GetDefineBindings( arguments.front()->leftToken->content )->leftNode->leftNode;
+				} // if: defined has leftNode
+				
+				else {
+					if ( GetDefineBindings( arguments.front()->leftToken->content )->leftNode->leftToken->tokenType ==
+							 INT ) {
+						result->hasIntResult = true;
+						result->intResult = GetDefineBindings(
+										arguments.front()->leftToken->content )->leftNode->leftToken;
+					} // if: defined leftToken is int
+					
+					else if ( GetDefineBindings(
+									arguments.front()->leftToken->content )->leftNode->leftToken->tokenType == FLOAT ) {
+						result->hasFloatResult = true;
+						result->floatResult = GetDefineBindings(
+										arguments.front()->leftToken->content )->leftNode->leftToken;
+					} // else if: defined leftToken is float
+					
+					else if ( GetDefineBindings(
+									arguments.front()->leftToken->content )->leftNode->leftToken->tokenType == STRING ) {
+						result->hasStringResult = true;
+						result->stringResult = GetDefineBindings(
+										arguments.front()->leftToken->content )->leftNode->leftToken;
+					} // else if: defined leftToken is float
+				} // else: defined has leftToken
+			} // if: defined is a node
+			
+			else {
+				string errorString = "ERROR (non-list) : ";
+				SetError( NON_LIST, errorString );
+				return false;
+			} // else: defined has no leftNode to do car
+		} // if: the argument is a symbol, which means a bounded define binding
+		
+		else {
+			if ( m_ResultList.back()->nodeResult->leftNode ) {
+				result->hasNodeResult = true;
+				result->nodeResult = m_ResultList.back()->nodeResult->leftNode;
+			} // if: previous result has a leftNode
+			
+			else {
+				if ( m_ResultList.back()->nodeResult->leftToken->tokenType == INT ) {
+					result->hasIntResult = true;
+					result->intResult = m_ResultList.back()->nodeResult->leftToken;
+				} // if: previous result's leftToken is an integer
+				
+				else if ( m_ResultList.back()->nodeResult->leftToken->tokenType == FLOAT ) {
+					result->hasFloatResult = true;
+					result->floatResult = m_ResultList.back()->nodeResult->leftToken;
+				} // else if: previous result's leftToken is an float
+				
+				else if ( m_ResultList.back()->nodeResult->leftToken->tokenType == STRING ) {
+					result->hasStringResult = true;
+					result->stringResult = m_ResultList.back()->nodeResult->leftToken;
+				} // else if: previous result's leftToken is an float
+			} // else: previous result only has a leftToken
+			
+			m_ResultList.pop_back();
+		} // else: the argument is a node(function), get the previous result's leftnode and pop
+		
+		m_ResultList.push_back( result );
+		return true;
 	} // Car()
+	
+	bool Cdr( vector<TreeStruct *> arguments, ResultStruct *result ) {
+		if ( arguments.front()->leftToken ) {
+			if ( GetDefineBindings( arguments.front()->leftToken->content )->leftNode ) {
+				if ( GetDefineBindings( arguments.front()->leftToken->content )->leftNode->rightNode ) {
+					result->hasNodeResult = true;
+					result->nodeResult = GetDefineBindings(
+									arguments.front()->leftToken->content )->leftNode->rightNode;
+				} // if: defined has rightNode
+				
+				else {
+					if ( GetDefineBindings( arguments.front()->leftToken->content )->leftNode->rightToken->tokenType ==
+							 INT ) {
+						result->hasIntResult = true;
+						result->intResult = GetDefineBindings(
+										arguments.front()->leftToken->content )->leftNode->rightToken;
+					} // if: defined rightToken is int
+					
+					else if ( GetDefineBindings(
+									arguments.front()->leftToken->content )->leftNode->rightToken->tokenType == FLOAT ) {
+						result->hasFloatResult = true;
+						result->floatResult = GetDefineBindings(
+										arguments.front()->leftToken->content )->leftNode->rightToken;
+					} // else if: defined rightToken is float
+					
+					else if ( GetDefineBindings(
+									arguments.front()->leftToken->content )->leftNode->rightToken->tokenType == STRING ) {
+						result->hasStringResult = true;
+						result->stringResult = GetDefineBindings(
+										arguments.front()->leftToken->content )->leftNode->rightToken;
+					} // else if: defined rightToken is float
+				} // else: defined has rightToken
+			} // if: defined is a node
+			
+			else {
+				string errorString = "ERROR (non-list) : ";
+				SetError( NON_LIST, errorString );
+				return false;
+			} // else: defined has no rightNode to cdr
+		} // if: the argument is a symbol, which means a bounded define binding
+		
+		else {
+			if ( m_ResultList.back()->nodeResult->rightNode ) {
+				result->hasNodeResult = true;
+				result->nodeResult = m_ResultList.back()->nodeResult->rightNode;
+			} // if: previous result has a rightNode
+			
+			else {
+				if ( m_ResultList.back()->nodeResult->rightToken->tokenType == INT ) {
+					result->hasIntResult = true;
+					result->intResult = m_ResultList.back()->nodeResult->rightToken;
+				} // if: previous result's rightToken is an integer
+				
+				else if ( m_ResultList.back()->nodeResult->rightToken->tokenType == FLOAT ) {
+					result->hasFloatResult = true;
+					result->floatResult = m_ResultList.back()->nodeResult->rightToken;
+				} // else if: previous result's rightToken is an float
+				
+				else if ( m_ResultList.back()->nodeResult->rightToken->tokenType == STRING ) {
+					result->hasStringResult = true;
+					result->stringResult = m_ResultList.back()->nodeResult->rightToken;
+				} // else if: previous result's rightToken is a string
+			} // else: previous result only has a rightToken
+			
+			m_ResultList.pop_back();
+		} // else: the argument is a node(function), get the previous result and pop
+		
+		m_ResultList.push_back( result );
+		return true;
+	} // Cdr()
 	/*
 	------------------- Print ------------------
 	------------------ Result ------------------
