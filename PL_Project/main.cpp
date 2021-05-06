@@ -1327,29 +1327,29 @@ public:
 								argumentList.push_back( current->rightNode );
 							} // if: find defineList
 							
-							else if ( FindDefineBindings( true, current->rightNode->leftToken->content ) == false ) {
+							else {
 								string errorMessage = "ERROR (unbound symbol) : " + current->rightNode->leftToken->content;
 								SetError( DEFINE_UNBOUND, errorMessage );
 								return false;
 							} // else if: find no pre-defined bindings for arguments
-							
-							else {
-								string errorMessage =
-												"ERROR (" + current->leftToken->content + " with incorrect argument type) : " +
-												current->rightNode->leftToken->content;
-								SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
-								return false;
-							} // else: false argument type
 						} // if: current is symbol
+							
+							// else if ( current->rightNode->leftToken->tokenType == ) {
+							// 	string errorMessage =
+							// 					"ERROR (" + current->leftToken->content + " with incorrect argument type) : " +
+							// 					current->rightNode->leftToken->content;
+							// 	SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+							// 	return false;
+							// } // else: false argument type
 						
 						else {
 							argumentList.push_back( current->rightNode );
 						} // else: current is not a symbol
-					} // if:
+					} // if: leftToken exist
 					
 					else {
 						argumentList.push_back( current->rightNode );
-					} // else: not symbol
+					} // else: push rightNode in
 					
 					if ( current->rightNode->rightNode ) {
 						if ( current->rightNode->rightNode->leftToken ) {
@@ -1358,22 +1358,21 @@ public:
 									argumentList.push_back( current->rightNode->rightNode );
 								} // if: find defineList
 								
-								else if ( FindDefineBindings( true, current->rightNode->rightNode->leftToken->content ) ==
-													false ) {
+								else {
 									string errorMessage =
 													"ERROR (unbound symbol) : " + current->rightNode->rightNode->leftToken->content;
 									SetError( DEFINE_UNBOUND, errorMessage );
 									return false;
 								} // else if: find no pre-defined bindings for arguments
-								
-								else {
-									string errorMessage =
-													"ERROR (" + current->leftToken->content + " with incorrect argument type) : " +
-													current->rightNode->rightNode->leftToken->content;
-									SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
-									return false;
-								} // else: false argument type
 							} // if: current is symbol
+								
+								// else if ( current->rightNode->leftToken->tokenType == ) {
+								// 	string errorMessage =
+								// 					"ERROR (" + current->leftToken->content + " with incorrect argument type) : " +
+								// 					current->rightNode->leftToken->content;
+								// 	SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+								// 	return false;
+								// } // else: false argument type
 							
 							else {
 								argumentList.push_back( current->rightNode->rightNode );
@@ -1431,13 +1430,43 @@ public:
 		
 		else if ( current->leftToken->primitiveType == PART_ACCESSOR ) {
 			if ( current->rightNode ) {
-				argumentList.push_back( current->rightNode );
+				if ( current->rightNode->leftToken ) {
+					if ( current->rightNode->leftToken->tokenType == SYMBOL ) {
+						if ( FindDefineBindings( true, current->rightNode->leftToken->content ) ) {
+							argumentList.push_back( current->rightNode );
+						} // if: find bindings
+						
+						else {
+							string errorMessage = "ERROR (unbound symbol) : " + current->rightNode->leftToken->content;
+							SetError( DEFINE_UNBOUND, errorMessage );
+							return false;
+						} // else if: find no pre-defined bindings for arguments
+						
+						// else {
+						// 	string errorMessage =
+						// 					"ERROR (" + current->leftToken->content + " with incorrect argument type) : " +
+						// 					current->rightNode->leftToken->content;
+						// 	SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+						// 	return false;
+						// } // else: false argument type
+					} // if: current token is symbol
+					
+					else {
+						argumentList.push_back( current->rightNode );
+					} // else: current token not symbol
+				} // if: leftToken exist
+				
+				else {
+					argumentList.push_back( current->rightNode );
+				} // else: push rightNode in
 				
 				if ( current->rightNode->rightNode == NULL ) {
 					return true;
 				} // if: no second argument
 			} // if: has one arguments
 			
+			string errorMessage = "ERROR (incorrect number of arguments) : " + current->leftToken->content;
+			SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
 			return false;
 		} // else if: part accessors
 		
@@ -1648,7 +1677,7 @@ public:
 		
 		else if ( function->primitiveType == PART_ACCESSOR ) {
 			if ( function->content == "car" ) {
-				// Car( arguments, result );
+				Car( arguments, result );
 			} // if: car
 			
 			else {
@@ -2069,6 +2098,9 @@ public:
 		m_ResultList.push_back( result );
 	} // Define()
 	
+	void Car( vector<TreeStruct *> arguments, ResultStruct *result ) {
+	
+	} // Car()
 	/*
 	------------------- Print ------------------
 	------------------ Result ------------------

@@ -16,7 +16,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "1588"
             endingLineNumber = "1588"
-            landmarkName = "CallCorrespondingFunction(functionNode, arguments)"
+            landmarkName = "CheckResultType(result)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
