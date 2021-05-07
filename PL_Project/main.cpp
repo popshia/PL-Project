@@ -1234,7 +1234,7 @@ public:
 								hasError = true;
 							} // if: there's no previous error
 						} // if: not under quote function
-					} // else: left token but not function TODO: NOT AN FUNCTION ERROR
+					} // else: left token but not function
 				} // if: this node is created by left-paren
 			} // if: has a left token
 			
@@ -1249,7 +1249,7 @@ public:
 				SetError( DEFINE_UNBOUND, errorMessage );
 				hasError = true;
 			} // if: doesn't find a binding
-		} // else: only inputs a word, check m_DefineBindingList TODO: hasn't implement defining quote
+		} // else: only inputs a word, check m_DefineBindingList
 		
 		return !hasError;
 	} // ProcessSExp(): go through the data tree while using postorder traversal
@@ -1499,7 +1499,7 @@ public:
 					if ( current->rightNode->rightToken ) {
 						string errorMessage = "ERROR (non-list) : ";
 						SetError( NON_LIST, errorMessage );
-					} // if: TODO: STRANGE non-list ERROR
+					} // if: TODO: WEIRD non-list ERROR
 					
 					if ( m_Error.errorMessage == "\0" ) {
 						return true;
@@ -1531,6 +1531,8 @@ public:
 				} // if: no second argument
 			} // if: has one arguments
 			
+			string errorMessage = "ERROR (incorrect number of arguments) : " + current->leftToken->content;
+			SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
 			return false;
 		} // else if: primitive predicate
 		
@@ -1740,7 +1742,7 @@ public:
 		
 		else if ( function->primitiveType == PRIMITIVE_PREDICATE ) {
 			if ( function->content == "atom?" ) {
-				// IsAtom( arguments, result );
+				hasError = IsAtom( arguments, result );
 			} // if: atom?
 			
 			else if ( function->content == "pair?" ) {
@@ -2295,6 +2297,58 @@ public:
 		m_ResultList.push_back( result );
 		return true;
 	} // Cdr()
+	
+	bool IsAtom( vector<TreeStruct *> arguments, ResultStruct *result ) {
+		TokenStruct *resultToken = new TokenStruct;
+		
+		if ( arguments.front()->leftToken ) {
+			if ( arguments.front()->leftToken->tokenType == SYMBOL ) {
+				if ( FindDefineBindings( true, arguments.front()->leftToken->content ) ) {
+					if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken ) {
+						arguments.push_back( GetDefineBindings( arguments.front()->leftToken->content ) );
+						arguments.erase( arguments.begin() );
+					} // if: is a token form
+					
+					else {
+						resultToken->tokenType = NIL;
+						result->hasBoolResult = true;
+						result->boolResult = resultToken;
+						m_ResultList.push_back( result );
+						return true;
+					} // else: is a node form, which won't be an atom
+				} // if: find defined binding
+			} // if: is symbol, find if there's any defined bindings
+			
+			if ( arguments.front()->leftToken->tokenType == SYMBOL ||
+					 arguments.front()->leftToken->tokenType == INT ||
+					 arguments.front()->leftToken->tokenType == FLOAT ||
+					 arguments.front()->leftToken->tokenType == STRING ||
+					 arguments.front()->leftToken->tokenType == NIL ||
+					 arguments.front()->leftToken->tokenType == T ) {
+				resultToken->tokenType = T;
+			} // if: check if the argument's leftToken is a atom or not
+			
+			else {
+				resultToken->tokenType = NIL;
+			} // else: not atom
+		} // if: argument is in a token form
+		
+		else {
+			if ( m_ResultList.back()->hasNodeResult ) {
+				resultToken->tokenType = NIL;
+			} // if: is a node form, which won't be an atom
+			
+			else {
+				resultToken->tokenType = T;
+			} // else: is a atom
+		} // else: argument is in a node form, check previous result
+		
+		result->hasBoolResult = true;
+		result->boolResult = resultToken;
+		m_ResultList.push_back( result );
+		return true;
+	} // IsAtom()
+	
 	/*
 	------------------- Print ------------------
 	------------------ Result ------------------
