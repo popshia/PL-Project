@@ -1543,11 +1543,7 @@ public:
     else if ( current->leftToken->primitiveType == PRIMITIVE_PREDICATE ) {
       if ( current->rightNode ) {
         if ( current->rightNode->leftToken->tokenType == SYMBOL ) {
-          if ( FindDefineBindings( true, current->rightNode->leftToken->content ) ) {
-            argumentList.push_back( current->rightNode );
-          } // if: found defined-binding
-          
-          else {
+          if ( FindDefineBindings( true, current->rightNode->leftToken->content ) == false ) {
             string errorMessage = "ERROR (unbound symbol) : " + current->rightNode->leftToken->content;
             SetError( DEFINE_UNBOUND, errorMessage );
             return false;
@@ -1555,6 +1551,7 @@ public:
         } // if: argument is a symbol
         
         if ( current->rightNode->rightNode == NULL ) {
+          argumentList.push_back( current->rightNode );
           return true;
         } // if: no second argument
       } // if: has one arguments
