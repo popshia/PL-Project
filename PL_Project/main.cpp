@@ -59,16 +59,8 @@ struct ErrorStruct {
 }; // ErrorStruct
 
 struct ResultStruct {
-  TokenStruct *stringResult;
-  bool hasStringResult;
-  TokenStruct *symbolResult;
-  bool hasSymbolResult;
-  TokenStruct *boolResult;
-  bool hasBoolResult;
-  TokenStruct *intResult;
-  bool hasIntResult;
-  TokenStruct *floatResult;
-  bool hasFloatResult;
+  TokenStruct *tokenResult;
+  bool hasTokenResult;
   TreeStruct *nodeResult;
   bool hasNodeResult;
 }; // ResultStruct
@@ -1093,22 +1085,10 @@ public:
   
   ResultStruct *NewResult() {
     ResultStruct *newResult = new ResultStruct;
-    newResult->hasStringResult = false;
-    newResult->hasBoolResult = false;
-    newResult->hasIntResult = false;
-    newResult->hasFloatResult = false;
     newResult->hasNodeResult = false;
-    newResult->hasSymbolResult = false;
-    newResult->stringResult = new TokenStruct;
-    newResult->stringResult->tokenType = SYMBOL;
-    newResult->boolResult = new TokenStruct;
-    newResult->intResult = new TokenStruct;
-    newResult->intResult->tokenType = INT;
-    newResult->floatResult = new TokenStruct;
-    newResult->floatResult->tokenType = FLOAT;
+    newResult->hasTokenResult = false;
     newResult->nodeResult = new TreeStruct;
-    newResult->symbolResult = new TokenStruct;
-    newResult->symbolResult->tokenType = SYMBOL;
+    newResult->tokenResult = new TokenStruct;
     // initialization
     newResult->nodeResult->leftNode = NULL;
     newResult->nodeResult->rightNode = NULL;
@@ -1197,34 +1177,40 @@ public:
             vector<TreeStruct *> argumentList;
             
             if ( IsPrimitive( walk->leftToken ) == false ) {
-              if ( FindDefineBindings( true, walk->leftToken->content ) ) {
-                if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
-                  walk->leftToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+              if ( underQuote == false ) {
+                if ( FindDefineBindings( true, walk->leftToken->content ) ) {
+                  if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
+                    walk->leftToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+                    
+                    if ( IsPrimitive( walk->leftToken ) == false ) {
+                      string errorMessage;
+                      errorMessage = "ERROR (attempt to apply non-funciton) : " + walk->leftToken->content;
+                      SetError( APPLY_NON_FUNCITON, errorMessage );
+                      hasError = true;
+                    } // if: find pre-defined symbol, but not a function
+                  } // if: the defined binding is a token
                   
-                  if ( IsPrimitive( walk->leftToken ) == false ) {
+                  else {
+                    TreeStruct *errorNode = GetDefineBindings( walk->leftToken->content )->leftNode;
                     string errorMessage;
-                    errorMessage = "ERROR (attempt to apply non-funciton) : " + walk->leftToken->content;
+                    errorMessage = "ERROR (attempt to apply non-funciton) : " + errorNode->leftToken->content;
                     SetError( APPLY_NON_FUNCITON, errorMessage );
                     hasError = true;
-                  } // if: find pre-defined symbol, but not a function
-                } // if: the defined binding is a token
+                  } // else: the defined binding is a node
+                } // if: check if there's a bounded symbol
                 
                 else {
-                  TreeStruct *errorNode = GetDefineBindings( walk->leftToken->content )->leftNode;
-                  string errorMessage;
-                  errorMessage = "ERROR (attempt to apply non-funciton) : " + errorNode->leftToken->content;
-                  SetError( APPLY_NON_FUNCITON, errorMessage );
-                  hasError = true;
-                } // else: the defined binding is a node
-              } // if: check if there's a bounded symbol
+                  if ( hasError == false ) {
+                    string errorMessage = "ERROR (unbound symbol) : " + walk->leftToken->content;
+                    SetError( DEFINE_UNBOUND, errorMessage );
+                    hasError = true;
+                  } // if: no previous error
+                } // else: not find bounded symbol
+              } // if: not under quote
               
               else {
-                if ( hasError == false ) {
-                  string errorMessage = "ERROR (unbound symbol) : " + walk->leftToken->content;
-                  SetError( DEFINE_UNBOUND, errorMessage );
-                  hasError = true;
-                } // if: no previous error
-              } // else: not find bounded symbol
+                return !hasError;
+              } // else: underquote symbol
             } // if: current token is a symbol
             
             if ( hasError == false ) {
@@ -1288,35 +1274,10 @@ public:
             result->nodeResult = m_DefineBindingList[i]->rightNode->leftNode;
           } // if: node
           
-          else if ( m_DefineBindingList[i]->rightNode->leftToken->tokenType == STRING ) {
-            result->hasStringResult = true;
-            result->stringResult = m_DefineBindingList[i]->rightNode->leftToken;
-          } // else if: symbol & string
-          
-          else if ( m_DefineBindingList[i]->rightNode->leftToken->tokenType == SYMBOL ) {
-            result->hasSymbolResult = true;
-            result->symbolResult = m_DefineBindingList[i]->rightNode->leftToken;
-          } // else if: symbol & string
-          
-          else if ( m_DefineBindingList[i]->rightNode->leftToken->tokenType == FLOAT ) {
-            result->hasFloatResult = true;
-            result->floatResult = m_DefineBindingList[i]->rightNode->leftToken;
-          } // else if: float
-          
-          else if ( m_DefineBindingList[i]->rightNode->leftToken->tokenType == INT ) {
-            result->hasIntResult = true;
-            result->intResult = m_DefineBindingList[i]->rightNode->leftToken;
-          } // else if: int
-          
-          else if ( m_DefineBindingList[i]->rightNode->leftToken->tokenType == T ) {
-            result->hasBoolResult = true;
-            result->boolResult->tokenType = T;
-          } // else if: T
-          
-          else if ( m_DefineBindingList[i]->rightNode->leftToken->tokenType == NIL ) {
-            result->hasBoolResult = true;
-            result->boolResult->tokenType = NIL;
-          } // else if: NIL
+          else {
+            result->hasTokenResult = true;
+            result->tokenResult = m_DefineBindingList[i]->rightNode->leftToken;
+          } // else: token
           
           m_ResultList.push_back( result );
         } // if: not checking
@@ -1419,30 +1380,62 @@ public:
       else if ( current->leftToken->content == "list" ) {
         TreeStruct *listCheckWalk = current->rightNode;
         
-        while ( listCheckWalk->rightNode ) {
-          if ( listCheckWalk->leftToken && listCheckWalk->leftToken->tokenType == SYMBOL ) {
-            if ( FindDefineBindings( true, listCheckWalk->leftToken->content ) == false ) {
-              string errorMessage;
-              errorMessage = "ERROR (unbound symbol) : " + listCheckWalk->leftToken->content;
-              SetError( DEFINE_UNBOUND, errorMessage );
+        if ( listCheckWalk->rightNode ) {
+          while ( listCheckWalk->rightNode ) {
+            if ( listCheckWalk->leftToken && listCheckWalk->leftToken->tokenType == SYMBOL ) {
+              if ( FindDefineBindings( true, listCheckWalk->leftToken->content ) == false ) {
+                string errorMessage;
+                errorMessage = "ERROR (unbound symbol) : " + listCheckWalk->leftToken->content;
+                SetError( DEFINE_UNBOUND, errorMessage );
+                return false;
+              } // if: find no bounded symbol
+            } // if: has leftToken and tokenType is symbol
+            
+            if ( listCheckWalk->rightToken ) {
+              string errorMessage = "ERROR (non-list) : ";
+              SetError( NON_LIST, errorMessage );
               return false;
-            } // if: find no bounded symbol
-          } // if: has leftToken and tokenType is symbol
+            } // if: non-list
+            
+            listCheckWalk = listCheckWalk->rightNode;
+            
+            if ( listCheckWalk->rightNode == NULL ) {
+              if ( listCheckWalk->leftToken ) {
+                if ( listCheckWalk->leftToken->tokenType == SYMBOL ) {
+                  if ( FindDefineBindings( true, listCheckWalk->leftToken->content ) == false ) {
+                    string errorMessage = "ERROR (unbound symbol) : " + listCheckWalk->leftToken->content;
+                    SetError( DEFINE_UNBOUND, errorMessage );
+                    return false;
+                  } // if: find no bounded symbol
+                } // if: leftToken tokenType is SYMBOL
+              } // if: have leftToken
+              
+              if ( listCheckWalk->rightToken ) {
+                string errorMessage = "ERROR (non-list) : ";
+                SetError( NON_LIST, errorMessage );
+                return false;
+              } // if: non-list
+            } // if: last node
+          } // while: go through the tree
+        } // if: has more than one node
+        
+        if ( listCheckWalk->rightNode == NULL ) {
+          if ( listCheckWalk->leftToken ) {
+            if ( listCheckWalk->leftToken->tokenType == SYMBOL ) {
+              if ( FindDefineBindings( true, listCheckWalk->leftToken->content ) == false ) {
+                string errorMessage = "ERROR (unbound symbol) : " + listCheckWalk->leftToken->content;
+                SetError( DEFINE_UNBOUND, errorMessage );
+                return false;
+              } // if: find no bounded symbol
+            } // if: leftToken tokenType is SYMBOL
+          } // if: have leftToken
           
-          listCheckWalk = listCheckWalk->rightNode;
-          
-          if ( listCheckWalk->rightNode == NULL ) {
-            if ( listCheckWalk->leftToken ) {
-              if ( listCheckWalk->leftToken->tokenType == SYMBOL ) {
-                if ( FindDefineBindings( true, listCheckWalk->leftToken->content ) == false ) {
-                  string errorMessage = "ERROR (unbound symbol) : " + listCheckWalk->leftToken->content;
-                  SetError( DEFINE_UNBOUND, errorMessage );
-                  return false;
-                } // if: find no bounded symbol
-              } // if: leftToken tokenType is SYMBOL
-            } // if: have leftToken
-          } // if: last node
-        } // while: go through the tree
+          if ( listCheckWalk->rightToken ) {
+            string errorMessage = "ERROR (non-list) : ";
+            SetError( NON_LIST, errorMessage );
+            return false;
+          } // if: non-list
+        } // if: has only one node
         
         argumentList.push_back( current->rightNode );
         return true;
@@ -1467,9 +1460,21 @@ public:
     
     else if ( current->leftToken->primitiveType == DEFINE_BINDING ) {
       if ( current->rightNode ) {
+        if ( current->rightNode->rightToken ) {
+          string errorMessage = "ERROR (incorrect number of argument) : define";
+          SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+          return false;
+        } // if: number error
+        
         argumentList.push_back( current->rightNode );
         
         if ( current->rightNode->rightNode ) {
+          if ( current->rightNode->rightNode->rightToken ) {
+            string errorMessage = "ERROR (incorrect number of argument) : define";
+            SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+            return false;
+          } // if: number error
+          
           argumentList.push_back( current->rightNode->rightNode );
           
           if ( current->rightNode->rightNode->rightNode == NULL ) {
@@ -1542,17 +1547,24 @@ public:
     
     else if ( current->leftToken->primitiveType == PRIMITIVE_PREDICATE ) {
       if ( current->rightNode ) {
-        if ( current->rightNode->leftToken->tokenType == SYMBOL ) {
-          if ( FindDefineBindings( true, current->rightNode->leftToken->content ) == false ) {
-            string errorMessage = "ERROR (unbound symbol) : " + current->rightNode->leftToken->content;
-            SetError( DEFINE_UNBOUND, errorMessage );
-            return false;
-          } // else: else found no defined-binding
-        } // if: argument is a symbol
+        if ( current->rightNode->leftToken ) {
+          if ( current->rightNode->leftToken->tokenType == SYMBOL ) {
+            if ( FindDefineBindings( true, current->rightNode->leftToken->content ) == false ) {
+              string errorMessage = "ERROR (unbound symbol) : " + current->rightNode->leftToken->content;
+              SetError( DEFINE_UNBOUND, errorMessage );
+            } // else: else found no defined-binding
+          } // if: argument is a symbol
+        } // if: current node has a leftToken
         
         if ( current->rightNode->rightNode == NULL ) {
-          argumentList.push_back( current->rightNode );
-          return true;
+          if ( m_Error.errorMessage == "\0" ) {
+            argumentList.push_back( current->rightNode );
+            return true;
+          } // if: no error
+          
+          else {
+            return false;
+          } // else: unbound error
         } // if: no second argument
       } // if: has one arguments
       
@@ -1674,31 +1686,29 @@ public:
       return LEFT_PAREN;
     } // if: node
     
-    else if ( result->hasStringResult ) {
+    else if ( result->tokenResult->tokenType == STRING ) {
       return STRING;
     } // if: string
     
-    else if ( result->hasSymbolResult ) {
+    else if ( result->tokenResult->tokenType == SYMBOL ) {
       return SYMBOL;
     } // else if: symbol
     
-    else if ( result->hasIntResult ) {
+    else if ( result->tokenResult->tokenType == INT ) {
       return INT;
     } // else if: int
     
-    else if ( result->hasFloatResult ) {
+    else if ( result->tokenResult->tokenType == FLOAT ) {
       return FLOAT;
     } // else if: float
     
-    else if ( result->hasBoolResult ) {
-      if ( result->boolResult->tokenType == T ) {
-        return T;
-      } // if: #t
-      
-      else {
-        return NIL;
-      } // else: nil
-    } // else if: boolean
+    else if ( result->tokenResult->tokenType == T ) {
+      return T;
+    } // if: #t
+    
+    else if ( result->tokenResult->tokenType == NIL ) {
+      return NIL;
+    } // else: nil
     
     return NIL;
   } // CheckPreviousResultType()
@@ -1790,23 +1800,23 @@ public:
       } // else if: null?
       
       else if ( function->content == "integer?" ) {
-        // IsInteger( arguments, result );
+        hasError = IsInteger( arguments, result );
       } // else if: integer?
       
       else if ( function->content == "real?" || function->content == "number?" ) {
-        // IsRealOrNumber( arguments, result );
+        hasError = IsRealOrNumber( arguments, result );
       } // else if: real? or number?
       
       else if ( function->content == "string?" ) {
-        // IsString( arguments, result );
+        hasError = IsString( arguments, result );
       } // else if: string?
       
       else if ( function->content == "boolean?" ) {
-        // IsBoolean( arguments, result );
+        hasError = IsBoolean( arguments, result );
       } // else if: boolean?
       
       else if ( function->content == "symbol?" ) {
-        // IsSymbol( arguments, result );
+        hasError = IsSymbol( arguments, result );
       } // else if: symbol?
     } // else if: primitive predicate
     
@@ -1902,10 +1912,10 @@ public:
     
     else if ( function->primitiveType == CLEAN_ENVIRONMENT ) {
       hasError = true;
-      result->hasStringResult = true;
-      result->stringResult->content = "environment cleaned";
+      m_DefineBindingList.clear();
+      result->tokenResult->tokenType = STRING;
+      result->tokenResult->content = "environment cleaned";
       m_ResultList.push_back( result );
-      // CleanEnvironment();
     } // else if: clean-environment
     
     return !hasError;
@@ -1948,19 +1958,17 @@ public:
       } // if: previous result is node
       
       else if ( CheckPreviousResultType( m_ResultList.back() ) == INT ||
-                CheckPreviousResultType( m_ResultList.back() ) == FLOAT ) {
-        resultRoot->leftToken = m_ResultList.back()->intResult;
+                CheckPreviousResultType( m_ResultList.back() ) == FLOAT ||
+                CheckPreviousResultType( m_ResultList.back() ) == SYMBOL ) {
+        resultRoot->leftToken = m_ResultList.back()->tokenResult;
         m_ResultList.pop_back();
       } // else if: previous result is int
       
       else {
         string errorMessage = "ERROR (cons with incorrect argument type) : ";
-        
-        if ( m_ResultList.back()->hasStringResult ) {
-          errorMessage += m_ResultList.back()->stringResult->content;
-          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
-          return false;
-        } // if: previous result has wrong error type
+        errorMessage += m_ResultList.back()->tokenResult->content;
+        SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+        return false;
       } // else: wrong result type
     } // else: get from previous result
     
@@ -1993,19 +2001,17 @@ public:
       } // if: previous result is node
       
       else if ( CheckPreviousResultType( m_ResultList.back() ) == INT ||
-                CheckPreviousResultType( m_ResultList.back() ) == FLOAT ) {
-        resultRoot->rightToken = m_ResultList.back()->intResult;
+                CheckPreviousResultType( m_ResultList.back() ) == FLOAT ||
+                CheckPreviousResultType( m_ResultList.back() ) == SYMBOL ) {
+        resultRoot->rightToken = m_ResultList.back()->tokenResult;
         m_ResultList.pop_back();
       } // else if: previous result is int
       
       else {
         string errorMessage = "ERROR (cons with incorrect argument type) : ";
-        
-        if ( m_ResultList.back()->hasStringResult ) {
-          errorMessage += m_ResultList.back()->stringResult->content;
-          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
-          return false;
-        } // if: previous result has wrong error type
+        errorMessage += m_ResultList.back()->tokenResult->content;
+        SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+        return false;
       } // else: wrong result type
     } // else: has previous result
     
@@ -2051,19 +2057,17 @@ public:
         } // if: previous result is node
         
         else if ( CheckPreviousResultType( m_ResultList.back() ) == INT ||
-                  CheckPreviousResultType( m_ResultList.back() ) == FLOAT ) {
-          resultRoot->leftToken = m_ResultList.back()->intResult;
+                  CheckPreviousResultType( m_ResultList.back() ) == FLOAT ||
+                  CheckPreviousResultType( m_ResultList.back() ) == SYMBOL ) {
+          resultRoot->leftToken = m_ResultList.back()->tokenResult;
           m_ResultList.pop_back();
         } // else if: previous result is int
         
         else {
           string errorMessage = "ERROR (cons with incorrect argument type) : ";
-          
-          if ( m_ResultList.back()->hasStringResult ) {
-            errorMessage += m_ResultList.back()->stringResult->content;
-            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
-            return false;
-          } // if: previous result has wrong error type
+          errorMessage += m_ResultList.back()->tokenResult->content;
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+          return false;
         } // else: wrong result type
       } // else: get previous result
     } // if: only one data
@@ -2093,19 +2097,17 @@ public:
           } // if: previous result is node
           
           else if ( CheckPreviousResultType( m_ResultList.back() ) == INT ||
-                    CheckPreviousResultType( m_ResultList.back() ) == FLOAT ) {
-            resultWalk->leftToken = m_ResultList.back()->intResult;
+                    CheckPreviousResultType( m_ResultList.back() ) == FLOAT ||
+                    CheckPreviousResultType( m_ResultList.back() ) == SYMBOL ) {
+            resultWalk->leftToken = m_ResultList.back()->tokenResult;
             m_ResultList.pop_back();
           } // else if: previous result is int
           
           else {
             string errorMessage = "ERROR (cons with incorrect argument type) : ";
-            
-            if ( m_ResultList.back()->hasStringResult ) {
-              errorMessage += m_ResultList.back()->stringResult->content;
-              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
-              return false;
-            } // if: previous result has wrong error type
+            errorMessage += m_ResultList.back()->tokenResult->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
           } // else: wrong result type
         } // else: get previous result
         
@@ -2143,19 +2145,17 @@ public:
             } // if: previous result is node
             
             else if ( CheckPreviousResultType( m_ResultList.back() ) == INT ||
-                      CheckPreviousResultType( m_ResultList.back() ) == FLOAT ) {
-              resultWalk->leftToken = m_ResultList.back()->intResult;
+                      CheckPreviousResultType( m_ResultList.back() ) == FLOAT ||
+                      CheckPreviousResultType( m_ResultList.back() ) == SYMBOL ) {
+              resultWalk->leftToken = m_ResultList.back()->tokenResult;
               m_ResultList.pop_back();
             } // else if: previous result is int
             
             else {
               string errorMessage = "ERROR (cons with incorrect argument type) : ";
-              
-              if ( m_ResultList.back()->hasStringResult ) {
-                errorMessage += m_ResultList.back()->stringResult->content;
-                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
-                return false;
-              } // if: previous result has wrong error type
+              errorMessage += m_ResultList.back()->tokenResult->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
             } // else: wrong result type
           } // else: get previous result
         } // if: last node
@@ -2190,18 +2190,18 @@ public:
     } // if: has leftNode
     
     else {
-      result->hasBoolResult = true;
-      result->boolResult->tokenType = NIL;
+      result->hasTokenResult = true;
+      result->tokenResult = arguments.back()->leftToken;
       m_ResultList.push_back( result );
       return true;
-    } // else: '() case
+    } // else: single quote case
     
     return true;
   } // Quote()
   
   bool Define( vector<TreeStruct *> arguments, ResultStruct *result ) {
-    result->stringResult->content = arguments.front()->leftToken->content + " defined";
-    result->hasStringResult = true;
+    result->tokenResult->content = arguments.front()->leftToken->content + " defined";
+    result->hasTokenResult = true;
     
     for ( int i = 0 ; i < m_DefineBindingList.size() ; i++ ) {
       if ( arguments.front()->leftToken->content == m_DefineBindingList[i]->leftToken->content ) {
@@ -2210,7 +2210,14 @@ public:
     } // for: find any pre-defined
     
     if ( arguments.back()->leftNode ) {
-      arguments.back()->leftNode = m_ResultList.back()->nodeResult;
+      if ( m_ResultList.back()->hasNodeResult ) {
+        arguments.back()->leftNode = m_ResultList.back()->nodeResult;
+      } // if: previous result is a node
+      
+      else {
+        arguments.back()->leftToken = m_ResultList.back()->tokenResult;
+      } // else: previous result is just a token
+      
       m_ResultList.pop_back();
     } // if: define a function value
     
@@ -2231,23 +2238,17 @@ public:
         
         else {
           string w_String = arguments.front()->leftToken->content;
-          
-          if ( GetDefineBindings( w_String )->leftNode->leftToken->tokenType == INT ) {
-            result->hasIntResult = true;
-            result->intResult = GetDefineBindings( w_String )->leftNode->leftToken;
-          } // if: defined leftToken is int
-          
-          else if ( GetDefineBindings( w_String )->leftNode->leftToken->tokenType == FLOAT ) {
-            result->hasFloatResult = true;
-            result->floatResult = GetDefineBindings( w_String )->leftNode->leftToken;
-          } // else if: defined leftToken is float
-          
-          else if ( GetDefineBindings( w_String )->leftNode->leftToken->tokenType == STRING ) {
-            result->hasStringResult = true;
-            result->stringResult = GetDefineBindings( w_String )->leftNode->leftToken;
-          } // else if: defined leftToken is float
+          result->hasTokenResult = true;
+          result->tokenResult = GetDefineBindings( w_String )->leftNode->leftToken;
         } // else: defined has leftToken
       } // if: defined is a node
+      
+      else if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken ) {
+        string errorString = "ERROR (car with incorrect argument type) : ";
+        errorString += GetDefineBindings( arguments.front()->leftToken->content )->leftToken->content;
+        SetError( INCORRECT_ARGUMENT_TYPE, errorString );
+        return false;
+      } // else if: defined is a value
       
       else {
         string errorString = "ERROR (non-list) : ";
@@ -2263,20 +2264,8 @@ public:
       } // if: previous result has a leftNode
       
       else {
-        if ( m_ResultList.back()->nodeResult->leftToken->tokenType == INT ) {
-          result->hasIntResult = true;
-          result->intResult = m_ResultList.back()->nodeResult->leftToken;
-        } // if: previous result's leftToken is an integer
-        
-        else if ( m_ResultList.back()->nodeResult->leftToken->tokenType == FLOAT ) {
-          result->hasFloatResult = true;
-          result->floatResult = m_ResultList.back()->nodeResult->leftToken;
-        } // else if: previous result's leftToken is an float
-        
-        else if ( m_ResultList.back()->nodeResult->leftToken->tokenType == STRING ) {
-          result->hasStringResult = true;
-          result->stringResult = m_ResultList.back()->nodeResult->leftToken;
-        } // else if: previous result's leftToken is an float
+        result->hasTokenResult = true;
+        result->tokenResult = m_ResultList.back()->nodeResult->leftToken;
       } // else: previous result only has a leftToken
       
       m_ResultList.pop_back();
@@ -2297,22 +2286,17 @@ public:
         } // if: defined has rightNode
         
         else {
-          if ( GetDefineBindings( w_String )->leftNode->rightToken->tokenType == INT ) {
-            result->hasIntResult = true;
-            result->intResult = GetDefineBindings( w_String )->leftNode->rightToken;
-          } // if: defined rightToken is int
-          
-          else if ( GetDefineBindings( w_String )->leftNode->rightToken->tokenType == FLOAT ) {
-            result->hasFloatResult = true;
-            result->floatResult = GetDefineBindings( w_String )->leftNode->rightToken;
-          } // else if: defined rightToken is float
-          
-          else if ( GetDefineBindings( w_String )->leftNode->rightToken->tokenType == STRING ) {
-            result->hasStringResult = true;
-            result->stringResult = GetDefineBindings( w_String )->leftNode->rightToken;
-          } // else if: defined rightToken is float
+          result->hasTokenResult = true;
+          result->tokenResult = GetDefineBindings( w_String )->leftNode->rightToken;
         } // else: defined has rightToken
       } // if: defined is a node
+      
+      else if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken ) {
+        string errorString = "ERROR (cdr with incorrect argument type) : ";
+        errorString += GetDefineBindings( arguments.front()->leftToken->content )->leftToken->content;
+        SetError( INCORRECT_ARGUMENT_TYPE, errorString );
+        return false;
+      } // else if: defined is a value
       
       else {
         string errorString = "ERROR (non-list) : ";
@@ -2328,20 +2312,8 @@ public:
       } // if: previous result has a rightNode
       
       else {
-        if ( m_ResultList.back()->nodeResult->rightToken->tokenType == INT ) {
-          result->hasIntResult = true;
-          result->intResult = m_ResultList.back()->nodeResult->rightToken;
-        } // if: previous result's rightToken is an integer
-        
-        else if ( m_ResultList.back()->nodeResult->rightToken->tokenType == FLOAT ) {
-          result->hasFloatResult = true;
-          result->floatResult = m_ResultList.back()->nodeResult->rightToken;
-        } // else if: previous result's rightToken is an float
-        
-        else if ( m_ResultList.back()->nodeResult->rightToken->tokenType == STRING ) {
-          result->hasStringResult = true;
-          result->stringResult = m_ResultList.back()->nodeResult->rightToken;
-        } // else if: previous result's rightToken is a string
+        result->hasTokenResult = true;
+        result->tokenResult = m_ResultList.back()->nodeResult->rightToken;
       } // else: previous result only has a rightToken
       
       m_ResultList.pop_back();
@@ -2352,6 +2324,8 @@ public:
   } // Cdr()
   
   bool IsAtom( vector<TreeStruct *> arguments, ResultStruct *result ) {
+    result->hasTokenResult = true;
+    
     if ( arguments.front()->leftToken ) {
       if ( arguments.front()->leftToken->tokenType == SYMBOL ) {
         if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken ) {
@@ -2360,8 +2334,7 @@ public:
         } // if: is a token form
         
         else {
-          result->hasBoolResult = true;
-          result->boolResult->tokenType = NIL;
+          result->tokenResult->tokenType = NIL;
           m_ResultList.push_back( result );
           return true;
         } // else: is a node form, which won't be an atom
@@ -2373,140 +2346,76 @@ public:
            arguments.front()->leftToken->tokenType == STRING ||
            arguments.front()->leftToken->tokenType == NIL ||
            arguments.front()->leftToken->tokenType == T ) {
-        result->boolResult->tokenType = T;
+        result->tokenResult->tokenType = T;
       } // if: check if the argument's leftToken is a atom or not
       
       else {
-        result->boolResult->tokenType = NIL;
+        result->tokenResult->tokenType = NIL;
+        m_ResultList.push_back( result );
+        return true;
       } // else: not atom
     } // if: argument is in a token form
     
     else {
       if ( m_ResultList.back()->hasNodeResult ) {
-        result->boolResult->tokenType = NIL;
+        result->tokenResult->tokenType = NIL;
+        m_ResultList.push_back( result );
+        return true;
       } // if: is a node form, which won't be an atom
       
       else {
-        result->boolResult->tokenType = T;
+        result->tokenResult->tokenType = T;
       } // else: is a atom
       
       m_ResultList.pop_back();
     } // else: argument is in a node form, check previous result
     
-    result->hasBoolResult = true;
     m_ResultList.push_back( result );
     return true;
   } // IsAtom()
   
   bool IsPair( vector<TreeStruct *> arguments, ResultStruct *result ) {
+    result->hasTokenResult = true;
+    
     if ( arguments.front()->leftToken ) {
       if ( arguments.front()->leftToken->tokenType == SYMBOL ) {
         if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken ) {
-          result->hasBoolResult = true;
-          result->boolResult->tokenType = NIL;
+          result->tokenResult->tokenType = NIL;
           m_ResultList.push_back( result );
           return true;
         } // if: the defined binding is only a token, then it won't be a pair
         
         else {
-          TreeStruct *definedNode = GetDefineBindings( arguments.front()->leftToken->content )->leftNode;
-          
-          if ( definedNode->rightToken ) {
-            if ( definedNode->rightNode == NULL ) {
-              result->hasBoolResult = true;
-              result->boolResult->tokenType = T;
-              m_ResultList.push_back( result );
-              return true;
-            } // if: (a . b) form
-            
-            else {
-              result->hasBoolResult = true;
-              result->boolResult->tokenType = NIL;
-              m_ResultList.push_back( result );
-              return true;
-            } // else: not a pair
-          } // if: has a rightToken
-          
-          else {
-            if ( definedNode->rightNode ) {
-              if ( definedNode->rightNode->leftToken && definedNode->rightNode->rightNode == NULL ) {
-                result->hasBoolResult = true;
-                result->boolResult->tokenType = T;
-                m_ResultList.push_back( result );
-                return true;
-              } // if: (a b) form
-              
-              else {
-                result->hasBoolResult = true;
-                result->boolResult->tokenType = NIL;
-                m_ResultList.push_back( result );
-                return true;
-              } // else: not a pair
-            } // if: has a rightNode
-          } // else: has no rightToken
-        } // else: get the defined binding node
+          result->tokenResult->tokenType = T;
+        } // else: the pre-defined binding is a node, then it is a pair
       } // if: argument's leftToken is a symbol
       
       else {
-        result->hasBoolResult = true;
-        result->boolResult->tokenType = NIL;
+        result->tokenResult->tokenType = NIL;
         m_ResultList.push_back( result );
         return true;
       } // else: other types of token won't be a pair
     } // if: argument is a token
     
     else {
-      TreeStruct *previousNode = new TreeStruct;
-      
-      if ( m_ResultList.back()->hasNodeResult == false ) {
-        result->hasBoolResult = true;
-        result->boolResult->tokenType = NIL;
-        m_ResultList.push_back( result );
-        return true;
-      } // if: previous result ain't a node, then not a pair
-      
-      previousNode = m_ResultList.back()->nodeResult;
-      m_ResultList.pop_back();
-      
-      if ( previousNode->rightToken ) {
-        if ( previousNode->rightNode == NULL ) {
-          result->hasBoolResult = true;
-          result->boolResult->tokenType = T;
-          m_ResultList.push_back( result );
-          return true;
-        } // if: (a . b) form
-        
-        else {
-          result->hasBoolResult = true;
-          result->boolResult->tokenType = NIL;
-          m_ResultList.push_back( result );
-          return true;
-        } // else: not a pair
-      } // if: has a rightToken
+      if ( m_ResultList.back()->hasNodeResult ) {
+        result->tokenResult->tokenType = T;
+      } // if: previous result is a node
       
       else {
-        if ( previousNode->rightNode ) {
-          if ( previousNode->rightNode->leftToken && previousNode->rightNode->rightNode == NULL ) {
-            result->hasBoolResult = true;
-            result->boolResult->tokenType = T;
-            m_ResultList.push_back( result );
-            return true;
-          } // if: (a b) form
-          
-          else {
-            result->hasBoolResult = true;
-            result->boolResult->tokenType = NIL;
-            m_ResultList.push_back( result );
-            return true;
-          } // else: not a pair
-        } // if: has a rightNode
-      } // else: has no rightToken
+        result->tokenResult->tokenType = NIL;
+        m_ResultList.push_back( result );
+        return true;
+      } // else: previous result ain't a node
     } // else: argument is a node(function)
     
+    m_ResultList.push_back( result );
     return true;
   } // IsPair()
   
   bool IsList( vector<TreeStruct *> arguments, ResultStruct *result ) {
+    result->hasTokenResult = true;
+    
     if ( arguments.front()->leftToken ) {
       if ( arguments.front()->leftToken->tokenType == SYMBOL ) {
         if ( GetDefineBindings( arguments.front()->leftToken->content )->leftNode ) {
@@ -2514,8 +2423,7 @@ public:
           
           while ( defineWalk->rightNode ) {
             if ( defineWalk->rightToken ) {
-              result->hasBoolResult = true;
-              result->boolResult->tokenType = NIL;
+              result->tokenResult->tokenType = NIL;
               m_ResultList.push_back( result );
               return true;
             } // if: there's a rightToken, not list
@@ -2524,31 +2432,25 @@ public:
             
             if ( defineWalk->rightNode == NULL && defineWalk->leftToken ) {
               if ( defineWalk->rightToken ) {
-                result->hasBoolResult = true;
-                result->boolResult->tokenType = NIL;
+                result->tokenResult->tokenType = NIL;
                 m_ResultList.push_back( result );
                 return true;
               } // if: there's a rightToken, not list
             } // if: last node
           } // while: go through the previous node
           
-          result->hasBoolResult = true;
-          result->boolResult->tokenType = T;
-          m_ResultList.push_back( result );
-          return true;
+          result->tokenResult->tokenType = T;
         } // if: defined binding is a node, check if is a list
         
         else {
-          result->hasBoolResult = true;
-          result->boolResult->tokenType = NIL;
+          result->tokenResult->tokenType = NIL;
           m_ResultList.push_back( result );
           return true;
         } // else: defined binding is a token, which won't be a list
       } // if: the argument is a symbol token
       
       else {
-        result->hasBoolResult = true;
-        result->boolResult->tokenType = NIL;
+        result->tokenResult->tokenType = NIL;
         m_ResultList.push_back( result );
         return true;
       } // else: the argument token is not a symbo, which won't be a list
@@ -2556,8 +2458,7 @@ public:
     
     else {
       if ( m_ResultList.back()->hasNodeResult == false ) {
-        result->hasBoolResult = true;
-        result->boolResult->tokenType = NIL;
+        result->tokenResult->tokenType = NIL;
         m_ResultList.push_back( result );
         return true;
       } // if: no previous node, which won't be a list
@@ -2567,8 +2468,7 @@ public:
         
         while ( previousResultWalk->rightNode ) {
           if ( previousResultWalk->rightToken ) {
-            result->hasBoolResult = true;
-            result->boolResult->tokenType = NIL;
+            result->tokenResult->tokenType = NIL;
             m_ResultList.push_back( result );
             return true;
           } // if: there's a rightToken, not list
@@ -2577,77 +2477,378 @@ public:
           
           if ( previousResultWalk->rightNode == NULL && previousResultWalk->leftToken ) {
             if ( previousResultWalk->rightToken ) {
-              result->hasBoolResult = true;
-              result->boolResult->tokenType = NIL;
+              result->tokenResult->tokenType = NIL;
               m_ResultList.push_back( result );
               return true;
             } // if: there's a rightToken, not list
           } // if: last node
         } // while: go through the previous node
         
-        result->hasBoolResult = true;
-        result->boolResult->tokenType = T;
-        m_ResultList.push_back( result );
-        return true;
+        result->tokenResult->tokenType = T;
       } // else: has a previous node
     } // else: the argument has a leftNode(function)
     
+    m_ResultList.push_back( result );
     return true;
   } // IsList()
   
   bool IsNull( vector<TreeStruct *> arguments, ResultStruct *result ) {
-    result->hasBoolResult = true;
+    result->hasTokenResult = true;
     
     if ( arguments.front()->leftToken ) {
       if ( arguments.front()->leftToken->tokenType == SYMBOL ) {
-        if ( FindDefineBindings( true, arguments.front()->leftToken->content ) ) {
-          if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken ) {
-            if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken->tokenType == NIL ) {
-              result->boolResult->tokenType = T;
-              m_ResultList.push_back( result );
-            } // if: the defined tokenType is nil
-            
-            else {
-              result->boolResult->tokenType = NIL;
-              m_ResultList.push_back( result );
-              return true;
-            } // else: the defined tokenType is not nil
-          } // if: defined-binding is token
+        if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken ) {
+          if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken->tokenType == NIL ) {
+            result->tokenResult->tokenType = T;
+          } // if: the defined tokenType is nil
           
           else {
-            result->boolResult->tokenType = NIL;
+            result->tokenResult->tokenType = NIL;
             m_ResultList.push_back( result );
             return true;
-          } // else: defined-binding is node
-        } // if: found pre-defined bindings
+          } // else: the defined tokenType is not nil
+        } // if: defined-binding is token
         
         else {
-          result->boolResult->tokenType = NIL;
+          result->tokenResult->tokenType = NIL;
           m_ResultList.push_back( result );
           return true;
-        } // else: found no pre-defined bindings
+        } // else: defined-binding is node
       } // if: argument is a symbol
       
       else if ( arguments.front()->leftToken->tokenType == NIL ) {
-        result->boolResult->tokenType = T;
-        m_ResultList.push_back( result );
+        result->tokenResult->tokenType = T;
       } // else if: argument is a nil
       
       else {
-        result->boolResult->tokenType = NIL;
+        result->tokenResult->tokenType = NIL;
         m_ResultList.push_back( result );
         return true;
       } // else: not nil or symbol, won't be nil
     } // if: argument is a token
     
     else {
-      result->boolResult->tokenType = NIL;
-      m_ResultList.push_back( result );
-      return true;
-    } // else: a node, not a nil
+      if ( m_ResultList.back()->tokenResult->tokenType == NIL ) {
+        result->tokenResult->tokenType = T;
+      } // else if: previous token is null
+      
+      else if ( m_ResultList.back()->tokenResult->tokenType == T ) {
+        result->tokenResult->tokenType = NIL;
+        m_ResultList.push_back( result );
+        return true;
+      } // if: previous token is true
+      
+      else if ( m_ResultList.back()->hasNodeResult ) {
+        if ( m_ResultList.back()->nodeResult == NULL ) {
+          result->tokenResult->tokenType = T;
+        } // if: previous node is null
+        
+        else {
+          result->tokenResult->tokenType = NIL;
+          m_ResultList.push_back( result );
+          return true;
+        } // else: previous node is not null
+      } // else if: previous result is a node value
+      
+      else {
+        result->tokenResult->tokenType = NIL;
+        m_ResultList.push_back( result );
+        return true;
+      } // else: not nil
+    } // else: a node
     
+    m_ResultList.push_back( result );
     return true;
-  } // IsNULL()
+  } // IsNull()
+  
+  bool IsInteger( vector<TreeStruct *> arguments, ResultStruct *result ) {
+    result->hasTokenResult = true;
+    
+    if ( arguments.front()->leftToken ) {
+      if ( arguments.front()->leftToken->tokenType == SYMBOL ) {
+        if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken ) {
+          if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken->tokenType == INT ) {
+            result->tokenResult->tokenType = T;
+          } // if: the defined tokenType is int
+          
+          else {
+            result->tokenResult->tokenType = NIL;
+            m_ResultList.push_back( result );
+            return true;
+          } // else: the defined tokenType is not int
+        } // if: defined-binding is token
+        
+        else {
+          result->tokenResult->tokenType = NIL;
+          m_ResultList.push_back( result );
+          return true;
+        } // else: defined-binding is node
+      } // if: argument is a symbol
+      
+      else if ( arguments.front()->leftToken->tokenType == INT ) {
+        result->tokenResult->tokenType = T;
+      } // else if: argument is a int
+      
+      else {
+        result->tokenResult->tokenType = NIL;
+        m_ResultList.push_back( result );
+        return true;
+      } // else: not int or symbol, won't be int
+    } // if: argument is a token
+    
+    else {
+      if ( m_ResultList.back()->tokenResult->tokenType == INT ) {
+        result->tokenResult->tokenType = T;
+      } // if: previous result is a integer value
+      
+      else {
+        result->tokenResult->tokenType = NIL;
+        m_ResultList.push_back( result );
+        return true;
+      } // else: not int
+    } // else: a node
+    
+    m_ResultList.push_back( result );
+    return true;
+  } // IsInteger()
+  
+  bool IsRealOrNumber( vector<TreeStruct *> arguments, ResultStruct *result ) {
+    result->hasTokenResult = true;
+    
+    if ( arguments.front()->leftToken ) {
+      if ( arguments.front()->leftToken->tokenType == SYMBOL ) {
+        if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken ) {
+          if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken->tokenType == INT ||
+               GetDefineBindings( arguments.front()->leftToken->content )->leftToken->tokenType == FLOAT ) {
+            result->tokenResult->tokenType = T;
+          } // if: the defined tokenType is int or float
+          
+          else {
+            result->tokenResult->tokenType = NIL;
+            m_ResultList.push_back( result );
+            return true;
+          } // else: the defined tokenType is not int or float
+        } // if: defined-binding is token
+        
+        else {
+          result->tokenResult->tokenType = NIL;
+          m_ResultList.push_back( result );
+          return true;
+        } // else: defined-binding is node
+      } // if: argument is a symbol
+      
+      else if ( arguments.front()->leftToken->tokenType == INT ||
+                arguments.front()->leftToken->tokenType == FLOAT ) {
+        result->tokenResult->tokenType = T;
+      } // else if: argument is a int or float
+      
+      else {
+        result->tokenResult->tokenType = NIL;
+        m_ResultList.push_back( result );
+        return true;
+      } // else: not int, float or symbol, won't be real
+    } // if: argument is a token
+    
+    else {
+      if ( m_ResultList.back()->tokenResult->tokenType == INT ||
+           m_ResultList.back()->tokenResult->tokenType == FLOAT ) {
+        result->tokenResult->tokenType = T;
+        m_ResultList.push_back( result );
+        return true;
+      } // if: previous result is a integer or float value
+      
+      else {
+        result->tokenResult->tokenType = NIL;
+        m_ResultList.push_back( result );
+        return true;
+      } // else: not int or float
+    } // else: a node
+    
+    m_ResultList.push_back( result );
+    return true;
+  } // IsRealOrNumber()
+  
+  bool IsString( vector<TreeStruct *> arguments, ResultStruct *result ) {
+    result->hasTokenResult = true;
+    
+    if ( arguments.front()->leftToken ) {
+      if ( arguments.front()->leftToken->tokenType == SYMBOL ) {
+        if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken ) {
+          if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken->tokenType == STRING ) {
+            result->tokenResult->tokenType = T;
+          } // if: the defined tokenType is string
+          
+          else {
+            result->tokenResult->tokenType = NIL;
+            m_ResultList.push_back( result );
+            return true;
+          } // else: the defined tokenType is not string
+        } // if: defined-binding is token
+        
+        else {
+          result->tokenResult->tokenType = NIL;
+          m_ResultList.push_back( result );
+          return true;
+        } // else: defined-binding is node
+      } // if: argument is a symbol
+      
+      else if ( arguments.front()->leftToken->tokenType == STRING ) {
+        result->tokenResult->tokenType = T;
+      } // else if: argument is a string
+      
+      else {
+        result->tokenResult->tokenType = NIL;
+        m_ResultList.push_back( result );
+        return true;
+      } // else: not string or symbol, won't be real
+    } // if: argument is a token
+    
+    else {
+      if ( m_ResultList.back()->hasTokenResult ) {
+        if ( m_ResultList.back()->tokenResult->tokenType == STRING ) {
+          result->tokenResult->tokenType = T;
+        } // if: previous result is a string value
+        
+        else {
+          result->tokenResult->tokenType = NIL;
+          m_ResultList.push_back( result );
+          return true;
+        } // else: not string
+      } // if: has a token result
+      
+      else {
+        result->tokenResult->tokenType = NIL;
+        m_ResultList.push_back( result );
+        return true;
+      } // else: has a node result
+    } // else: a node, check previous result
+    
+    m_ResultList.push_back( result );
+    return true;
+  } // IsString()
+  
+  bool IsBoolean( vector<TreeStruct *> arguments, ResultStruct *result ) {
+    result->hasTokenResult = true;
+    
+    if ( arguments.front()->leftToken ) {
+      if ( arguments.front()->leftToken->tokenType == SYMBOL ) {
+        if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken ) {
+          if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken->tokenType == T ||
+               GetDefineBindings( arguments.front()->leftToken->content )->leftToken->tokenType == NIL ) {
+            result->tokenResult->tokenType = T;
+          } // if: the defined tokenType is t or nil
+          
+          else {
+            result->tokenResult->tokenType = NIL;
+            m_ResultList.push_back( result );
+            return true;
+          } // else: the defined tokenType is not t or nil
+        } // if: defined-binding is token
+        
+        else {
+          result->tokenResult->tokenType = NIL;
+          m_ResultList.push_back( result );
+          return true;
+        } // else: defined-binding is node
+      } // if: argument is a symbol
+      
+      else if ( arguments.front()->leftToken->tokenType == T ||
+                arguments.front()->leftToken->tokenType == NIL ) {
+        result->tokenResult->tokenType = T;
+      } // else if: argument is a t or nil
+      
+      else {
+        result->tokenResult->tokenType = NIL;
+        m_ResultList.push_back( result );
+        return true;
+      } // else: not t, nil or symbol, won't be real
+    } // if: argument is a token
+    
+    else {
+      if ( m_ResultList.back()->hasTokenResult ) {
+        if ( m_ResultList.back()->tokenResult->tokenType == T ) {
+          result->tokenResult->tokenType = T;
+        } // if: previous result is a boolean value
+        
+        else {
+          result->tokenResult->tokenType = NIL;
+          m_ResultList.push_back( result );
+          return true;
+        } // else: not string
+      } // if: has a token result
+      
+      else {
+        result->tokenResult->tokenType = NIL;
+        m_ResultList.push_back( result );
+        return true;
+      } // else: has a node result
+    } // else: a node
+    
+    m_ResultList.push_back( result );
+    return true;
+  } // IsBoolean()
+  
+  bool IsSymbol( vector<TreeStruct *> arguments, ResultStruct *result ) {
+    result->hasTokenResult = true;
+    
+    if ( arguments.front()->leftToken ) {
+      if ( arguments.front()->leftToken->tokenType == SYMBOL ) {
+        if ( FindDefineBindings( true, arguments.front()->leftToken->content ) ) {
+          if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken ) {
+            if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken->tokenType == SYMBOL ) {
+              result->tokenResult->tokenType = T;
+            } // if: the defined tokenType is symbol
+            
+            else {
+              result->tokenResult->tokenType = NIL;
+              m_ResultList.push_back( result );
+              return true;
+            } // else: the defined tokenType is not symbol
+          } // if: defined-binding is token
+          
+          else {
+            result->tokenResult->tokenType = NIL;
+            m_ResultList.push_back( result );
+            return true;
+          } // else: defined-binding is node
+        } // if: is a pre-defined symbol
+        
+        else {
+          result->tokenResult->tokenType = T;
+        } // else: not defined, but is still a symbol
+      } // if: argument is a symbol
+      
+      else {
+        result->tokenResult->tokenType = NIL;
+        m_ResultList.push_back( result );
+        return true;
+      } // else: not symbol
+    } // if: argument is a token
+    
+    else {
+      if ( m_ResultList.back()->hasTokenResult ) {
+        if ( m_ResultList.back()->tokenResult->tokenType == SYMBOL ) {
+          result->tokenResult->tokenType = T;
+          m_ResultList.push_back( result );
+        } // if: previous result is a symbol value
+        
+        else {
+          result->tokenResult->tokenType = NIL;
+          m_ResultList.push_back( result );
+          return true;
+        } // else: not symbol
+      } // if: has a token result
+      
+      else {
+        result->tokenResult->tokenType = NIL;
+        m_ResultList.push_back( result );
+        return true;
+      } // else: has a node result
+    } // else: a node
+    
+    m_ResultList.push_back( result );
+    return true;
+  } // IsSymbol()
   
   /*
   ------------------- Print ------------------
@@ -2662,33 +2863,33 @@ public:
     if ( g_uTestNum == 0 )
       cout << "Project 2 outputs:" << endl;
     
-    if ( m_ResultList.back()->hasStringResult ) {
-      PrintString( m_ResultList.back()->stringResult->content );
-    } // if: string form result
-    
-    else if ( m_ResultList.back()->hasSymbolResult ) {
-      cout << m_ResultList.back()->symbolResult->content;
-    } // else if: symbol
-    
-    else if ( m_ResultList.back()->hasBoolResult ) {
-      if ( m_ResultList.back()->boolResult->tokenType == T ) {
+    if ( m_ResultList.back()->hasTokenResult ) {
+      if ( m_ResultList.back()->tokenResult->tokenType == STRING ) {
+        PrintString( m_ResultList.back()->tokenResult->content );
+      } // if: string form result
+      
+      else if ( m_ResultList.back()->tokenResult->tokenType == SYMBOL ) {
+        cout << m_ResultList.back()->tokenResult->content << endl;
+      } // else if: symbol
+      
+      else if ( m_ResultList.back()->tokenResult->tokenType == T ) {
         cout << "#t" << endl;
       } // if: boolean result is true, #t
       
-      else if ( m_ResultList.back()->boolResult->tokenType == NIL ) {
+      else if ( m_ResultList.back()->tokenResult->tokenType == NIL ) {
         cout << "nil" << endl;
       } // else if: boolean result is false, nil
-    } // else if: boolean form result
-    
-    else if ( m_ResultList.back()->hasFloatResult ) {
-      cout << fixed << setprecision( 3 )
-           << round( atof( m_ResultList.back()->floatResult->content.c_str() )*1000 )/1000
-           << endl;
-    } // else if: float form result
-    
-    else if ( m_ResultList.back()->hasIntResult ) {
-      cout << m_ResultList.back()->intResult->content << endl;
-    } // else if: int form result
+      
+      else if ( m_ResultList.back()->tokenResult->tokenType == FLOAT ) {
+        cout << fixed << setprecision( 3 )
+             << round( atof( m_ResultList.back()->tokenResult->content.c_str() )*1000 )/1000
+             << endl;
+      } // else if: float form result
+      
+      else if ( m_ResultList.back()->tokenResult->tokenType == INT ) {
+        cout << m_ResultList.back()->tokenResult->content << endl;
+      } // else if: int form result
+    } // if: the result is a token
     
     else if ( m_ResultList.back()->hasNodeResult ) {
       int layer = 0;
