@@ -1170,7 +1170,7 @@ public:
       if ( walk->rightNode ) {
         ProcessSExp( walk->rightNode, hasError );
         
-        if ( underQuote && IsPrimitive( walk->leftToken ) ) {
+        if ( underQuote && walk->leftToken && IsPrimitive( walk->leftToken ) ) {
           underQuote = false;
         } // if: reset underQuote if the token is a primitive
       } // if: has a right node, go right
@@ -1301,13 +1301,19 @@ public:
   */
   
   bool CheckArgument( TreeStruct *current, vector<TreeStruct *> &argumentList ) {
+    TreeStruct *temp = current;
+    
+    while ( temp->rightNode ) {
+      temp = temp->rightNode;
+    } // for: find the rightmost node
+    
+    if ( temp->rightToken ) {
+      string errorMessage = "ERROR (non-list) : ";
+      SetError( NON_LIST, errorMessage );
+      return false;
+    } // if: check non-list
+    
     if ( current->leftToken->primitiveType == CONSTRUCTOR ) {
-      if ( current->rightToken ) {
-        string errorMessage = "ERROR (non-list) : ";
-        SetError( NON_LIST, errorMessage );
-        return false;
-      } // if: non-list
-      
       if ( current->leftToken->content == "cons" ) {
         if ( current->rightNode ) {
           argumentList.push_back( current->rightNode );
@@ -1376,12 +1382,6 @@ public:
     } // else if: quote
     
     else if ( current->leftToken->primitiveType == DEFINE_BINDING ) {
-      if ( current->rightToken ) {
-        string errorMessage = "ERROR (non-list) : ";
-        SetError( NON_LIST, errorMessage );
-        return false;
-      } // if: non-list
-      
       if ( current->rightNode ) {
         argumentList.push_back( current->rightNode );
         
@@ -1412,12 +1412,6 @@ public:
     } // else if: define binding
     
     else if ( current->leftToken->primitiveType == PART_ACCESSOR ) {
-      if ( current->rightToken ) {
-        string errorMessage = "ERROR (non-list) : ";
-        SetError( NON_LIST, errorMessage );
-        return false;
-      } // if: non-list
-      
       if ( current->rightNode ) {
         argumentList.push_back( current->rightNode );
         
@@ -1450,12 +1444,6 @@ public:
     } // else if: part accessors
     
     else if ( current->leftToken->primitiveType == PRIMITIVE_PREDICATE ) {
-      if ( current->rightToken ) {
-        string errorMessage = "ERROR (non-list) : ";
-        SetError( NON_LIST, errorMessage );
-        return false;
-      } // if: non-list
-      
       if ( current->rightNode ) {
         argumentList.push_back( current->rightNode );
         
@@ -1488,12 +1476,6 @@ public:
     } // else if: primitive predicate
     
     else if ( current->leftToken->primitiveType == OPERATOR ) {
-      if ( current->rightToken ) {
-        string errorMessage = "ERROR (non-list) : ";
-        SetError( NON_LIST, errorMessage );
-        return false;
-      } // if: non-list
-      
       if ( current->leftToken->content == "not" ) {
         if ( current->rightNode ) {
           argumentList.push_back( current->rightNode );
@@ -1550,12 +1532,6 @@ public:
     } // else if: operators
     
     else if ( current->leftToken->primitiveType == EQUIVALENCE ) {
-      if ( current->rightToken ) {
-        string errorMessage = "ERROR (non-list) : ";
-        SetError( NON_LIST, errorMessage );
-        return false;
-      } // if: non-list
-      
       if ( current->rightNode ) {
         argumentList.push_back( current->rightNode );
         
@@ -1598,12 +1574,6 @@ public:
     } // else if: equivalence
     
     else if ( current->leftToken->primitiveType == BEGIN ) {
-      if ( current->rightToken ) {
-        string errorMessage = "ERROR (non-list) : ";
-        SetError( NON_LIST, errorMessage );
-        return false;
-      } // if: non-list
-      
       if ( current->rightNode ) {
         argumentList.push_back( current->rightNode );
       } // if: has more than one arguments
@@ -1631,12 +1601,6 @@ public:
     
     else if ( current->leftToken->primitiveType == CONDITIONAL ) {
       if ( current->leftToken->content == "if" ) {
-        if ( current->rightToken ) {
-          string errorMessage = "ERROR (non-list) : ";
-          SetError( NON_LIST, errorMessage );
-          return false;
-        } // if: non-list
-        
         if ( current->rightNode ) {
           argumentList.push_back( current->rightNode );
           
@@ -1669,12 +1633,6 @@ public:
       } // if: if
       
       else if ( current->leftToken->content == "cond" ) {
-        if ( current->rightToken ) {
-          string errorMessage = "ERROR (non-list) : ";
-          SetError( NON_LIST, errorMessage );
-          return false;
-        } // if: non-list
-        
         if ( current->rightNode ) {
           argumentList.push_back( current->rightNode );
         } // if: has more than one argument
@@ -1702,13 +1660,7 @@ public:
     } // else if: conditional
     
     else if ( current->leftToken->primitiveType == CLEAN_ENVIRONMENT ) {
-      if ( current->rightToken ) {
-        string errorMessage = "ERROR (non-list) : ";
-        SetError( NON_LIST, errorMessage );
-        return false;
-      } // if: non-list
-      
-      else if ( current->rightNode ) {
+      if ( current->rightNode ) {
         string errorMessage = "ERROR (incorrect number of arguments) : clean-environment";
         SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
         return false;
