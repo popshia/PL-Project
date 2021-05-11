@@ -1151,7 +1151,6 @@ public:
     } // else: error, handle it
   } // EvalSExp()
   
-  // TODO: Check the process of the traversal, any symbol within quote doesn't need to check defined or not.
   bool ProcessSExp( TreeStruct *walk, bool &hasError ) {
     static bool underQuote = false;
     
@@ -1173,68 +1172,58 @@ public:
       } // if: has a right node, go right
       
       if ( walk->leftToken && hasError == false ) {
-        if ( walk->leftParenCreate ) {
-          if ( walk->leftToken->tokenType == SYMBOL || IsPrimitive( walk->leftToken ) ) {
-            vector<TreeStruct *> argumentList;
-            
-            if ( IsPrimitive( walk->leftToken ) == false ) {
-              if ( underQuote == false ) {
-                if ( FoundDefineBindings( walk->leftToken->content ) ) {
-                  if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
-                    walk->leftToken = GetDefineBindings( walk->leftToken->content )->leftToken;
-                    
-                    if ( IsPrimitive( walk->leftToken ) == false ) {
-                      string errorMessage;
-                      errorMessage = "ERROR (attempt to apply non-funciton) : " + walk->leftToken->content;
-                      SetError( APPLY_NON_FUNCITON, errorMessage );
-                      hasError = true;
-                    } // if: find pre-defined symbol, but not a function
-                  } // if: the defined binding is a token
-                  
-                  else {
-                    TreeStruct *errorNode = GetDefineBindings( walk->leftToken->content )->leftNode;
-                    string errorMessage;
-                    errorMessage = "ERROR (attempt to apply non-funciton) : " + errorNode->leftToken->content;
-                    SetError( APPLY_NON_FUNCITON, errorMessage );
-                    hasError = true;
-                  } // else: the defined binding is a node
-                } // if: check if there's a bounded symbol
-                
-                else {
-                  if ( hasError == false ) {
-                    string errorMessage = "ERROR (unbound symbol) : " + walk->leftToken->content;
-                    SetError( DEFINE_UNBOUND, errorMessage );
-                    hasError = true;
-                  } // if: no previous error
-                } // else: not find bounded symbol
-              } // if: not under quote
-              
-              else {
-                return !hasError;
-              } // else: underquote symbol
-            } // if: current token is a symbol
-            
-            if ( hasError == false ) {
-              if ( CheckNonListAndAmountOfArgument( walk, argumentList ) ) {
-                hasError = CallCorrespondingFunction( walk, argumentList );
-              } // if: arguments has no problem
-              
-              else {
-                hasError = true;
-              } // else: arguments has error
-            } // if: check the parameters
-          } // if: if is primitive or symbol
+        if ( ( walk->leftParenCreate && NOT underQuote ) || walk->leftToken->tokenType == QUOTE ) {
+          vector<TreeStruct *> argumentList;
           
-          else {
-            if ( underQuote == false ) {
-              if ( hasError == false ) {
-                string errorMessage = "ERROR (attempt to apply non-funciton) : " + walk->leftToken->content;
+          if ( IsPrimitive( walk->leftToken ) ) {
+            hasError = CheckArgument( walk, argumentList );
+            
+            if ( hasError ) {
+              hasError = CallCorrespondingFunction( walk, argumentList );
+            } // if: arguments has no problem
+            
+            else {
+              return hasError;
+            } // else: arguments has error
+          } // if: check the parameters
+          
+          else if ( walk->leftToken->tokenType == SYMBOL ) {
+            if ( FoundDefineBindings( walk->leftToken->content ) ) {
+              if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
+                walk->leftToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+                
+                if ( IsPrimitive( walk->leftToken ) == false ) {
+                  string errorMessage;
+                  errorMessage = "ERROR (attempt to apply non-funciton) : " + walk->leftToken->content;
+                  SetError( APPLY_NON_FUNCITON, errorMessage );
+                  hasError = true;
+                  return !hasError;
+                } // if: find pre-defined symbol, but not a function
+              } // if: the defined binding is a token
+              
+              else {
+                TreeStruct *errorNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+                string errorMessage;
+                errorMessage = "ERROR (attempt to apply non-funciton) : " + errorNode->leftToken->content;
                 SetError( APPLY_NON_FUNCITON, errorMessage );
                 hasError = true;
-              } // if: there's no previous error
-            } // if: not under quote function
+                return !hasError;
+              } // else: the defined binding is a node
+            } // if: found bounded symbol
+            
+            else {
+              string errorMessage = "ERROR (unbound symbol) : " + walk->leftToken->content;
+              SetError( DEFINE_UNBOUND, errorMessage );
+              hasError = true;
+            } // else: not find bounded symbol
+          } // if: current token is a symbol
+          
+          else {
+            string errorMessage = "ERROR (attempt to apply non-funciton) : " + walk->leftToken->content;
+            SetError( APPLY_NON_FUNCITON, errorMessage );
+            hasError = true;
           } // else: left token but not function
-        } // if: this node is created by left-paren
+        } // if: this node is created by left-paren and isn't under a quote
       } // if: has a left token
       
       if ( walk->leftNode ) {
@@ -1307,9 +1296,7 @@ public:
     ----------------- Processing ---------------
   */
   
-  // TODO: Rewrite the order of argument checking, check argrment number here, leave definition checking
-  //       to each corresponding funcitons.
-  bool CheckNonListAndAmountOfArgument( TreeStruct *current, vector<TreeStruct *> &argumentList ) {
+  bool CheckArgument( TreeStruct *current, vector<TreeStruct *> &argumentList ) {
     if ( current->leftToken->primitiveType == CONSTRUCTOR ) {
       if ( current->rightToken ) {
         string errorMessage = "ERROR (non-list) : ";
@@ -1324,15 +1311,11 @@ public:
           if ( current->rightNode->rightNode ) {
             argumentList.push_back( current->rightNode->rightNode );
             
-            if ( current->rightNode->rightNode->rightNode == NULL ) {
-              return true;
-            } // if: no third argument
-            
-            else {
+            if ( current->rightNode->rightNode->rightNode != NULL ) {
               string errorMessage = "ERROR (incorrect number of arguments) : cons";
               SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
               return false;
-            } // else: incorrct number of arguments
+            } // if: no third argument
           } // if: has two arguments
           
           else {
@@ -1351,23 +1334,32 @@ public:
       
       else if ( current->leftToken->content == "list" ) {
         argumentList.push_back( current->rightNode );
-        return true;
       } // else if: list
+      
+      for ( int i = 0 ; i < argumentList.size() ; i++ ) {
+        if ( argumentList[i]->leftToken ) {
+          if ( argumentList[i]->leftToken->tokenType == SYMBOL ) {
+            if ( NOT FoundDefineBindings( argumentList[i]->leftToken->content ) ) {
+              string errorMessage = "ERROR (unbound symbol) : " + argumentList[i]->leftToken->content;
+              SetError( DEFINE_UNBOUND, errorMessage );
+              return false;
+            } // if: cant find bound symbol
+          } // if: tokenType is symbol
+        } // if: has a leftToken
+      } // for: check the symbols in the arguments
+      
+      return true;
     } // if: constuctor
     
     else if ( current->leftToken->primitiveType == QUOTE_BYPASSING ) {
       if ( current->rightNode ) {
         argumentList.push_back( current->rightNode );
         
-        if ( current->rightNode->rightNode == NULL ) {
-          return true;
-        } // if: no second argument
-        
-        else {
+        if ( current->rightNode->rightNode != NULL ) {
           string errorMessage = "ERROR (incorrect number of arguments) : quote";
           SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
           return false;
-        } // else: incorrect number of arguments
+        } // if: incorrect number of arguments
       } // if: has one argument
       
       else {
@@ -1375,6 +1367,8 @@ public:
         SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
         return false;
       } // incorrect number of arguments
+      
+      return true;
     } // else if: quote
     
     else if ( current->leftToken->primitiveType == DEFINE_BINDING ) {
@@ -1390,15 +1384,11 @@ public:
         if ( current->rightNode->rightNode ) {
           argumentList.push_back( current->rightNode->rightNode );
           
-          if ( current->rightNode->rightNode->rightNode == NULL ) {
-            return true;
-          } // if: no third argument
-          
-          else {
+          if ( current->rightNode->rightNode->rightNode != NULL ) {
             string errorMessage = "ERROR (incorrect number of argument) : define";
             SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
             return false;
-          } // else: number error
+          } // if: number error
         } // if: has two arguments
         
         else {
@@ -1414,7 +1404,7 @@ public:
         return false;
       } // if: number error
       
-      return false;
+      return true;
     } // else if: define binding
     
     else if ( current->leftToken->primitiveType == PART_ACCESSOR ) {
@@ -1425,16 +1415,13 @@ public:
       } // if: non-list
       
       if ( current->rightNode ) {
-        if ( current->rightNode->rightNode == NULL ) {
-          argumentList.push_back( current->rightNode );
-          return true;
-        } // if: no second argument
+        argumentList.push_back( current->rightNode );
         
-        else {
+        if ( current->rightNode->rightNode != NULL ) {
           string errorMessage = "ERROR (incorrect number of arguments) : " + current->leftToken->content;
           SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
           return false;
-        } // else: more than one arguments
+        } // if: more than one arguments
       } // if: has one arguments
       
       else {
@@ -1442,6 +1429,20 @@ public:
         SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
         return false;
       } // else: number error
+      
+      for ( int i = 0 ; i < argumentList.size() ; i++ ) {
+        if ( argumentList[i]->leftToken ) {
+          if ( argumentList[i]->leftToken->tokenType == SYMBOL ) {
+            if ( NOT FoundDefineBindings( argumentList[i]->leftToken->content ) ) {
+              string errorMessage = "ERROR (unbound symbol) : " + argumentList[i]->leftToken->content;
+              SetError( DEFINE_UNBOUND, errorMessage );
+              return false;
+            } // if: cant find bound symbol
+          } // if: tokenType is symbol
+        } // if: has a leftToken
+      } // for: check the symbols in the arguments
+      
+      return true;
     } // else if: part accessors
     
     else if ( current->leftToken->primitiveType == PRIMITIVE_PREDICATE ) {
@@ -1452,16 +1453,13 @@ public:
       } // if: non-list
       
       if ( current->rightNode ) {
-        if ( current->rightNode->rightNode == NULL ) {
-          argumentList.push_back( current->rightNode );
-          return true;
-        } // if: no second argument
+        argumentList.push_back( current->rightNode );
         
-        else {
+        if ( current->rightNode->rightNode != NULL ) {
           string errorMessage = "ERROR (incorrect number of arguments) : " + current->leftToken->content;
           SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
           return false;
-        } // else: number error
+        } // if: number error
       } // if: has one arguments
       
       else {
@@ -1469,6 +1467,20 @@ public:
         SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
         return false;
       } // else: number error
+      
+      for ( int i = 0 ; i < argumentList.size() ; i++ ) {
+        if ( argumentList[i]->leftToken ) {
+          if ( argumentList[i]->leftToken->tokenType == SYMBOL ) {
+            if ( NOT FoundDefineBindings( argumentList[i]->leftToken->content ) ) {
+              string errorMessage = "ERROR (unbound symbol) : " + argumentList[i]->leftToken->content;
+              SetError( DEFINE_UNBOUND, errorMessage );
+              return false;
+            } // if: cant find bound symbol
+          } // if: tokenType is symbol
+        } // if: has a leftToken
+      } // for: check the symbols in the arguments
+      
+      return true;
     } // else if: primitive predicate
     
     else if ( current->leftToken->primitiveType == OPERATOR ) {
@@ -1480,16 +1492,13 @@ public:
       
       if ( current->leftToken->content == "not" ) {
         if ( current->rightNode ) {
-          if ( current->rightNode->rightNode == NULL ) {
-            argumentList.push_back( current->rightNode );
-            return true;
-          } // if: no second argument
+          argumentList.push_back( current->rightNode );
           
-          else {
+          if ( current->rightNode->rightNode != NULL ) {
             string errorMessage = "ERROR (incorrect number of arguments) : " + current->leftToken->content;
             SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
             return false;
-          } // else: number error
+          } // if: number error
         } // if: hos one argument
         
         else {
@@ -1505,7 +1514,6 @@ public:
           
           if ( current->rightNode->rightNode ) {
             argumentList.push_back( current->rightNode->rightNode );
-            return true;
           } // if: has greater than two arguments
           
           else {
@@ -1521,6 +1529,20 @@ public:
           return false;
         } // else: number error
       } // else: other operators
+      
+      for ( int i = 0 ; i < argumentList.size() ; i++ ) {
+        if ( argumentList[i]->leftToken ) {
+          if ( argumentList[i]->leftToken->tokenType == SYMBOL ) {
+            if ( NOT FoundDefineBindings( argumentList[i]->leftToken->content ) ) {
+              string errorMessage = "ERROR (unbound symbol) : " + argumentList[i]->leftToken->content;
+              SetError( DEFINE_UNBOUND, errorMessage );
+              return false;
+            } // if: cant find bound symbol
+          } // if: tokenType is symbol
+        } // if: has a leftToken
+      } // for: check the symbols in the arguments
+      
+      return true;
     } // else if: operators
     
     else if ( current->leftToken->primitiveType == EQUIVALENCE ) {
@@ -1536,15 +1558,11 @@ public:
         if ( current->rightNode->rightNode ) {
           argumentList.push_back( current->rightNode->rightNode );
           
-          if ( current->rightNode->rightNode->rightNode == NULL ) {
-            return true;
-          } // if: no third argument
-          
-          else {
+          if ( current->rightNode->rightNode->rightNode != NULL ) {
             string errorMessage = "ERROR (incorrect number of arguments) : " + current->leftToken->content;
             SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
             return false;
-          } // else: number error
+          } // if: number error
         } // if: has two arguments
         
         else {
@@ -1559,6 +1577,20 @@ public:
         SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
         return false;
       } // else: number error
+      
+      for ( int i = 0 ; i < argumentList.size() ; i++ ) {
+        if ( argumentList[i]->leftToken ) {
+          if ( argumentList[i]->leftToken->tokenType == SYMBOL ) {
+            if ( NOT FoundDefineBindings( argumentList[i]->leftToken->content ) ) {
+              string errorMessage = "ERROR (unbound symbol) : " + argumentList[i]->leftToken->content;
+              SetError( DEFINE_UNBOUND, errorMessage );
+              return false;
+            } // if: cant find bound symbol
+          } // if: tokenType is symbol
+        } // if: has a leftToken
+      } // for: check the symbols in the arguments
+      
+      return true;
     } // else if: equivalence
     
     else if ( current->leftToken->primitiveType == BEGIN ) {
@@ -1570,7 +1602,6 @@ public:
       
       if ( current->rightNode ) {
         argumentList.push_back( current->rightNode );
-        return true;
       } // if: has more than one arguments
       
       else {
@@ -1579,7 +1610,19 @@ public:
         return false;
       } // else: number error
       
-      return false;
+      for ( int i = 0 ; i < argumentList.size() ; i++ ) {
+        if ( argumentList[i]->leftToken ) {
+          if ( argumentList[i]->leftToken->tokenType == SYMBOL ) {
+            if ( NOT FoundDefineBindings( argumentList[i]->leftToken->content ) ) {
+              string errorMessage = "ERROR (unbound symbol) : " + argumentList[i]->leftToken->content;
+              SetError( DEFINE_UNBOUND, errorMessage );
+              return false;
+            } // if: cant find bound symbol
+          } // if: tokenType is symbol
+        } // if: has a leftToken
+      } // for: check the symbols in the arguments
+      
+      return true;
     } // else if: begin
     
     else if ( current->leftToken->primitiveType == CONDITIONAL ) {
@@ -1596,22 +1639,14 @@ public:
           if ( current->rightNode->rightNode ) {
             argumentList.push_back( current->rightNode->rightNode );
             
-            if ( current->rightNode->rightNode->rightNode == NULL ) {
-              return true;
-            } // if: no third argument
-            
-            else if ( current->rightNode->rightNode->rightNode ) {
+            if ( current->rightNode->rightNode->rightNode ) {
               argumentList.push_back( current->rightNode->rightNode->rightNode );
               
-              if ( current->rightNode->rightNode->rightNode->rightNode == NULL ) {
-                return true;
-              } // if: no forth argument
-              
-              else {
+              if ( current->rightNode->rightNode->rightNode->rightNode != NULL ) {
                 string errorMessage = "ERROR (incorrect number of arguments) : if";
                 SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
                 return false;
-              } // else: number error
+              } // if: number error
             } // if: has three arguments
           } // if: has two arguments
           
@@ -1638,7 +1673,6 @@ public:
         
         if ( current->rightNode ) {
           argumentList.push_back( current->rightNode );
-          return true;
         } // if: has more than one argument
         
         else {
@@ -1647,6 +1681,20 @@ public:
           return false;
         } // else: number error
       } // else if: cond
+      
+      for ( int i = 0 ; i < argumentList.size() ; i++ ) {
+        if ( argumentList[i]->leftToken ) {
+          if ( argumentList[i]->leftToken->tokenType == SYMBOL ) {
+            if ( NOT FoundDefineBindings( argumentList[i]->leftToken->content ) ) {
+              string errorMessage = "ERROR (unbound symbol) : " + argumentList[i]->leftToken->content;
+              SetError( DEFINE_UNBOUND, errorMessage );
+              return false;
+            } // if: cant find bound symbol
+          } // if: tokenType is symbol
+        } // if: has a leftToken
+      } // for: check the symbols in the arguments
+      
+      return true;
     } // else if: conditional
     
     else if ( current->leftToken->primitiveType == CLEAN_ENVIRONMENT ) {
@@ -1668,7 +1716,7 @@ public:
     } // else if: clean-environment
     
     return false;
-  } // CheckNonListAndAmountOfArgument()
+  } // CheckArgument()
   
   void PrintQuoteArguments( TreeStruct *quoteWalk ) {
     if ( quoteWalk ) {
