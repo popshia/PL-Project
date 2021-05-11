@@ -1169,6 +1169,10 @@ public:
       
       if ( walk->rightNode ) {
         ProcessSExp( walk->rightNode, hasError );
+        
+        if ( underQuote && IsPrimitive( walk->leftToken ) ) {
+          underQuote = false;
+        } // if: reset underQuote if the token is a primitive
       } // if: has a right node, go right
       
       if ( walk->leftToken && hasError == false ) {
@@ -2266,6 +2270,14 @@ public:
       if ( arguments.front()->leftToken->content == m_DefineBindingList[i]->leftToken->content ) {
         m_DefineBindingList.erase( m_DefineBindingList.begin() + i );
       } // if: find pre-defined , delete it
+      
+      if ( NOT m_DefineBindingList.empty() ) {
+        if ( arguments.back()->leftToken ) {
+          if ( arguments.back()->leftToken->content == m_DefineBindingList[i]->leftToken->content ) {
+            arguments.front()->rightNode = m_DefineBindingList[i]->rightNode;
+          } // if: double define
+        } // if: the defined as is a token, not a node
+      } // if: define list is not empty
     } // for: find any pre-defined
     
     if ( arguments.back()->leftNode ) {
