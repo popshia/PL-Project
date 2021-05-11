@@ -28,7 +28,7 @@ enum TokenType {
 enum ErrorType {
   NOT_S_EXP, NO_CLOSING_QUOTE, UNEXPECTED_TOKEN_ATOM_LEFT_PAREN, UNEXPECTED_RIGHT_PAREN, NO_MORE_INPUT,
   INCORRECT_NUM_ARGUMENTS, INCORRECT_ARGUMENT_TYPE, DEFINE_UNBOUND, APPLY_NON_FUNCITON, NO_RETURN_VALUE,
-  DIVISION_BY_ZERO, NON_LIST
+  DIVISION_BY_ZERO, NON_LIST, DEFINE_FORMAT
 }; // error types
 
 enum PrimitiveType {
@@ -1114,7 +1114,7 @@ public:
     
     cout << m_Error.errorMessage;
     
-    if ( m_Error.errorType == NON_LIST ) {
+    if ( m_Error.errorType == NON_LIST || m_Error.errorType == DEFINE_FORMAT ) {
       m_project1.PrintSExp();
       return;
     } // if: non-list error, print the expression
@@ -1383,28 +1383,40 @@ public:
     
     else if ( current->leftToken->primitiveType == DEFINE_BINDING ) {
       if ( current->rightNode ) {
+        if ( IsPrimitive( current->rightNode->leftToken ) ) {
+          string errorMessage = "ERROR (DEFINE format) : ";
+          SetError( DEFINE_FORMAT, errorMessage );
+          return false;
+        } // if: define primitive error
+        
         argumentList.push_back( current->rightNode );
         
         if ( current->rightNode->rightNode ) {
+          if ( IsPrimitive( current->rightNode->rightNode->leftToken ) ) {
+            string errorMessage = "ERROR (DEFINE format) : ";
+            SetError( DEFINE_FORMAT, errorMessage );
+            return false;
+          } // if: define primitive error
+          
           argumentList.push_back( current->rightNode->rightNode );
           
           if ( current->rightNode->rightNode->rightNode != NULL ) {
-            string errorMessage = "ERROR (incorrect number of argument) : define";
-            SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+            string errorMessage = "ERROR (DEFINE format) : ";
+            SetError( DEFINE_FORMAT, errorMessage );
             return false;
           } // if: number error
         } // if: has two arguments
         
         else {
-          string errorMessage = "ERROR (incorrect number of argument) : define";
-          SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+          string errorMessage = "ERROR (DEFINE format) : ";
+          SetError( DEFINE_FORMAT, errorMessage );
           return false;
         } // else: number error
       } // if: has one argument
       
       else {
-        string errorMessage = "ERROR (incorrect number of argument) : define";
-        SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+        string errorMessage = "ERROR (DEFINE format) : ";
+        SetError( DEFINE_FORMAT, errorMessage );
         return false;
       } // if: number error
       
