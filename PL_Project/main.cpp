@@ -1215,7 +1215,7 @@ public:
             } // if: current token is a symbol
             
             if ( hasError == false ) {
-              if ( CheckArguments( walk, argumentList ) ) {
+              if ( CheckNonListAndAmountOfArgument( walk, argumentList ) ) {
                 hasError = CallCorrespondingFunction( walk, argumentList );
               } // if: arguments has no problem
               
@@ -1309,146 +1309,50 @@ public:
   
   // TODO: Rewrite the order of argument checking, check argrment number here, leave definition checking
   //       to each corresponding funcitons.
-  bool CheckArguments( TreeStruct *current, vector<TreeStruct *> &argumentList ) {
+  bool CheckNonListAndAmountOfArgument( TreeStruct *current, vector<TreeStruct *> &argumentList ) {
     if ( current->leftToken->primitiveType == CONSTRUCTOR ) {
+      if ( current->rightToken ) {
+        string errorMessage = "ERROR (non-list) : ";
+        SetError( NON_LIST, errorMessage );
+        return false;
+      } // if: non-list
+      
       if ( current->leftToken->content == "cons" ) {
         if ( current->rightNode ) {
-          if ( current->rightNode->leftToken ) {
-            if ( current->rightNode->leftToken->tokenType == SYMBOL ) {
-              if ( FoundDefineBindings( current->rightNode->leftToken->content ) ) {
-                argumentList.push_back( current->rightNode );
-              } // if: find defineList
-              
-              else {
-                string errorMessage = "ERROR (unbound symbol) : " + current->rightNode->leftToken->content;
-                SetError( DEFINE_UNBOUND, errorMessage );
-                return false;
-              } // else if: find no pre-defined bindings for arguments
-            } // if: current is symbol
-              
-              // else if ( current->rightNode->leftToken->tokenType == ) {
-              // 	string errorMessage =
-              // 					"ERROR (" + current->leftToken->content + " with incorrect argument type) : " +
-              // 					current->rightNode->leftToken->content;
-              // 	SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
-              // 	return false;
-              // } // else: false argument type
-            
-            else {
-              argumentList.push_back( current->rightNode );
-            } // else: current is not a symbol
-          } // if: leftToken exist
-          
-          else {
-            argumentList.push_back( current->rightNode );
-          } // else: push rightNode in
+          argumentList.push_back( current->rightNode );
           
           if ( current->rightNode->rightNode ) {
-            if ( current->rightNode->rightNode->leftToken ) {
-              if ( current->rightNode->rightNode->leftToken->tokenType == SYMBOL ) {
-                if ( FoundDefineBindings( current->rightNode->rightNode->leftToken->content ) ) {
-                  argumentList.push_back( current->rightNode->rightNode );
-                } // if: find defineList
-                
-                else {
-                  string errorMessage = "ERROR (unbound symbol) : ";
-                  errorMessage += current->rightNode->rightNode->leftToken->content;
-                  SetError( DEFINE_UNBOUND, errorMessage );
-                  return false;
-                } // else if: find no pre-defined bindings for arguments
-              } // if: current is symbol
-                
-                // else if ( current->rightNode->leftToken->tokenType == ) {
-                // 	string errorMessage =
-                // 					"ERROR (" + current->leftToken->content + " with incorrect argument type) : " +
-                // 					current->rightNode->leftToken->content;
-                // 	SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
-                // 	return false;
-                // } // else: false argument type
-              
-              else {
-                argumentList.push_back( current->rightNode->rightNode );
-              } // else: not symbol, push into arguments
-            } // if: current rightToken exist
-            
-            else {
-              argumentList.push_back( current->rightNode->rightNode );
-            } // else: not symbol
+            argumentList.push_back( current->rightNode->rightNode );
             
             if ( current->rightNode->rightNode->rightNode == NULL ) {
               return true;
             } // if: no third argument
+            
+            else {
+              string errorMessage = "ERROR (incorrect number of arguments) : cons";
+              SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+              return false;
+            } // else: incorrct number of arguments
           } // if: has two arguments
+          
+          else {
+            string errorMessage = "ERROR (incorrect number of arguments) : cons";
+            SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+            return false;
+          } // else: incorrct number of arguments
         } // if: has one argument
+        
+        else {
+          string errorMessage = "ERROR (incorrect number of arguments) : cons";
+          SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+          return false;
+        } // else: incorrct number of arguments
       } // if: cons
       
       else if ( current->leftToken->content == "list" ) {
-        TreeStruct *listCheckWalk = current->rightNode;
-        
-        if ( listCheckWalk->rightNode ) {
-          while ( listCheckWalk->rightNode ) {
-            if ( listCheckWalk->leftToken && listCheckWalk->leftToken->tokenType == SYMBOL ) {
-              if ( FoundDefineBindings( listCheckWalk->leftToken->content ) == false ) {
-                string errorMessage;
-                errorMessage = "ERROR (unbound symbol) : " + listCheckWalk->leftToken->content;
-                SetError( DEFINE_UNBOUND, errorMessage );
-                return false;
-              } // if: find no bounded symbol
-            } // if: has leftToken and tokenType is symbol
-            
-            if ( listCheckWalk->rightToken ) {
-              string errorMessage = "ERROR (non-list) : ";
-              SetError( NON_LIST, errorMessage );
-              return false;
-            } // if: non-list
-            
-            listCheckWalk = listCheckWalk->rightNode;
-            
-            if ( listCheckWalk->rightNode == NULL ) {
-              if ( listCheckWalk->leftToken ) {
-                if ( listCheckWalk->leftToken->tokenType == SYMBOL ) {
-                  if ( FoundDefineBindings( listCheckWalk->leftToken->content ) == false ) {
-                    string errorMessage = "ERROR (unbound symbol) : " + listCheckWalk->leftToken->content;
-                    SetError( DEFINE_UNBOUND, errorMessage );
-                    return false;
-                  } // if: find no bounded symbol
-                } // if: leftToken tokenType is SYMBOL
-              } // if: have leftToken
-              
-              if ( listCheckWalk->rightToken ) {
-                string errorMessage = "ERROR (non-list) : ";
-                SetError( NON_LIST, errorMessage );
-                return false;
-              } // if: non-list
-            } // if: last node
-          } // while: go through the tree
-        } // if: has more than one node
-        
-        if ( listCheckWalk->rightNode == NULL ) {
-          if ( listCheckWalk->leftToken ) {
-            if ( listCheckWalk->leftToken->tokenType == SYMBOL ) {
-              if ( FoundDefineBindings( listCheckWalk->leftToken->content ) == false ) {
-                string errorMessage = "ERROR (unbound symbol) : " + listCheckWalk->leftToken->content;
-                SetError( DEFINE_UNBOUND, errorMessage );
-                return false;
-              } // if: find no bounded symbol
-            } // if: leftToken tokenType is SYMBOL
-          } // if: have leftToken
-          
-          if ( listCheckWalk->rightToken ) {
-            string errorMessage = "ERROR (non-list) : ";
-            SetError( NON_LIST, errorMessage );
-            return false;
-          } // if: non-list
-        } // if: has only one node
-        
         argumentList.push_back( current->rightNode );
         return true;
       } // else if: list
-      
-      string errorMessage = "ERROR (incorrect number of arguments) : " + current->leftToken->content;
-      SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
-      return false;
     } // if: constuctor
     
     else if ( current->leftToken->primitiveType == QUOTE_BYPASSING ) {
@@ -1458,84 +1362,72 @@ public:
         if ( current->rightNode->rightNode == NULL ) {
           return true;
         } // if: no second argument
+        
+        else {
+          string errorMessage = "ERROR (incorrect number of arguments) : quote";
+          SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+          return false;
+        } // else: incorrect number of arguments
       } // if: has one argument
       
-      return false;
+      else {
+        string errorMessage = "ERROR (incorrect number of arguments) : quote";
+        SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+        return false;
+      } // incorrect number of arguments
     } // else if: quote
     
     else if ( current->leftToken->primitiveType == DEFINE_BINDING ) {
+      if ( current->rightToken ) {
+        string errorMessage = "ERROR (non-list) : ";
+        SetError( NON_LIST, errorMessage );
+        return false;
+      } // if: non-list
+      
       if ( current->rightNode ) {
-        if ( current->rightNode->rightToken ) {
-          string errorMessage = "ERROR (incorrect number of argument) : define";
-          SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
-          return false;
-        } // if: number error
-        
         argumentList.push_back( current->rightNode );
         
         if ( current->rightNode->rightNode ) {
-          if ( current->rightNode->rightNode->rightToken ) {
-            string errorMessage = "ERROR (incorrect number of argument) : define";
-            SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
-            return false;
-          } // if: number error
-          
           argumentList.push_back( current->rightNode->rightNode );
           
           if ( current->rightNode->rightNode->rightNode == NULL ) {
             return true;
           } // if: no third argument
+          
+          else {
+            string errorMessage = "ERROR (incorrect number of argument) : define";
+            SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+            return false;
+          } // else: number error
         } // if: has two arguments
+        
+        else {
+          string errorMessage = "ERROR (incorrect number of argument) : define";
+          SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+          return false;
+        } // else: number error
       } // if: has one argument
+      
+      else {
+        string errorMessage = "ERROR (incorrect number of argument) : define";
+        SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+        return false;
+      } // if: number error
       
       return false;
     } // else if: define binding
     
     else if ( current->leftToken->primitiveType == PART_ACCESSOR ) {
+      if ( current->rightToken ) {
+        string errorMessage = "ERROR (non-list) : ";
+        SetError( NON_LIST, errorMessage );
+        return false;
+      } // if: non-list
+      
       if ( current->rightNode ) {
-        if ( current->rightNode->leftToken ) {
-          if ( current->rightNode->leftToken->tokenType == SYMBOL ) {
-            if ( FoundDefineBindings( current->rightNode->leftToken->content ) ) {
-              argumentList.push_back( current->rightNode );
-            } // if: find bindings
-            
-            else {
-              string errorMessage = "ERROR (unbound symbol) : " + current->rightNode->leftToken->content;
-              SetError( DEFINE_UNBOUND, errorMessage );
-            } // else if: find no pre-defined bindings for arguments
-          } // if: current token is symbol
-          
-          
-          else if ( current->rightNode->leftToken->tokenType == LEFT_PAREN ||
-                    current->rightNode->leftToken->tokenType == QUOTE ) {
-            argumentList.push_back( current->rightNode );
-          } // else if: false argument type
-          
-          else {
-            string errorMessage;
-            errorMessage = "ERROR (" + current->leftToken->content + " with incorrect argument type) : " +
-                           current->rightNode->leftToken->content;
-            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
-          } // else: current token not symbol
-        } // if: leftToken exist
-        
-        else {
-          argumentList.push_back( current->rightNode );
-        } // else: push rightNode in
-        
         if ( current->rightNode->rightNode == NULL ) {
-          if ( current->rightNode->rightToken ) {
-            string errorMessage = "ERROR (non-list) : ";
-            SetError( NON_LIST, errorMessage );
-          } // if: TODO: WEIRD non-list ERROR
-          
-          if ( m_Error.errorMessage == "\0" ) {
-            return true;
-          } // if: no error
-          
-          else {
-            return false;
-          } // else: error
+          argumentList.push_back( current->rightNode );
+          return true;
         } // if: no second argument
         
         else {
@@ -1545,48 +1437,66 @@ public:
         } // else: more than one arguments
       } // if: has one arguments
       
-      string errorMessage = "ERROR (incorrect number of arguments) : " + current->leftToken->content;
-      SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
-      return false;
+      else {
+        string errorMessage = "ERROR (incorrect number of arguments) : " + current->leftToken->content;
+        SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+        return false;
+      } // else: number error
     } // else if: part accessors
     
     else if ( current->leftToken->primitiveType == PRIMITIVE_PREDICATE ) {
+      if ( current->rightToken ) {
+        string errorMessage = "ERROR (non-list) : ";
+        SetError( NON_LIST, errorMessage );
+        return false;
+      } // if: non-list
+      
       if ( current->rightNode ) {
-        if ( current->rightNode->leftToken ) {
-          if ( current->rightNode->leftToken->tokenType == SYMBOL ) {
-            if ( FoundDefineBindings( current->rightNode->leftToken->content ) == false ) {
-              string errorMessage = "ERROR (unbound symbol) : " + current->rightNode->leftToken->content;
-              SetError( DEFINE_UNBOUND, errorMessage );
-            } // else: else found no defined-binding
-          } // if: argument is a symbol
-        } // if: current node has a leftToken
-        
         if ( current->rightNode->rightNode == NULL ) {
-          if ( m_Error.errorMessage == "\0" ) {
-            argumentList.push_back( current->rightNode );
-            return true;
-          } // if: no error
-          
-          else {
-            return false;
-          } // else: unbound error
+          argumentList.push_back( current->rightNode );
+          return true;
         } // if: no second argument
+        
+        else {
+          string errorMessage = "ERROR (incorrect number of arguments) : " + current->leftToken->content;
+          SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+          return false;
+        } // else: number error
       } // if: has one arguments
       
-      string errorMessage = "ERROR (incorrect number of arguments) : " + current->leftToken->content;
-      SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
-      return false;
+      else {
+        string errorMessage = "ERROR (incorrect number of arguments) : " + current->leftToken->content;
+        SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+        return false;
+      } // else: number error
     } // else if: primitive predicate
     
     else if ( current->leftToken->primitiveType == OPERATOR ) {
+      if ( current->rightToken ) {
+        string errorMessage = "ERROR (non-list) : ";
+        SetError( NON_LIST, errorMessage );
+        return false;
+      } // if: non-list
+      
       if ( current->leftToken->content == "not" ) {
         if ( current->rightNode ) {
-          argumentList.push_back( current->rightNode );
-          
           if ( current->rightNode->rightNode == NULL ) {
+            argumentList.push_back( current->rightNode );
             return true;
           } // if: no second argument
+          
+          else {
+            string errorMessage = "ERROR (incorrect number of arguments) : " + current->leftToken->content;
+            SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+            return false;
+          } // else: number error
         } // if: hos one argument
+        
+        else {
+          string errorMessage = "ERROR (incorrect number of arguments) : not";
+          SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+          return false;
+        } // else: number error
       } // if: not
       
       else {
@@ -1597,11 +1507,29 @@ public:
             argumentList.push_back( current->rightNode->rightNode );
             return true;
           } // if: has greater than two arguments
+          
+          else {
+            string errorMessage = "ERROR (incorrect number of arguments) : " + current->leftToken->content;
+            SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+            return false;
+          } // else: number error
         } // if: has one arguments
+        
+        else {
+          string errorMessage = "ERROR (incorrect number of arguments) : " + current->leftToken->content;
+          SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+          return false;
+        } // else: number error
       } // else: other operators
     } // else if: operators
     
     else if ( current->leftToken->primitiveType == EQUIVALENCE ) {
+      if ( current->rightToken ) {
+        string errorMessage = "ERROR (non-list) : ";
+        SetError( NON_LIST, errorMessage );
+        return false;
+      } // if: non-list
+      
       if ( current->rightNode ) {
         argumentList.push_back( current->rightNode );
         
@@ -1611,23 +1539,57 @@ public:
           if ( current->rightNode->rightNode->rightNode == NULL ) {
             return true;
           } // if: no third argument
+          
+          else {
+            string errorMessage = "ERROR (incorrect number of arguments) : " + current->leftToken->content;
+            SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+            return false;
+          } // else: number error
         } // if: has two arguments
+        
+        else {
+          string errorMessage = "ERROR (incorrect number of arguments) : " + current->leftToken->content;
+          SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+          return false;
+        } // else: number error
       } // if: has one argument
       
-      return false;
+      else {
+        string errorMessage = "ERROR (incorrect number of arguments) : " + current->leftToken->content;
+        SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+        return false;
+      } // else: number error
     } // else if: equivalence
     
     else if ( current->leftToken->primitiveType == BEGIN ) {
+      if ( current->rightToken ) {
+        string errorMessage = "ERROR (non-list) : ";
+        SetError( NON_LIST, errorMessage );
+        return false;
+      } // if: non-list
+      
       if ( current->rightNode ) {
         argumentList.push_back( current->rightNode );
         return true;
       } // if: has more than one arguments
+      
+      else {
+        string errorMessage = "ERROR (incorrect number of arguments) : begin";
+        SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+        return false;
+      } // else: number error
       
       return false;
     } // else if: begin
     
     else if ( current->leftToken->primitiveType == CONDITIONAL ) {
       if ( current->leftToken->content == "if" ) {
+        if ( current->rightToken ) {
+          string errorMessage = "ERROR (non-list) : ";
+          SetError( NON_LIST, errorMessage );
+          return false;
+        } // if: non-list
+        
         if ( current->rightNode ) {
           argumentList.push_back( current->rightNode );
           
@@ -1644,27 +1606,69 @@ public:
               if ( current->rightNode->rightNode->rightNode->rightNode == NULL ) {
                 return true;
               } // if: no forth argument
+              
+              else {
+                string errorMessage = "ERROR (incorrect number of arguments) : if";
+                SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+                return false;
+              } // else: number error
             } // if: has three arguments
           } // if: has two arguments
+          
+          else {
+            string errorMessage = "ERROR (incorrect number of arguments) : if";
+            SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+            return false;
+          } // else: number error
         } // if: has one argument
+        
+        else {
+          string errorMessage = "ERROR (incorrect number of arguments) : if";
+          SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+          return false;
+        } // else: number error
       } // if: if
       
       else if ( current->leftToken->content == "cond" ) {
+        if ( current->rightToken ) {
+          string errorMessage = "ERROR (non-list) : ";
+          SetError( NON_LIST, errorMessage );
+          return false;
+        } // if: non-list
+        
         if ( current->rightNode ) {
           argumentList.push_back( current->rightNode );
           return true;
         } // if: has more than one argument
+        
+        else {
+          string errorMessage = "ERROR (incorrect number of arguments) : cond";
+          SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+          return false;
+        } // else: number error
       } // else if: cond
-      
-      return false;
     } // else if: conditional
     
     else if ( current->leftToken->primitiveType == CLEAN_ENVIRONMENT ) {
-      return true;
+      if ( current->rightToken ) {
+        string errorMessage = "ERROR (non-list) : ";
+        SetError( NON_LIST, errorMessage );
+        return false;
+      } // if: non-list
+      
+      else if ( current->rightNode ) {
+        string errorMessage = "ERROR (incorrect number of arguments) : clean-environment";
+        SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+        return false;
+      } // else: number error
+      
+      else {
+        return true;
+      } // else: correct input
     } // else if: clean-environment
     
     return false;
-  } // CheckArguments()
+  } // CheckNonListAndAmountOfArgument()
   
   void PrintQuoteArguments( TreeStruct *quoteWalk ) {
     if ( quoteWalk ) {
