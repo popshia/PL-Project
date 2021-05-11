@@ -1151,6 +1151,7 @@ public:
     } // else: error, handle it
   } // EvalSExp()
   
+  // TODO: Check the process of the traversal, any symbol within quote doesn't need to check defined or not.
   bool ProcessSExp( TreeStruct *walk, bool &hasError ) {
     static bool underQuote = false;
     
@@ -1178,7 +1179,7 @@ public:
             
             if ( IsPrimitive( walk->leftToken ) == false ) {
               if ( underQuote == false ) {
-                if ( FindDefineBindings( true, walk->leftToken->content ) ) {
+                if ( FoundDefineBindings( walk->leftToken->content ) ) {
                   if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
                     walk->leftToken = GetDefineBindings( walk->leftToken->content )->leftToken;
                     
@@ -1243,11 +1244,29 @@ public:
     
     else {
       if ( m_project1.GetSExp().front().tokenType == SYMBOL ) {
-        if ( FindDefineBindings( false, m_project1.GetSExp().front().content ) == false ) {
+        if ( FoundDefineBindings( m_project1.GetSExp().front().content ) ) {
+          ResultStruct *result = NewResult();
+          
+          if ( GetDefineBindings( m_project1.GetSExp().front().content )->leftToken ) {
+            TokenStruct *w_Defined = GetDefineBindings( m_project1.GetSExp().front().content )->leftToken;
+            result->hasTokenResult = true;
+            result->tokenResult->tokenType = w_Defined->tokenType;
+            result->tokenResult = w_Defined;
+          } // if: pre-defined is a token
+          
+          else {
+            result->hasNodeResult = true;
+            result->nodeResult = GetDefineBindings( m_project1.GetSExp().front().content )->leftNode;
+          } // else: pre-defined is a node
+          
+          m_ResultList.push_back( result );
+        } // if: doesn't find a binding
+        
+        else {
           string errorMessage = "ERROR (unbound symbol) : " + m_project1.GetSExp().front().content;
           SetError( DEFINE_UNBOUND, errorMessage );
           hasError = true;
-        } // if: doesn't find a binding
+        } // else: found a binding
       } // if: single input is a symbol
       
       else {
@@ -1263,31 +1282,15 @@ public:
     ------------------ Bindings ----------------
   */
   
-  bool FindDefineBindings( bool duringCheckArguments, string currentWord ) {
+  bool FoundDefineBindings( string currentWord ) {
     for ( int i = 0 ; i < m_DefineBindingList.size() ; i++ ) {
       if ( currentWord == m_DefineBindingList[i]->leftToken->content ) {
-        if ( NOT duringCheckArguments ) {
-          ResultStruct *result = NewResult();
-          
-          if ( m_DefineBindingList[i]->rightNode->leftNode ) {
-            result->hasNodeResult = true;
-            result->nodeResult = m_DefineBindingList[i]->rightNode->leftNode;
-          } // if: node
-          
-          else {
-            result->hasTokenResult = true;
-            result->tokenResult = m_DefineBindingList[i]->rightNode->leftToken;
-          } // else: token
-          
-          m_ResultList.push_back( result );
-        } // if: not checking
-        
         return true;
       } // if: find
     } // for: go through m_DefineBindingList
     
     return false;
-  } // FindDefineBindings()
+  } // FoundDefineBindings()
   
   TreeStruct *GetDefineBindings( string currentWord ) {
     for ( int i = 0 ; i < m_DefineBindingList.size() ; i++ ) {
@@ -1304,13 +1307,15 @@ public:
     ----------------- Processing ---------------
   */
   
+  // TODO: Rewrite the order of argument checking, check argrment number here, leave definition checking
+  //       to each corresponding funcitons.
   bool CheckArguments( TreeStruct *current, vector<TreeStruct *> &argumentList ) {
     if ( current->leftToken->primitiveType == CONSTRUCTOR ) {
       if ( current->leftToken->content == "cons" ) {
         if ( current->rightNode ) {
           if ( current->rightNode->leftToken ) {
             if ( current->rightNode->leftToken->tokenType == SYMBOL ) {
-              if ( FindDefineBindings( true, current->rightNode->leftToken->content ) ) {
+              if ( FoundDefineBindings( current->rightNode->leftToken->content ) ) {
                 argumentList.push_back( current->rightNode );
               } // if: find defineList
               
@@ -1341,7 +1346,7 @@ public:
           if ( current->rightNode->rightNode ) {
             if ( current->rightNode->rightNode->leftToken ) {
               if ( current->rightNode->rightNode->leftToken->tokenType == SYMBOL ) {
-                if ( FindDefineBindings( true, current->rightNode->rightNode->leftToken->content ) ) {
+                if ( FoundDefineBindings( current->rightNode->rightNode->leftToken->content ) ) {
                   argumentList.push_back( current->rightNode->rightNode );
                 } // if: find defineList
                 
@@ -1383,7 +1388,7 @@ public:
         if ( listCheckWalk->rightNode ) {
           while ( listCheckWalk->rightNode ) {
             if ( listCheckWalk->leftToken && listCheckWalk->leftToken->tokenType == SYMBOL ) {
-              if ( FindDefineBindings( true, listCheckWalk->leftToken->content ) == false ) {
+              if ( FoundDefineBindings( listCheckWalk->leftToken->content ) == false ) {
                 string errorMessage;
                 errorMessage = "ERROR (unbound symbol) : " + listCheckWalk->leftToken->content;
                 SetError( DEFINE_UNBOUND, errorMessage );
@@ -1402,7 +1407,7 @@ public:
             if ( listCheckWalk->rightNode == NULL ) {
               if ( listCheckWalk->leftToken ) {
                 if ( listCheckWalk->leftToken->tokenType == SYMBOL ) {
-                  if ( FindDefineBindings( true, listCheckWalk->leftToken->content ) == false ) {
+                  if ( FoundDefineBindings( listCheckWalk->leftToken->content ) == false ) {
                     string errorMessage = "ERROR (unbound symbol) : " + listCheckWalk->leftToken->content;
                     SetError( DEFINE_UNBOUND, errorMessage );
                     return false;
@@ -1422,7 +1427,7 @@ public:
         if ( listCheckWalk->rightNode == NULL ) {
           if ( listCheckWalk->leftToken ) {
             if ( listCheckWalk->leftToken->tokenType == SYMBOL ) {
-              if ( FindDefineBindings( true, listCheckWalk->leftToken->content ) == false ) {
+              if ( FoundDefineBindings( listCheckWalk->leftToken->content ) == false ) {
                 string errorMessage = "ERROR (unbound symbol) : " + listCheckWalk->leftToken->content;
                 SetError( DEFINE_UNBOUND, errorMessage );
                 return false;
@@ -1490,7 +1495,7 @@ public:
       if ( current->rightNode ) {
         if ( current->rightNode->leftToken ) {
           if ( current->rightNode->leftToken->tokenType == SYMBOL ) {
-            if ( FindDefineBindings( true, current->rightNode->leftToken->content ) ) {
+            if ( FoundDefineBindings( current->rightNode->leftToken->content ) ) {
               argumentList.push_back( current->rightNode );
             } // if: find bindings
             
@@ -1549,7 +1554,7 @@ public:
       if ( current->rightNode ) {
         if ( current->rightNode->leftToken ) {
           if ( current->rightNode->leftToken->tokenType == SYMBOL ) {
-            if ( FindDefineBindings( true, current->rightNode->leftToken->content ) == false ) {
+            if ( FoundDefineBindings( current->rightNode->leftToken->content ) == false ) {
               string errorMessage = "ERROR (unbound symbol) : " + current->rightNode->leftToken->content;
               SetError( DEFINE_UNBOUND, errorMessage );
             } // else: else found no defined-binding
@@ -1926,6 +1931,7 @@ public:
   ----------------- Definition ---------------
   */
   
+  // TODO: Recheck every written function, each condition, each assignment.
   bool Cons( vector<TreeStruct *> arguments, ResultStruct *result ) {
     TreeStruct *resultRoot = new TreeStruct;
     // initialization
@@ -2201,6 +2207,7 @@ public:
   
   bool Define( vector<TreeStruct *> arguments, ResultStruct *result ) {
     result->tokenResult->content = arguments.front()->leftToken->content + " defined";
+    result->tokenResult->tokenType = STRING;
     result->hasTokenResult = true;
     
     for ( int i = 0 ; i < m_DefineBindingList.size() ; i++ ) {
@@ -2793,7 +2800,7 @@ public:
     
     if ( arguments.front()->leftToken ) {
       if ( arguments.front()->leftToken->tokenType == SYMBOL ) {
-        if ( FindDefineBindings( true, arguments.front()->leftToken->content ) ) {
+        if ( FoundDefineBindings( arguments.front()->leftToken->content ) ) {
           if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken ) {
             if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken->tokenType == SYMBOL ) {
               result->tokenResult->tokenType = T;
