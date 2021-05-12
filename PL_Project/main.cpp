@@ -27,7 +27,7 @@ enum TokenType {
 
 enum ErrorType {
   NOT_S_EXP, NO_CLOSING_QUOTE, UNEXPECTED_TOKEN_ATOM_LEFT_PAREN, UNEXPECTED_RIGHT_PAREN, NO_MORE_INPUT,
-  INCORRECT_NUM_ARGUMENTS, INCORRECT_ARGUMENT_TYPE, DEFINE_UNBOUND, APPLY_NON_FUNCITON, NO_RETURN_VALUE,
+  INCORRECT_NUM_ARGUMENTS, INCORRECT_ARGUMENT_TYPE, DEFINE_UNBOUND, APPLY_NON_FUNCTION, NO_RETURN_VALUE,
   DIVISION_BY_ZERO, NON_LIST, DEFINE_FORMAT
 }; // error types
 
@@ -1170,9 +1170,11 @@ public:
       if ( walk->rightNode ) {
         ProcessSExp( walk->rightNode, hasError );
         
-        if ( underQuote && walk->leftToken && IsPrimitive( walk->leftToken ) ) {
-          underQuote = false;
-        } // if: reset underQuote if the token is a primitive
+        if ( walk->leftToken && walk->leftToken->tokenType != QUOTE ) {
+          if ( IsPrimitive( walk->leftToken ) ) {
+            underQuote = false;
+          } // if: reset underQuote if the token is a primitive
+        } // if: not quote
       } // if: has a right node, go right
       
       if ( walk->leftToken && hasError == false ) {
@@ -1180,14 +1182,14 @@ public:
           vector<TreeStruct *> argumentList;
           
           if ( IsPrimitive( walk->leftToken ) ) {
-            hasError = CheckArgument( walk, argumentList );
+            hasError = !CheckArgument( walk, argumentList );
             
-            if ( hasError ) {
+            if ( NOT hasError ) {
               hasError = CallCorrespondingFunction( walk, argumentList );
             } // if: arguments has no problem
             
             else {
-              return hasError;
+              return !hasError;
             } // else: arguments has error
           } // if: check the parameters
           
@@ -1198,8 +1200,8 @@ public:
                 
                 if ( IsPrimitive( walk->leftToken ) == false ) {
                   string errorMessage;
-                  errorMessage = "ERROR (attempt to apply non-funciton) : " + walk->leftToken->content;
-                  SetError( APPLY_NON_FUNCITON, errorMessage );
+                  errorMessage = "ERROR (attempt to apply non-function) : " + walk->leftToken->content;
+                  SetError( APPLY_NON_FUNCTION, errorMessage );
                   hasError = true;
                   return !hasError;
                 } // if: find pre-defined symbol, but not a function
@@ -1208,8 +1210,8 @@ public:
               else {
                 TreeStruct *errorNode = GetDefineBindings( walk->leftToken->content )->leftNode;
                 string errorMessage;
-                errorMessage = "ERROR (attempt to apply non-funciton) : " + errorNode->leftToken->content;
-                SetError( APPLY_NON_FUNCITON, errorMessage );
+                errorMessage = "ERROR (attempt to apply non-function) : " + errorNode->leftToken->content;
+                SetError( APPLY_NON_FUNCTION, errorMessage );
                 hasError = true;
                 return !hasError;
               } // else: the defined binding is a node
@@ -1223,8 +1225,8 @@ public:
           } // if: current token is a symbol
           
           else {
-            string errorMessage = "ERROR (attempt to apply non-funciton) : " + walk->leftToken->content;
-            SetError( APPLY_NON_FUNCITON, errorMessage );
+            string errorMessage = "ERROR (attempt to apply non-function) : " + walk->leftToken->content;
+            SetError( APPLY_NON_FUNCTION, errorMessage );
             hasError = true;
           } // else: left token but not function
         } // if: this node is created by left-paren and isn't under a quote
@@ -1383,20 +1385,31 @@ public:
     
     else if ( current->leftToken->primitiveType == DEFINE_BINDING ) {
       if ( current->rightNode ) {
-        if ( IsPrimitive( current->rightNode->leftToken ) ) {
-          string errorMessage = "ERROR (DEFINE format) : ";
-          SetError( DEFINE_FORMAT, errorMessage );
-          return false;
-        } // if: define primitive error
-        
-        argumentList.push_back( current->rightNode );
-        
-        if ( current->rightNode->rightNode ) {
-          if ( IsPrimitive( current->rightNode->rightNode->leftToken ) ) {
+        if ( current->rightNode->leftToken ) {
+          if ( current->rightNode->leftToken->tokenType != SYMBOL ||
+               IsPrimitive( current->rightNode->leftToken ) ) {
             string errorMessage = "ERROR (DEFINE format) : ";
             SetError( DEFINE_FORMAT, errorMessage );
             return false;
           } // if: define primitive error
+        } // if: the first argument is a token
+        
+        else {
+          string errorMessage = "ERROR (DEFINE format) : ";
+          SetError( DEFINE_FORMAT, errorMessage );
+          return false;
+        } // else: the first argument is a node
+        
+        argumentList.push_back( current->rightNode );
+        
+        if ( current->rightNode->rightNode ) {
+          if ( current->rightNode->rightNode->leftToken ) {
+            if ( IsPrimitive( current->rightNode->rightNode->leftToken ) ) {
+              string errorMessage = "ERROR (DEFINE format) : ";
+              SetError( DEFINE_FORMAT, errorMessage );
+              return false;
+            } // if: define primitive error
+          } // if: the second argument is a token
           
           argumentList.push_back( current->rightNode->rightNode );
           
@@ -1791,7 +1804,7 @@ public:
     
     else if ( function->primitiveType == QUOTE_BYPASSING ) {
       hasError = Quote( arguments, result );
-    } // else if: quote
+    } // else if: quote TODO: SHOULD I REWRITE THE WHOLE CODE TO ATTACH EACH RESULT?
     
     else if ( function->primitiveType == DEFINE_BINDING ) {
       hasError = Define( arguments, result );
@@ -1978,68 +1991,88 @@ public:
     } // if: token form, get leftToken
     
     else {
-      if ( CheckPreviousResultType( m_ResultList.back() ) == LEFT_PAREN ) {
+      if ( m_ResultList.back()->hasNodeResult ) {
         resultRoot->leftNode = m_ResultList.back()->nodeResult;
-        m_ResultList.pop_back();
       } // if: previous result is node
       
-      else if ( CheckPreviousResultType( m_ResultList.back() ) == INT ||
-                CheckPreviousResultType( m_ResultList.back() ) == FLOAT ||
-                CheckPreviousResultType( m_ResultList.back() ) == SYMBOL ) {
-        resultRoot->leftToken = m_ResultList.back()->tokenResult;
-        m_ResultList.pop_back();
-      } // else if: previous result is int
-      
       else {
-        string errorMessage = "ERROR (cons with incorrect argument type) : ";
-        errorMessage += m_ResultList.back()->tokenResult->content;
-        SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
-        return false;
-      } // else: wrong result type
-    } // else: get from previous result
-    
-    if ( m_ResultList.empty() ) {
-      if ( arguments[1]->leftToken ) {
-        if ( arguments[1]->leftToken->tokenType == SYMBOL ) {
-          if ( GetDefineBindings( arguments[1]->leftToken->content )->leftNode ) {
-            resultRoot->rightNode = GetDefineBindings( arguments[1]->leftToken->content )->leftNode;
-          } // if: return a node
+        if ( m_ResultList.back()->tokenResult->tokenType == SYMBOL ) {
+          string w_PreviousResultString = m_ResultList.back()->tokenResult->content;
+          
+          if ( FoundDefineBindings( m_ResultList.back()->tokenResult->content ) ) {
+            if ( GetDefineBindings( w_PreviousResultString )->leftNode ) {
+              resultRoot->leftNode = GetDefineBindings( w_PreviousResultString )->leftNode;
+            } // if: found pre-defined node
+            
+            else {
+              resultRoot->leftToken = GetDefineBindings( w_PreviousResultString )->leftToken;
+            } // else: found pre-defined token
+          } // if: previous result is a defined symbol
           
           else {
-            resultRoot->rightToken = GetDefineBindings( arguments[1]->leftToken->content )->leftToken;
-          } // else: return a token
-        } // if: defined bindings
+            string errorMessage = "ERROR (unbound symbol) : " + w_PreviousResultString;
+            SetError( DEFINE_UNBOUND, errorMessage );
+            return false;
+          } // else: previous symbol result is an undefined symbol
+        } // if: previous token is a symbol
         
         else {
-          resultRoot->rightToken = arguments[1]->leftToken;
-        } // else: not defined binding
-      } // if: token form
+          resultRoot->leftToken = m_ResultList.back()->tokenResult;
+        } // else: other types of token
+        
+        m_ResultList.pop_back();
+      } // else: previous result is a token
+    } // else: get from previous result
+    
+    if ( arguments[1]->leftToken ) {
+      if ( arguments[1]->leftToken->tokenType == SYMBOL ) {
+        if ( GetDefineBindings( arguments[1]->leftToken->content )->leftNode ) {
+          resultRoot->rightNode = GetDefineBindings( arguments[1]->leftToken->content )->leftNode;
+        } // if: return a node
+        
+        else {
+          resultRoot->rightToken = GetDefineBindings( arguments[1]->leftToken->content )->leftToken;
+        } // else: return a token
+      } // if: defined bindings
       
       else {
-        resultRoot->rightNode = arguments[1]->leftNode;
-      } // else: node form
-    } // if: no previous result
+        resultRoot->rightToken = arguments[1]->leftToken;
+      } // else: not defined binding
+    } // if: token form
     
     else {
-      if ( CheckPreviousResultType( m_ResultList.back() ) == LEFT_PAREN ) {
+      if ( m_ResultList.back()->hasNodeResult ) {
         resultRoot->rightNode = m_ResultList.back()->nodeResult;
-        m_ResultList.pop_back();
       } // if: previous result is node
       
-      else if ( CheckPreviousResultType( m_ResultList.back() ) == INT ||
-                CheckPreviousResultType( m_ResultList.back() ) == FLOAT ||
-                CheckPreviousResultType( m_ResultList.back() ) == SYMBOL ) {
-        resultRoot->rightToken = m_ResultList.back()->tokenResult;
-        m_ResultList.pop_back();
-      } // else if: previous result is int
-      
       else {
-        string errorMessage = "ERROR (cons with incorrect argument type) : ";
-        errorMessage += m_ResultList.back()->tokenResult->content;
-        SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
-        return false;
-      } // else: wrong result type
-    } // else: has previous result
+        if ( m_ResultList.back()->tokenResult->tokenType == SYMBOL ) {
+          string w_PreviousResultString = m_ResultList.back()->tokenResult->content;
+          
+          if ( FoundDefineBindings( m_ResultList.back()->tokenResult->content ) ) {
+            if ( GetDefineBindings( w_PreviousResultString )->leftNode ) {
+              resultRoot->rightNode = GetDefineBindings( w_PreviousResultString )->leftNode;
+            } // if: found pre-defined node
+            
+            else {
+              resultRoot->rightToken = GetDefineBindings( w_PreviousResultString )->leftToken;
+            } // else: found pre-defined token
+          } // if: previous result is a defined symbol
+          
+          else {
+            string errorMessage = "ERROR (unbound symbol) : " + w_PreviousResultString;
+            SetError( DEFINE_UNBOUND, errorMessage );
+            return false;
+          } // else: previous symbol result is an undefined symbol
+        } // if: previous token is a symbol
+        
+        else {
+          resultRoot->rightToken = m_ResultList.back()->tokenResult;
+        } // else: other types of token
+        
+        m_ResultList.pop_back();
+      } // else: previous result is a token
+    } // else: get from previous result
     
     result->hasNodeResult = true;
     result->nodeResult = resultRoot;
@@ -2077,24 +2110,35 @@ public:
       } // if: leftToken exist
       
       else {
-        if ( CheckPreviousResultType( m_ResultList.back() ) == LEFT_PAREN ) {
-          resultRoot->leftNode = m_ResultList.back()->nodeResult;
-          m_ResultList.pop_back();
+        if ( m_ResultList.back()->hasNodeResult ) {
+          resultWalk->leftNode = m_ResultList.back()->nodeResult;
         } // if: previous result is node
         
-        else if ( CheckPreviousResultType( m_ResultList.back() ) == INT ||
-                  CheckPreviousResultType( m_ResultList.back() ) == FLOAT ||
-                  CheckPreviousResultType( m_ResultList.back() ) == SYMBOL ) {
-          resultRoot->leftToken = m_ResultList.back()->tokenResult;
-          m_ResultList.pop_back();
-        } // else if: previous result is int
+        else if ( m_ResultList.back()->tokenResult->tokenType == SYMBOL ) {
+          string w_PreviousResultString = m_ResultList.back()->tokenResult->content;
+          
+          if ( FoundDefineBindings( w_PreviousResultString ) ) {
+            if ( GetDefineBindings( w_PreviousResultString )->leftNode ) {
+              resultWalk->leftNode = GetDefineBindings( w_PreviousResultString )->leftNode;
+            } // if: previous result found binding is a node
+            
+            else {
+              resultWalk->leftToken = GetDefineBindings( w_PreviousResultString )->leftToken;
+            } // else: previous result found binding is a token
+          } // if: previous result found a binding
+          
+          else {
+            string errorMessage = "ERROR (unbound symbol) : " + w_PreviousResultString;
+            SetError( DEFINE_UNBOUND, errorMessage );
+            return false;
+          } // else: previous symbol result found no bindings
+        } // else if: previous result is a symbol
         
         else {
-          string errorMessage = "ERROR (cons with incorrect argument type) : ";
-          errorMessage += m_ResultList.back()->tokenResult->content;
-          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
-          return false;
-        } // else: wrong result type
+          resultWalk->leftToken = m_ResultList.back()->tokenResult;
+        } // else: previous result is int
+        
+        m_ResultList.pop_back();
       } // else: get previous result
     } // if: only one data
     
@@ -2117,24 +2161,35 @@ public:
         } // if: leftToken exist
         
         else {
-          if ( CheckPreviousResultType( m_ResultList.back() ) == LEFT_PAREN ) {
+          if ( m_ResultList.back()->hasNodeResult ) {
             resultWalk->leftNode = m_ResultList.back()->nodeResult;
-            m_ResultList.pop_back();
           } // if: previous result is node
           
-          else if ( CheckPreviousResultType( m_ResultList.back() ) == INT ||
-                    CheckPreviousResultType( m_ResultList.back() ) == FLOAT ||
-                    CheckPreviousResultType( m_ResultList.back() ) == SYMBOL ) {
-            resultWalk->leftToken = m_ResultList.back()->tokenResult;
-            m_ResultList.pop_back();
-          } // else if: previous result is int
+          else if ( m_ResultList.back()->tokenResult->tokenType == SYMBOL ) {
+            string w_PreviousResultString = m_ResultList.back()->tokenResult->content;
+            
+            if ( FoundDefineBindings( w_PreviousResultString ) ) {
+              if ( GetDefineBindings( w_PreviousResultString )->leftNode ) {
+                resultWalk->leftNode = GetDefineBindings( w_PreviousResultString )->leftNode;
+              } // if: previous result found binding is a node
+              
+              else {
+                resultWalk->leftToken = GetDefineBindings( w_PreviousResultString )->leftToken;
+              } // else: previous result found binding is a token
+            } // if: previous result found a binding
+            
+            else {
+              string errorMessage = "ERROR (unbound symbol) : " + w_PreviousResultString;
+              SetError( DEFINE_UNBOUND, errorMessage );
+              return false;
+            } // else: previous symbol result found no bindings
+          } // else if: previous result is a symbol
           
           else {
-            string errorMessage = "ERROR (cons with incorrect argument type) : ";
-            errorMessage += m_ResultList.back()->tokenResult->content;
-            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
-            return false;
-          } // else: wrong result type
+            resultWalk->leftToken = m_ResultList.back()->tokenResult;
+          } // else: previous result is int
+          
+          m_ResultList.pop_back();
         } // else: get previous result
         
         listWalk = listWalk->rightNode;
@@ -2165,24 +2220,36 @@ public:
           } // if: leftToken exist
           
           else {
-            if ( CheckPreviousResultType( m_ResultList.back() ) == LEFT_PAREN ) {
+            if ( m_ResultList.back()->hasNodeResult ) {
               resultWalk->leftNode = m_ResultList.back()->nodeResult;
-              m_ResultList.pop_back();
             } // if: previous result is node
             
-            else if ( CheckPreviousResultType( m_ResultList.back() ) == INT ||
-                      CheckPreviousResultType( m_ResultList.back() ) == FLOAT ||
-                      CheckPreviousResultType( m_ResultList.back() ) == SYMBOL ) {
-              resultWalk->leftToken = m_ResultList.back()->tokenResult;
-              m_ResultList.pop_back();
-            } // else if: previous result is int
+            else if ( m_ResultList.back()->tokenResult->tokenType == SYMBOL ) {
+              string w_PreviousResultString = m_ResultList.back()->tokenResult->content;
+              
+              if ( FoundDefineBindings( w_PreviousResultString ) ) {
+                if ( GetDefineBindings( w_PreviousResultString )->leftNode ) {
+                  resultWalk->leftNode = GetDefineBindings( w_PreviousResultString )->leftNode;
+                } // if: previous result found binding is a node
+                
+                else {
+                  resultWalk->leftToken = GetDefineBindings( w_PreviousResultString )->leftToken;
+                } // else: previous result found binding is a token
+              } // if: previous result found a binding
+              
+              else {
+                string errorMessage = "ERROR (unbound symbol) : " + w_PreviousResultString;
+                SetError( DEFINE_UNBOUND, errorMessage );
+                return false;
+              } // else: previous symbol result found no bindings
+              
+            } // else if: previous result is a symbol
             
             else {
-              string errorMessage = "ERROR (cons with incorrect argument type) : ";
-              errorMessage += m_ResultList.back()->tokenResult->content;
-              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
-              return false;
-            } // else: wrong result type
+              resultWalk->leftToken = m_ResultList.back()->tokenResult;
+            } // else: previous result is int
+            
+            m_ResultList.pop_back();
           } // else: get previous result
         } // if: last node
       } // while: go through all the nodes on the right side
@@ -2198,31 +2265,40 @@ public:
     if ( arguments.front()->leftNode ) {
       if ( arguments.front()->leftNode->leftToken ) {
         if ( IsPrimitive( arguments.front()->leftNode->leftToken ) ) {
-          result->nodeResult = m_ResultList.back()->nodeResult;
+          if ( m_ResultList.back()->hasNodeResult ) {
+            result->hasNodeResult = true;
+            result->nodeResult = m_ResultList.back()->nodeResult;
+          } // if: previous result is a node
+          
+          else {
+            result->hasTokenResult = true;
+            result->tokenResult = m_ResultList.back()->tokenResult;
+          } // else: previous result is a token
+          
+          m_ResultList.pop_back();
         } // if: function quote
         
         else {
+          result->hasNodeResult = true;
           result->nodeResult = arguments.front()->leftNode;
         } // else: not function node
       } // if: has a leftToken to check
       
       else {
+        result->hasNodeResult = true;
         result->nodeResult = arguments.front()->leftNode;
       } // else: normal quote
       
-      result->hasNodeResult = true;
       m_ResultList.push_back( result );
       return true;
     } // if: has leftNode
     
     else {
       result->hasTokenResult = true;
-      result->tokenResult = arguments.back()->leftToken;
+      result->tokenResult = arguments.front()->leftToken;
       m_ResultList.push_back( result );
       return true;
     } // else: single quote case
-    
-    return true;
   } // Quote()
   
   bool Define( vector<TreeStruct *> arguments, ResultStruct *result ) {
@@ -2263,45 +2339,96 @@ public:
   
   bool Car( vector<TreeStruct *> arguments, ResultStruct *result ) {
     if ( arguments.front()->leftToken ) {
-      if ( GetDefineBindings( arguments.front()->leftToken->content )->leftNode ) {
-        if ( GetDefineBindings( arguments.front()->leftToken->content )->leftNode->leftNode ) {
-          result->hasNodeResult = true;
-          TreeStruct *w_TreeStruct = new TreeStruct;
-          w_TreeStruct = GetDefineBindings( arguments.front()->leftToken->content )->leftNode->leftNode;
-          result->nodeResult = w_TreeStruct;
-        } // if: defined has leftNode
+      if ( arguments.front()->leftToken->tokenType == SYMBOL ) {
+        string w_String = arguments.front()->leftToken->content;
+        
+        if ( GetDefineBindings( w_String )->leftNode ) {
+          if ( GetDefineBindings( w_String )->leftNode->leftNode ) {
+            result->hasNodeResult = true;
+            result->nodeResult = GetDefineBindings( w_String )->leftNode->leftNode;
+          } // if: defined has leftNode
+          
+          else if ( GetDefineBindings( w_String )->leftNode->leftToken ) {
+            result->hasTokenResult = true;
+            result->tokenResult = GetDefineBindings( w_String )->leftNode->leftToken;
+          } // else: defined has leftToken
+          
+          else {
+            result->hasTokenResult = true;
+            result->tokenResult->tokenType = NIL;
+          } // else: has nothing at the left
+        } // if: defined is a node
         
         else {
-          string w_String = arguments.front()->leftToken->content;
-          result->hasTokenResult = true;
-          result->tokenResult = GetDefineBindings( w_String )->leftNode->leftToken;
-        } // else: defined has leftToken
-      } // if: defined is a node
+          string errorString = "ERROR (car with incorrect argument type) : ";
+          errorString += GetDefineBindings( arguments.front()->leftToken->content )->leftToken->content;
+          SetError( INCORRECT_ARGUMENT_TYPE, errorString );
+          return false;
+        } // else if: defined is a value
+      } // if: token type is a symbol
       
-      else if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken ) {
+      else {
         string errorString = "ERROR (car with incorrect argument type) : ";
-        errorString += GetDefineBindings( arguments.front()->leftToken->content )->leftToken->content;
+        errorString += arguments.front()->leftToken->content;
         SetError( INCORRECT_ARGUMENT_TYPE, errorString );
         return false;
-      } // else if: defined is a value
-      
-      else {
-        string errorString = "ERROR (non-list) : ";
-        SetError( NON_LIST, errorString );
-        return false;
-      } // else: defined has no leftNode to do car
-    } // if: the argument is a symbol, which means a bounded define binding
+      } // else: token type isn't a symbol
+    } // if: the argument is a token
     
     else {
-      if ( m_ResultList.back()->nodeResult->leftNode ) {
-        result->hasNodeResult = true;
-        result->nodeResult = m_ResultList.back()->nodeResult->leftNode;
-      } // if: previous result has a leftNode
+      if ( m_ResultList.back()->hasNodeResult ) {
+        if ( m_ResultList.back()->nodeResult->leftNode ) {
+          result->hasNodeResult = true;
+          result->nodeResult = m_ResultList.back()->nodeResult->leftNode;
+        } // if: previous result has a leftNode
+        
+        else if ( m_ResultList.back()->nodeResult->leftToken ) {
+          result->hasTokenResult = true;
+          result->tokenResult = m_ResultList.back()->nodeResult->leftToken;
+        } // else: previous result only has a leftToken
+        
+        else {
+          result->hasTokenResult = true;
+          result->tokenResult->tokenType = NIL;
+        } // else: has nothing on the left
+      } // if: previous result is a node
       
       else {
-        result->hasTokenResult = true;
-        result->tokenResult = m_ResultList.back()->nodeResult->leftToken;
-      } // else: previous result only has a leftToken
+        if ( m_ResultList.back()->tokenResult->tokenType == SYMBOL ) {
+          string w_String = m_ResultList.back()->tokenResult->content;
+          
+          if ( GetDefineBindings( w_String )->leftNode ) {
+            if ( GetDefineBindings( w_String )->leftNode->leftNode ) {
+              result->hasNodeResult = true;
+              result->nodeResult = GetDefineBindings( w_String )->leftNode->leftNode;
+            } // if: defined has leftNode
+            
+            else if ( GetDefineBindings( w_String )->leftNode->leftToken ) {
+              result->hasTokenResult = true;
+              result->tokenResult = GetDefineBindings( w_String )->leftNode->leftToken;
+            } // else: defined has leftToken
+            
+            else {
+              result->hasTokenResult = true;
+              result->tokenResult->tokenType = NIL;
+            } // else: has nothing on the left
+          } // if: defined is a node
+          
+          else {
+            string errorString = "ERROR (car with incorrect argument type) : ";
+            errorString += GetDefineBindings( w_String )->leftToken->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorString );
+            return false;
+          } // else if: defined is a token
+        } // if: token type is a symbol
+        
+        else {
+          string errorString = "ERROR (car with incorrect argument type) : ";
+          errorString += m_ResultList.back()->tokenResult->content;
+          SetError( INCORRECT_ARGUMENT_TYPE, errorString );
+          return false;
+        } // else: token type isn't a symbol
+      } // else: previous result is a token
       
       m_ResultList.pop_back();
     } // else: the argument is a node(function), get the previous result's leftnode and pop
@@ -2312,47 +2439,99 @@ public:
   
   bool Cdr( vector<TreeStruct *> arguments, ResultStruct *result ) {
     if ( arguments.front()->leftToken ) {
-      if ( GetDefineBindings( arguments.front()->leftToken->content )->leftNode ) {
+      if ( arguments.front()->leftToken->tokenType == SYMBOL ) {
         string w_String = arguments.front()->leftToken->content;
         
-        if ( GetDefineBindings( w_String )->leftNode->rightNode ) {
+        if ( GetDefineBindings( w_String )->leftNode ) {
+          if ( GetDefineBindings( w_String )->leftNode->rightNode ) {
+            result->hasNodeResult = true;
+            result->nodeResult = GetDefineBindings( w_String )->leftNode->rightNode;
+          } // if: defined has leftNode
+          
+          else if ( GetDefineBindings( w_String )->leftNode->rightToken ) {
+            result->hasTokenResult = true;
+            result->tokenResult = GetDefineBindings( w_String )->leftNode->rightToken;
+          } // else: defined has leftToken
+          
+          else {
+            result->hasTokenResult = true;
+            result->tokenResult->tokenType = NIL;
+          } // else: has nothing at the left
+        } // if: defined is a node
+        
+        else {
+          string errorString = "ERROR (car with incorrect argument type) : ";
+          errorString += GetDefineBindings( arguments.front()->leftToken->content )->leftToken->content;
+          SetError( INCORRECT_ARGUMENT_TYPE, errorString );
+          return false;
+        } // else if: defined is a value
+      } // if: token type is a symbol
+      
+      else {
+        string errorString = "ERROR (car with incorrect argument type) : ";
+        errorString += arguments.front()->leftToken->content;
+        SetError( INCORRECT_ARGUMENT_TYPE, errorString );
+        return false;
+      } // else: token type isn't a symbol
+    } // if: the argument is a token
+    
+    else {
+      if ( m_ResultList.back()->hasNodeResult ) {
+        if ( m_ResultList.back()->nodeResult->rightNode ) {
           result->hasNodeResult = true;
-          result->nodeResult = GetDefineBindings( w_String )->leftNode->rightNode;
-        } // if: defined has rightNode
+          result->nodeResult = m_ResultList.back()->nodeResult->rightNode;
+        } // if: previous result has a leftNode
+        
+        else if ( m_ResultList.back()->nodeResult->rightToken ) {
+          result->hasTokenResult = true;
+          result->tokenResult = m_ResultList.back()->nodeResult->rightToken;
+        } // else: previous result only has a leftToken
         
         else {
           result->hasTokenResult = true;
-          result->tokenResult = GetDefineBindings( w_String )->leftNode->rightToken;
-        } // else: defined has rightToken
-      } // if: defined is a node
-      
-      else if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken ) {
-        string errorString = "ERROR (cdr with incorrect argument type) : ";
-        errorString += GetDefineBindings( arguments.front()->leftToken->content )->leftToken->content;
-        SetError( INCORRECT_ARGUMENT_TYPE, errorString );
-        return false;
-      } // else if: defined is a value
+          result->tokenResult->tokenType = NIL;
+        } // else: has nothing on the left
+      } // if: previous result is a node
       
       else {
-        string errorString = "ERROR (non-list) : ";
-        SetError( NON_LIST, errorString );
-        return false;
-      } // else: defined has no rightNode to cdr
-    } // if: the argument is a symbol, which means a bounded define binding
-    
-    else {
-      if ( m_ResultList.back()->nodeResult->rightNode ) {
-        result->hasNodeResult = true;
-        result->nodeResult = m_ResultList.back()->nodeResult->rightNode;
-      } // if: previous result has a rightNode
-      
-      else {
-        result->hasTokenResult = true;
-        result->tokenResult = m_ResultList.back()->nodeResult->rightToken;
-      } // else: previous result only has a rightToken
+        if ( m_ResultList.back()->tokenResult->tokenType == SYMBOL ) {
+          string w_String = m_ResultList.back()->tokenResult->content;
+          
+          if ( GetDefineBindings( w_String )->leftNode ) {
+            if ( GetDefineBindings( w_String )->leftNode->rightNode ) {
+              result->hasNodeResult = true;
+              result->nodeResult = GetDefineBindings( w_String )->leftNode->rightNode;
+            } // if: defined has leftNode
+            
+            else if ( GetDefineBindings( w_String )->leftNode->rightToken ) {
+              result->hasTokenResult = true;
+              result->tokenResult = GetDefineBindings( w_String )->leftNode->rightToken;
+            } // else: defined has leftToken
+            
+            else {
+              result->hasTokenResult = true;
+              result->tokenResult->tokenType = NIL;
+            } // else: has nothing on the left
+          } // if: defined is a node
+          
+          else {
+            string errorString = "ERROR (cdr with incorrect argument type) : ";
+            errorString += GetDefineBindings( w_String )->leftToken->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorString );
+            return false;
+          } // else if: defined is a token
+        } // if: token type is a symbol
+        
+        else {
+          string errorString = "ERROR (cdr with incorrect argument type) : ";
+          errorString += m_ResultList.back()->tokenResult->content;
+          SetError( INCORRECT_ARGUMENT_TYPE, errorString );
+          return false;
+        } // else: token type isn't a symbol
+      } // else: previous result is a token
       
       m_ResultList.pop_back();
-    } // else: the argument is a node(function), get the previous result and pop
+    } // else: the argument is a node(function), get the previous result's leftnode and pop
     
     m_ResultList.push_back( result );
     return true;
@@ -2830,7 +3009,8 @@ public:
       if ( arguments.front()->leftToken->tokenType == SYMBOL ) {
         if ( FoundDefineBindings( arguments.front()->leftToken->content ) ) {
           if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken ) {
-            if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken->tokenType == SYMBOL ) {
+            if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken->tokenType ==
+                 SYMBOL ) {
               result->tokenResult->tokenType = T;
             } // if: the defined tokenType is symbol
             
@@ -2944,13 +3124,15 @@ public:
     static bool hasLineReturn = false;
     
     if ( isRightNode == false ) {
-      if ( hasLineReturn ) {
-        cout << string( layer*2, ' ' );
-      } // if: has lineReturn
-      
-      cout << "( ";
-      hasLineReturn = false;
-      layer++;
+      if ( currentRoot->leftToken->content != "quote" ) {
+        if ( hasLineReturn ) {
+          cout << string( layer*2, ' ' );
+        } // if: has lineReturn
+        
+        cout << "( ";
+        hasLineReturn = false;
+        layer++;
+      } // if: not unclear quote
     } // if: currentNode is the leftNode of the previousNode
     
     if ( currentRoot->leftNode ) {
@@ -2958,7 +3140,7 @@ public:
       PrintTree( currentRoot->leftNode, layer, isRightNode );
     } // if: has leftNode
     
-    if ( currentRoot->leftToken ) {
+    if ( currentRoot->leftToken && currentRoot->leftToken->content != "quote" ) {
       if ( hasLineReturn ) {
         cout << string( layer*2, ' ' );
       } // if: has line return
