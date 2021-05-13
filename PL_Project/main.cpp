@@ -1804,7 +1804,7 @@ public:
     
     else if ( function->primitiveType == QUOTE_BYPASSING ) {
       hasError = Quote( arguments, result );
-    } // else if: quote TODO: SHOULD I REWRITE THE WHOLE CODE TO ATTACH EACH RESULT?
+    } // else if: quote
     
     else if ( function->primitiveType == DEFINE_BINDING ) {
       hasError = Define( arguments, result );
@@ -1964,7 +1964,6 @@ public:
   ----------------- Definition ---------------
   */
   
-  // TODO: Recheck every written function, each condition, each assignment.
   bool Cons( vector<TreeStruct *> arguments, ResultStruct *result ) {
     TreeStruct *resultRoot = new TreeStruct;
     // initialization
@@ -2539,46 +2538,44 @@ public:
   
   bool IsAtom( vector<TreeStruct *> arguments, ResultStruct *result ) {
     result->hasTokenResult = true;
+    TokenStruct *trueToken = new TokenStruct;
+    trueToken->tokenType = T;
+    trueToken->content = "#t";
+    TokenStruct *falseToken = new TokenStruct;
+    falseToken->tokenType = NIL;
+    falseToken->content = "nil";
     
     if ( arguments.front()->leftToken ) {
       if ( arguments.front()->leftToken->tokenType == SYMBOL ) {
         if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken ) {
-          arguments.push_back( GetDefineBindings( arguments.front()->leftToken->content ) );
-          arguments.erase( arguments.begin() );
+          result->tokenResult = trueToken;
         } // if: is a token form
         
         else {
-          result->tokenResult->tokenType = NIL;
-          m_ResultList.push_back( result );
-          return true;
+          result->tokenResult = falseToken;
         } // else: is a node form, which won't be an atom
       } // if: is symbol, find if there's any defined bindings
       
-      if ( arguments.front()->leftToken->tokenType == SYMBOL ||
-           arguments.front()->leftToken->tokenType == INT ||
-           arguments.front()->leftToken->tokenType == FLOAT ||
-           arguments.front()->leftToken->tokenType == STRING ||
-           arguments.front()->leftToken->tokenType == NIL ||
-           arguments.front()->leftToken->tokenType == T ) {
-        result->tokenResult->tokenType = T;
-      } // if: check if the argument's leftToken is a atom or not
+      else if ( arguments.front()->leftToken->tokenType == INT ||
+                arguments.front()->leftToken->tokenType == FLOAT ||
+                arguments.front()->leftToken->tokenType == STRING ||
+                arguments.front()->leftToken->tokenType == NIL ||
+                arguments.front()->leftToken->tokenType == T ) {
+        result->tokenResult = trueToken;
+      } // else if: check if the argument's leftToken is a atom or not
       
       else {
-        result->tokenResult->tokenType = NIL;
-        m_ResultList.push_back( result );
-        return true;
+        result->tokenResult = falseToken;
       } // else: not atom
     } // if: argument is in a token form
     
     else {
       if ( m_ResultList.back()->hasNodeResult ) {
-        result->tokenResult->tokenType = NIL;
-        m_ResultList.push_back( result );
-        return true;
+        result->tokenResult = falseToken;
       } // if: is a node form, which won't be an atom
       
       else {
-        result->tokenResult->tokenType = T;
+        result->tokenResult = trueToken;
       } // else: is a atom
       
       m_ResultList.pop_back();
@@ -2590,37 +2587,39 @@ public:
   
   bool IsPair( vector<TreeStruct *> arguments, ResultStruct *result ) {
     result->hasTokenResult = true;
+    TokenStruct *trueToken = new TokenStruct;
+    trueToken->tokenType = T;
+    trueToken->content = "#t";
+    TokenStruct *falseToken = new TokenStruct;
+    falseToken->tokenType = NIL;
+    falseToken->content = "nil";
     
     if ( arguments.front()->leftToken ) {
       if ( arguments.front()->leftToken->tokenType == SYMBOL ) {
         if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken ) {
-          result->tokenResult->tokenType = NIL;
-          m_ResultList.push_back( result );
-          return true;
+          result->tokenResult = falseToken;
         } // if: the defined binding is only a token, then it won't be a pair
         
         else {
-          result->tokenResult->tokenType = T;
+          result->tokenResult = trueToken;
         } // else: the pre-defined binding is a node, then it is a pair
       } // if: argument's leftToken is a symbol
       
       else {
-        result->tokenResult->tokenType = NIL;
-        m_ResultList.push_back( result );
-        return true;
+        result->tokenResult = falseToken;
       } // else: other types of token won't be a pair
     } // if: argument is a token
     
     else {
       if ( m_ResultList.back()->hasNodeResult ) {
-        result->tokenResult->tokenType = T;
+        result->tokenResult = trueToken;
       } // if: previous result is a node
       
       else {
-        result->tokenResult->tokenType = NIL;
-        m_ResultList.push_back( result );
-        return true;
+        result->tokenResult = falseToken;
       } // else: previous result ain't a node
+      
+      m_ResultList.pop_back();
     } // else: argument is a node(function)
     
     m_ResultList.push_back( result );
@@ -2629,6 +2628,12 @@ public:
   
   bool IsList( vector<TreeStruct *> arguments, ResultStruct *result ) {
     result->hasTokenResult = true;
+    TokenStruct *trueToken = new TokenStruct;
+    trueToken->tokenType = T;
+    trueToken->content = "#t";
+    TokenStruct *falseToken = new TokenStruct;
+    falseToken->tokenType = NIL;
+    falseToken->content = "nil";
     
     if ( arguments.front()->leftToken ) {
       if ( arguments.front()->leftToken->tokenType == SYMBOL ) {
@@ -2636,70 +2641,50 @@ public:
           TreeStruct *defineWalk = GetDefineBindings( arguments.front()->leftToken->content )->leftNode;
           
           while ( defineWalk->rightNode ) {
-            if ( defineWalk->rightToken ) {
-              result->tokenResult->tokenType = NIL;
-              m_ResultList.push_back( result );
-              return true;
-            } // if: there's a rightToken, not list
-            
             defineWalk = defineWalk->rightNode;
-            
-            if ( defineWalk->rightNode == NULL && defineWalk->leftToken ) {
-              if ( defineWalk->rightToken ) {
-                result->tokenResult->tokenType = NIL;
-                m_ResultList.push_back( result );
-                return true;
-              } // if: there's a rightToken, not list
-            } // if: last node
           } // while: go through the previous node
           
-          result->tokenResult->tokenType = T;
+          if ( defineWalk->rightToken ) {
+            result->tokenResult = falseToken;
+          } // if: the rightmost node has a rightToken
+          
+          else {
+            result->tokenResult = trueToken;
+          } // else: the rightmost node has no rightToken
         } // if: defined binding is a node, check if is a list
         
         else {
-          result->tokenResult->tokenType = NIL;
-          m_ResultList.push_back( result );
-          return true;
+          result->tokenResult = falseToken;
         } // else: defined binding is a token, which won't be a list
       } // if: the argument is a symbol token
       
       else {
-        result->tokenResult->tokenType = NIL;
-        m_ResultList.push_back( result );
-        return true;
+        result->tokenResult = falseToken;
       } // else: the argument token is not a symbo, which won't be a list
     } // if: the argument has a leftToken
     
     else {
       if ( m_ResultList.back()->hasNodeResult == false ) {
-        result->tokenResult->tokenType = NIL;
-        m_ResultList.push_back( result );
-        return true;
+        result->tokenResult = falseToken;
       } // if: no previous node, which won't be a list
       
       else {
         TreeStruct *previousResultWalk = m_ResultList.back()->nodeResult;
         
         while ( previousResultWalk->rightNode ) {
-          if ( previousResultWalk->rightToken ) {
-            result->tokenResult->tokenType = NIL;
-            m_ResultList.push_back( result );
-            return true;
-          } // if: there's a rightToken, not list
-          
           previousResultWalk = previousResultWalk->rightNode;
-          
-          if ( previousResultWalk->rightNode == NULL && previousResultWalk->leftToken ) {
-            if ( previousResultWalk->rightToken ) {
-              result->tokenResult->tokenType = NIL;
-              m_ResultList.push_back( result );
-              return true;
-            } // if: there's a rightToken, not list
-          } // if: last node
         } // while: go through the previous node
         
-        result->tokenResult->tokenType = T;
+        if ( previousResultWalk->rightToken ) {
+          result->tokenResult = falseToken;
+        } // if: the rightmost node has a rightToken
+        
+        else {
+          result->tokenResult = trueToken;
+        } // else: the rightmost node has no rightToken
       } // else: has a previous node
+      
+      m_ResultList.pop_back();
     } // else: the argument has a leftNode(function)
     
     m_ResultList.push_back( result );
@@ -2708,67 +2693,55 @@ public:
   
   bool IsNull( vector<TreeStruct *> arguments, ResultStruct *result ) {
     result->hasTokenResult = true;
+    TokenStruct *trueToken = new TokenStruct;
+    trueToken->tokenType = T;
+    trueToken->content = "#t";
+    TokenStruct *falseToken = new TokenStruct;
+    falseToken->tokenType = NIL;
+    falseToken->content = "nil";
     
     if ( arguments.front()->leftToken ) {
       if ( arguments.front()->leftToken->tokenType == SYMBOL ) {
         if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken ) {
           if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken->tokenType == NIL ) {
-            result->tokenResult->tokenType = T;
+            result->tokenResult = trueToken;
           } // if: the defined tokenType is nil
           
           else {
-            result->tokenResult->tokenType = NIL;
-            m_ResultList.push_back( result );
-            return true;
+            result->tokenResult = trueToken;
           } // else: the defined tokenType is not nil
         } // if: defined-binding is token
         
         else {
-          result->tokenResult->tokenType = NIL;
-          m_ResultList.push_back( result );
-          return true;
+          result->tokenResult = falseToken;
         } // else: defined-binding is node
       } // if: argument is a symbol
       
       else if ( arguments.front()->leftToken->tokenType == NIL ) {
-        result->tokenResult->tokenType = T;
+        result->tokenResult = trueToken;
       } // else if: argument is a nil
       
       else {
-        result->tokenResult->tokenType = NIL;
-        m_ResultList.push_back( result );
-        return true;
+        result->tokenResult = falseToken;
       } // else: not nil or symbol, won't be nil
     } // if: argument is a token
     
     else {
-      if ( m_ResultList.back()->tokenResult->tokenType == NIL ) {
-        result->tokenResult->tokenType = T;
-      } // else if: previous token is null
+      if ( m_ResultList.back()->hasNodeResult ) {
+        result->tokenResult = falseToken;
+      } // if: previous result is a node value
       
-      else if ( m_ResultList.back()->tokenResult->tokenType == T ) {
-        result->tokenResult->tokenType = NIL;
-        m_ResultList.push_back( result );
-        return true;
-      } // if: previous token is true
-      
-      else if ( m_ResultList.back()->hasNodeResult ) {
-        if ( m_ResultList.back()->nodeResult == NULL ) {
-          result->tokenResult->tokenType = T;
-        } // if: previous node is null
+      else if ( m_ResultList.back()->hasTokenResult ) {
+        if ( m_ResultList.back()->tokenResult->tokenType == NIL ) {
+          result->tokenResult = trueToken;
+        } // else if: previous token is null
         
         else {
-          result->tokenResult->tokenType = NIL;
-          m_ResultList.push_back( result );
-          return true;
-        } // else: previous node is not null
-      } // else if: previous result is a node value
+          result->tokenResult = falseToken;
+        } // else: not nil
+      } // else if: previous result is a token value
       
-      else {
-        result->tokenResult->tokenType = NIL;
-        m_ResultList.push_back( result );
-        return true;
-      } // else: not nil
+      m_ResultList.pop_back();
     } // else: a node
     
     m_ResultList.push_back( result );
@@ -2777,49 +2750,55 @@ public:
   
   bool IsInteger( vector<TreeStruct *> arguments, ResultStruct *result ) {
     result->hasTokenResult = true;
+    TokenStruct *trueToken = new TokenStruct;
+    trueToken->tokenType = T;
+    trueToken->content = "#t";
+    TokenStruct *falseToken = new TokenStruct;
+    falseToken->tokenType = NIL;
+    falseToken->content = "nil";
     
     if ( arguments.front()->leftToken ) {
       if ( arguments.front()->leftToken->tokenType == SYMBOL ) {
         if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken ) {
           if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken->tokenType == INT ) {
-            result->tokenResult->tokenType = T;
+            result->tokenResult = trueToken;
           } // if: the defined tokenType is int
           
           else {
-            result->tokenResult->tokenType = NIL;
-            m_ResultList.push_back( result );
-            return true;
+            result->tokenResult = falseToken;
           } // else: the defined tokenType is not int
         } // if: defined-binding is token
         
         else {
-          result->tokenResult->tokenType = NIL;
-          m_ResultList.push_back( result );
-          return true;
+          result->tokenResult = falseToken;
         } // else: defined-binding is node
       } // if: argument is a symbol
       
       else if ( arguments.front()->leftToken->tokenType == INT ) {
-        result->tokenResult->tokenType = T;
+        result->tokenResult = trueToken;
       } // else if: argument is a int
       
       else {
-        result->tokenResult->tokenType = NIL;
-        m_ResultList.push_back( result );
-        return true;
+        result->tokenResult = falseToken;
       } // else: not int or symbol, won't be int
     } // if: argument is a token
     
     else {
-      if ( m_ResultList.back()->tokenResult->tokenType == INT ) {
-        result->tokenResult->tokenType = T;
-      } // if: previous result is a integer value
+      if ( m_ResultList.back()->hasNodeResult ) {
+        result->tokenResult = falseToken;
+      } // if: previous result is a node, won't be an integer
       
-      else {
-        result->tokenResult->tokenType = NIL;
-        m_ResultList.push_back( result );
-        return true;
-      } // else: not int
+      else if ( m_ResultList.back()->hasTokenResult ) {
+        if ( m_ResultList.back()->tokenResult->tokenType == INT ) {
+          result->tokenResult = trueToken;
+        } // if: previous token result is an int
+        
+        else {
+          result->tokenResult = falseToken;
+        } // else: not int
+      } // else if: previous result is a token
+      
+      m_ResultList.pop_back();
     } // else: a node
     
     m_ResultList.push_back( result );
@@ -2828,54 +2807,52 @@ public:
   
   bool IsRealOrNumber( vector<TreeStruct *> arguments, ResultStruct *result ) {
     result->hasTokenResult = true;
+    TokenStruct *trueToken = new TokenStruct;
+    trueToken->tokenType = T;
+    trueToken->content = "#t";
+    TokenStruct *falseToken = new TokenStruct;
+    falseToken->tokenType = NIL;
+    falseToken->content = "nil";
     
     if ( arguments.front()->leftToken ) {
       if ( arguments.front()->leftToken->tokenType == SYMBOL ) {
         if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken ) {
           if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken->tokenType == INT ||
                GetDefineBindings( arguments.front()->leftToken->content )->leftToken->tokenType == FLOAT ) {
-            result->tokenResult->tokenType = T;
+            result->tokenResult = trueToken;
           } // if: the defined tokenType is int or float
           
           else {
-            result->tokenResult->tokenType = NIL;
-            m_ResultList.push_back( result );
-            return true;
+            result->tokenResult = falseToken;
           } // else: the defined tokenType is not int or float
         } // if: defined-binding is token
         
         else {
-          result->tokenResult->tokenType = NIL;
-          m_ResultList.push_back( result );
-          return true;
+          result->tokenResult = falseToken;
         } // else: defined-binding is node
       } // if: argument is a symbol
       
       else if ( arguments.front()->leftToken->tokenType == INT ||
                 arguments.front()->leftToken->tokenType == FLOAT ) {
-        result->tokenResult->tokenType = T;
+        result->tokenResult = trueToken;
       } // else if: argument is a int or float
       
       else {
-        result->tokenResult->tokenType = NIL;
-        m_ResultList.push_back( result );
-        return true;
+        result->tokenResult = falseToken;
       } // else: not int, float or symbol, won't be real
     } // if: argument is a token
     
     else {
       if ( m_ResultList.back()->tokenResult->tokenType == INT ||
            m_ResultList.back()->tokenResult->tokenType == FLOAT ) {
-        result->tokenResult->tokenType = T;
-        m_ResultList.push_back( result );
-        return true;
+        result->tokenResult = trueToken;
       } // if: previous result is a integer or float value
       
       else {
-        result->tokenResult->tokenType = NIL;
-        m_ResultList.push_back( result );
-        return true;
+        result->tokenResult = falseToken;
       } // else: not int or float
+      
+      m_ResultList.pop_back();
     } // else: a node
     
     m_ResultList.push_back( result );
@@ -2884,57 +2861,55 @@ public:
   
   bool IsString( vector<TreeStruct *> arguments, ResultStruct *result ) {
     result->hasTokenResult = true;
+    TokenStruct *trueToken = new TokenStruct;
+    trueToken->tokenType = T;
+    trueToken->content = "#t";
+    TokenStruct *falseToken = new TokenStruct;
+    falseToken->tokenType = NIL;
+    falseToken->content = "nil";
     
     if ( arguments.front()->leftToken ) {
       if ( arguments.front()->leftToken->tokenType == SYMBOL ) {
         if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken ) {
           if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken->tokenType == STRING ) {
-            result->tokenResult->tokenType = T;
+            result->tokenResult = trueToken;
           } // if: the defined tokenType is string
           
           else {
-            result->tokenResult->tokenType = NIL;
-            m_ResultList.push_back( result );
-            return true;
+            result->tokenResult = falseToken;
           } // else: the defined tokenType is not string
         } // if: defined-binding is token
         
         else {
-          result->tokenResult->tokenType = NIL;
-          m_ResultList.push_back( result );
-          return true;
+          result->tokenResult = falseToken;
         } // else: defined-binding is node
       } // if: argument is a symbol
       
       else if ( arguments.front()->leftToken->tokenType == STRING ) {
-        result->tokenResult->tokenType = T;
+        result->tokenResult = trueToken;
       } // else if: argument is a string
       
       else {
-        result->tokenResult->tokenType = NIL;
-        m_ResultList.push_back( result );
-        return true;
+        result->tokenResult = falseToken;
       } // else: not string or symbol, won't be real
     } // if: argument is a token
     
     else {
       if ( m_ResultList.back()->hasTokenResult ) {
         if ( m_ResultList.back()->tokenResult->tokenType == STRING ) {
-          result->tokenResult->tokenType = T;
+          result->tokenResult = trueToken;
         } // if: previous result is a string value
         
         else {
-          result->tokenResult->tokenType = NIL;
-          m_ResultList.push_back( result );
-          return true;
+          result->tokenResult = falseToken;
         } // else: not string
       } // if: has a token result
       
       else {
-        result->tokenResult->tokenType = NIL;
-        m_ResultList.push_back( result );
-        return true;
+        result->tokenResult = falseToken;
       } // else: has a node result
+      
+      m_ResultList.pop_back();
     } // else: a node, check previous result
     
     m_ResultList.push_back( result );
@@ -2943,59 +2918,58 @@ public:
   
   bool IsBoolean( vector<TreeStruct *> arguments, ResultStruct *result ) {
     result->hasTokenResult = true;
+    TokenStruct *trueToken = new TokenStruct;
+    trueToken->tokenType = T;
+    trueToken->content = "#t";
+    TokenStruct *falseToken = new TokenStruct;
+    falseToken->tokenType = NIL;
+    falseToken->content = "nil";
     
     if ( arguments.front()->leftToken ) {
       if ( arguments.front()->leftToken->tokenType == SYMBOL ) {
         if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken ) {
           if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken->tokenType == T ||
                GetDefineBindings( arguments.front()->leftToken->content )->leftToken->tokenType == NIL ) {
-            result->tokenResult->tokenType = T;
+            result->tokenResult = trueToken;
           } // if: the defined tokenType is t or nil
           
           else {
-            result->tokenResult->tokenType = NIL;
-            m_ResultList.push_back( result );
-            return true;
+            result->tokenResult = falseToken;
           } // else: the defined tokenType is not t or nil
         } // if: defined-binding is token
         
         else {
-          result->tokenResult->tokenType = NIL;
-          m_ResultList.push_back( result );
-          return true;
+          result->tokenResult = falseToken;
         } // else: defined-binding is node
       } // if: argument is a symbol
       
       else if ( arguments.front()->leftToken->tokenType == T ||
                 arguments.front()->leftToken->tokenType == NIL ) {
-        result->tokenResult->tokenType = T;
+        result->tokenResult = trueToken;
       } // else if: argument is a t or nil
       
       else {
-        result->tokenResult->tokenType = NIL;
-        m_ResultList.push_back( result );
-        return true;
+        result->tokenResult = falseToken;
       } // else: not t, nil or symbol, won't be real
     } // if: argument is a token
     
     else {
       if ( m_ResultList.back()->hasTokenResult ) {
-        if ( m_ResultList.back()->tokenResult->tokenType == T ) {
-          result->tokenResult->tokenType = T;
+        if ( m_ResultList.back()->tokenResult->tokenType == T ||
+             m_ResultList.back()->tokenResult->tokenType == NIL ) {
+          result->tokenResult = trueToken;
         } // if: previous result is a boolean value
         
         else {
-          result->tokenResult->tokenType = NIL;
-          m_ResultList.push_back( result );
-          return true;
+          result->tokenResult = falseToken;
         } // else: not string
       } // if: has a token result
       
       else {
-        result->tokenResult->tokenType = NIL;
-        m_ResultList.push_back( result );
-        return true;
+        result->tokenResult = falseToken;
       } // else: has a node result
+      
+      m_ResultList.pop_back();
     } // else: a node
     
     m_ResultList.push_back( result );
@@ -3004,6 +2978,12 @@ public:
   
   bool IsSymbol( vector<TreeStruct *> arguments, ResultStruct *result ) {
     result->hasTokenResult = true;
+    TokenStruct *trueToken = new TokenStruct;
+    trueToken->tokenType = T;
+    trueToken->content = "#t";
+    TokenStruct *falseToken = new TokenStruct;
+    falseToken->tokenType = NIL;
+    falseToken->content = "nil";
     
     if ( arguments.front()->leftToken ) {
       if ( arguments.front()->leftToken->tokenType == SYMBOL ) {
@@ -3011,54 +2991,45 @@ public:
           if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken ) {
             if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken->tokenType ==
                  SYMBOL ) {
-              result->tokenResult->tokenType = T;
+              result->tokenResult = trueToken;
             } // if: the defined tokenType is symbol
             
             else {
-              result->tokenResult->tokenType = NIL;
-              m_ResultList.push_back( result );
-              return true;
+              result->tokenResult = falseToken;
             } // else: the defined tokenType is not symbol
           } // if: defined-binding is token
           
           else {
-            result->tokenResult->tokenType = NIL;
-            m_ResultList.push_back( result );
-            return true;
+            result->tokenResult = falseToken;
           } // else: defined-binding is node
         } // if: is a pre-defined symbol
         
         else {
-          result->tokenResult->tokenType = T;
+          result->tokenResult = trueToken;
         } // else: not defined, but is still a symbol
       } // if: argument is a symbol
       
       else {
-        result->tokenResult->tokenType = NIL;
-        m_ResultList.push_back( result );
-        return true;
+        result->tokenResult = falseToken;
       } // else: not symbol
     } // if: argument is a token
     
     else {
       if ( m_ResultList.back()->hasTokenResult ) {
         if ( m_ResultList.back()->tokenResult->tokenType == SYMBOL ) {
-          result->tokenResult->tokenType = T;
-          m_ResultList.push_back( result );
+          result->tokenResult = trueToken;
         } // if: previous result is a symbol value
         
         else {
-          result->tokenResult->tokenType = NIL;
-          m_ResultList.push_back( result );
-          return true;
+          result->tokenResult = falseToken;
         } // else: not symbol
       } // if: has a token result
       
       else {
-        result->tokenResult->tokenType = NIL;
-        m_ResultList.push_back( result );
-        return true;
+        result->tokenResult = falseToken;
       } // else: has a node result
+      
+      m_ResultList.pop_back();
     } // else: a node
     
     m_ResultList.push_back( result );
