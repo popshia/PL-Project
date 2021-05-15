@@ -3071,10 +3071,22 @@ public:
           } // if: get defined token
           
           else {
-            string errorMessage = "ERROR (+ with incorrect argument type) : ";
-            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+            stringstream errorMessage;
+            errorMessage << "ERROR (+ with incorrect argument type) : ";
+            int layer = 0;
+            AddTreeString( definedNode, layer, false, errorMessage );
+            
+            if ( layer > 0 ) {
+              while ( layer > 0 ) {
+                layer--;
+                errorMessage << string( layer, ' ' ) << ')' << endl;
+              } // while: loop print right-paren
+            } // if: layer still greater than zero
+            
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
             return false;
-          } // else: get defined node, can't evaluate TODO: PRINT NODE?
+          } // else: get defined node, can't evaluate
         } // else if: symbol, check defined or not
         
         else {
@@ -3118,10 +3130,22 @@ public:
             } // if: get defined token
             
             else {
-              string errorMessage = "ERROR (+ with incorrect argument type) : ";
-              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+              stringstream errorMessage;
+              errorMessage << "ERROR (+ with incorrect argument type) : ";
+              int layer = 0;
+              AddTreeString( definedNode, layer, false, errorMessage );
+              
+              if ( layer > 0 ) {
+                while ( layer > 0 ) {
+                  layer--;
+                  errorMessage << string( layer, ' ' ) << ')' << endl;
+                } // while: loop print right-paren
+              } // if: layer still greater than zero
+              
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
               return false;
-            } // else: get defined node, can't evaluate TODO: PRINT NODE?
+            } // else: get defined node, can't evaluate
           } // else if: symbol, check defined or not
           
           else {
@@ -3133,10 +3157,22 @@ public:
         } // if: previous result is a token
         
         else if ( m_ResultList.back()->hasNodeResult ) {
-          string errorMessage = "ERROR (+ with incorrect argument type) : ";
-          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+          TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+          stringstream errorMessage;
+          errorMessage << "ERROR (+ with incorrect argument type) : ";
+          int layer = 0;
+          AddTreeString( previousNode, layer, false, errorMessage );
+          
+          if ( layer > 0 ) {
+            while ( layer > 0 ) {
+              layer--;
+              errorMessage << string( layer, ' ' ) << ')' << endl;
+            } // while: loop print right-paren
+          } // if: layer still greater than zero
+          
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
           return false;
-        } // previous result is a node TODO: PRINT NODE
+        } // previous result is a node
       } // else if: argument is node
       
       walk = walk->rightNode;
@@ -3172,10 +3208,22 @@ public:
             } // if: get defined token
             
             else {
-              string errorMessage = "ERROR (+ with incorrect argument type) : ";
-              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+              stringstream errorMessage;
+              errorMessage << "ERROR (+ with incorrect argument type) : ";
+              int layer = 0;
+              AddTreeString( definedNode, layer, false, errorMessage );
+              
+              if ( layer > 0 ) {
+                while ( layer > 0 ) {
+                  layer--;
+                  errorMessage << string( layer, ' ' ) << ')' << endl;
+                } // while: loop print right-paren
+              } // if: layer still greater than zero
+              
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
               return false;
-            } // else: get defined node, can't evaluate TODO: PRINT NODE?
+            } // else: get defined node, can't evaluate
           } // else if: symbol, check defined or not
           
           else {
@@ -3219,10 +3267,22 @@ public:
               } // if: get defined token
               
               else {
-                string errorMessage = "ERROR (+ with incorrect argument type) : ";
-                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+                stringstream errorMessage;
+                errorMessage << "ERROR (+ with incorrect argument type) : ";
+                int layer = 0;
+                AddTreeString( definedNode, layer, false, errorMessage );
+                
+                if ( layer > 0 ) {
+                  while ( layer > 0 ) {
+                    layer--;
+                    errorMessage << string( layer, ' ' ) << ')' << endl;
+                  } // while: loop print right-paren
+                } // if: layer still greater than zero
+                
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
                 return false;
-              } // else: get defined node, can't evaluate TODO: PRINT NODE?
+              } // else: get defined node, can't evaluate
             } // else if: symbol, check defined or not
             
             else {
@@ -3234,10 +3294,22 @@ public:
           } // if: previous result is a token
           
           else if ( m_ResultList.back()->hasNodeResult ) {
-            string errorMessage = "ERROR (+ with incorrect argument type) : ";
-            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+            stringstream errorMessage;
+            errorMessage << "ERROR (+ with incorrect argument type) : ";
+            int layer = 0;
+            AddTreeString( previousNode, layer, false, errorMessage );
+            
+            if ( layer > 0 ) {
+              while ( layer > 0 ) {
+                layer--;
+                errorMessage << string( layer, ' ' ) << ')' << endl;
+              } // while: loop print right-paren
+            } // if: layer still greater than zero
+            
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
             return false;
-          } // previous result is a node TODO: PRINT NODE
+          } // previous result is a node
         } // else if: argument is node
       } // if: add up the last argument
     } // for: add up the arguments
@@ -3294,10 +3366,22 @@ public:
         } // if: get defined token
         
         else {
-          string errorMessage = "ERROR (- with incorrect argument type) : ";
-          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+          TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+          stringstream errorMessage;
+          errorMessage << "ERROR (- with incorrect argument type) : ";
+          int layer = 0;
+          AddTreeString( definedNode, layer, false, errorMessage );
+          
+          if ( layer > 0 ) {
+            while ( layer > 0 ) {
+              layer--;
+              errorMessage << string( layer, ' ' ) << ')' << endl;
+            } // while: loop print right-paren
+          } // if: layer still greater than zero
+          
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
           return false;
-        } // else: get defined node, can't evaluate TODO: PRINT NODE?
+        } // else: get defined node, can't evaluate
       } // else if: symbol, check defined or not
       
       else {
@@ -3341,10 +3425,22 @@ public:
           } // if: get defined token
           
           else {
-            string errorMessage = "ERROR (- with incorrect argument type) : ";
-            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+            stringstream errorMessage;
+            errorMessage << "ERROR (- with incorrect argument type) : ";
+            int layer = 0;
+            AddTreeString( definedNode, layer, false, errorMessage );
+            
+            if ( layer > 0 ) {
+              while ( layer > 0 ) {
+                layer--;
+                errorMessage << string( layer, ' ' ) << ')' << endl;
+              } // while: loop print right-paren
+            } // if: layer still greater than zero
+            
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
             return false;
-          } // else: get defined node, can't evaluate TODO: PRINT NODE?
+          } // else: get defined node, can't evaluate
         } // else if: symbol, check defined or not
         
         else {
@@ -3356,10 +3452,22 @@ public:
       } // if: previous result is a token
       
       else if ( m_ResultList.back()->hasNodeResult ) {
-        string errorMessage = "ERROR (- with incorrect argument type) : ";
-        SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+        TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+        stringstream errorMessage;
+        errorMessage << "ERROR (- with incorrect argument type) : ";
+        int layer = 0;
+        AddTreeString( previousNode, layer, false, errorMessage );
+        
+        if ( layer > 0 ) {
+          while ( layer > 0 ) {
+            layer--;
+            errorMessage << string( layer, ' ' ) << ')' << endl;
+          } // while: loop print right-paren
+        } // if: layer still greater than zero
+        
+        SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
         return false;
-      } // previous result is a node TODO: PRINT NODE
+      } // previous result is a node
     } // else if: first argument is node
     
     walk = walk->rightNode;
@@ -3396,10 +3504,22 @@ public:
             } // if: get defined token
             
             else {
-              string errorMessage = "ERROR (- with incorrect argument type) : ";
-              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+              stringstream errorMessage;
+              errorMessage << "ERROR (- with incorrect argument type) : ";
+              int layer = 0;
+              AddTreeString( definedNode, layer, false, errorMessage );
+              
+              if ( layer > 0 ) {
+                while ( layer > 0 ) {
+                  layer--;
+                  errorMessage << string( layer, ' ' ) << ')' << endl;
+                } // while: loop print right-paren
+              } // if: layer still greater than zero
+              
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
               return false;
-            } // else: get defined node, can't evaluate TODO: PRINT NODE?
+            } // else: get defined node, can't evaluate
           } // else if: symbol, check defined or not
           
           else {
@@ -3443,10 +3563,22 @@ public:
               } // if: get defined token
               
               else {
-                string errorMessage = "ERROR (- with incorrect argument type) : ";
-                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+                stringstream errorMessage;
+                errorMessage << "ERROR (- with incorrect argument type) : ";
+                int layer = 0;
+                AddTreeString( definedNode, layer, false, errorMessage );
+                
+                if ( layer > 0 ) {
+                  while ( layer > 0 ) {
+                    layer--;
+                    errorMessage << string( layer, ' ' ) << ')' << endl;
+                  } // while: loop print right-paren
+                } // if: layer still greater than zero
+                
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
                 return false;
-              } // else: get defined node, can't evaluate TODO: PRINT NODE?
+              } // else: get defined node, can't evaluate
             } // else if: symbol, check defined or not
             
             else {
@@ -3458,10 +3590,22 @@ public:
           } // if: previous result is a token
           
           else if ( m_ResultList.back()->hasNodeResult ) {
-            string errorMessage = "ERROR (- with incorrect argument type) : ";
-            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            TreeStruct *definedNode = m_ResultList.back()->nodeResult;
+            stringstream errorMessage;
+            errorMessage << "ERROR (- with incorrect argument type) : ";
+            int layer = 0;
+            AddTreeString( definedNode, layer, false, errorMessage );
+            
+            if ( layer > 0 ) {
+              while ( layer > 0 ) {
+                layer--;
+                errorMessage << string( layer, ' ' ) << ')' << endl;
+              } // while: loop print right-paren
+            } // if: layer still greater than zero
+            
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
             return false;
-          } // previous result is a node TODO: PRINT NODE
+          } // previous result is a node
         } // else if: argument is node
         
         walk = walk->rightNode;
@@ -3497,10 +3641,22 @@ public:
               } // if: get defined token
               
               else {
-                string errorMessage = "ERROR (- with incorrect argument type) : ";
-                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+                stringstream errorMessage;
+                errorMessage << "ERROR (- with incorrect argument type) : ";
+                int layer = 0;
+                AddTreeString( definedNode, layer, false, errorMessage );
+                
+                if ( layer > 0 ) {
+                  while ( layer > 0 ) {
+                    layer--;
+                    errorMessage << string( layer, ' ' ) << ')' << endl;
+                  } // while: loop print right-paren
+                } // if: layer still greater than zero
+                
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
                 return false;
-              } // else: get defined node, can't evaluate TODO: PRINT NODE?
+              } // else: get defined node, can't evaluate
             } // else if: symbol, check defined or not
             
             else {
@@ -3544,10 +3700,22 @@ public:
                 } // if: get defined token
                 
                 else {
-                  string errorMessage = "ERROR (- with incorrect argument type) : ";
-                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                  TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+                  stringstream errorMessage;
+                  errorMessage << "ERROR (- with incorrect argument type) : ";
+                  int layer = 0;
+                  AddTreeString( definedNode, layer, false, errorMessage );
+                  
+                  if ( layer > 0 ) {
+                    while ( layer > 0 ) {
+                      layer--;
+                      errorMessage << string( layer, ' ' ) << ')' << endl;
+                    } // while: loop print right-paren
+                  } // if: layer still greater than zero
+                  
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
                   return false;
-                } // else: get defined node, can't evaluate TODO: PRINT NODE?
+                } // else: get defined node, can't evaluate
               } // else if: symbol, check defined or not
               
               else {
@@ -3559,10 +3727,22 @@ public:
             } // if: previous result is a token
             
             else if ( m_ResultList.back()->hasNodeResult ) {
-              string errorMessage = "ERROR (- with incorrect argument type) : ";
-              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              TreeStruct *definedNode = m_ResultList.back()->nodeResult;
+              stringstream errorMessage;
+              errorMessage << "ERROR (- with incorrect argument type) : ";
+              int layer = 0;
+              AddTreeString( definedNode, layer, false, errorMessage );
+              
+              if ( layer > 0 ) {
+                while ( layer > 0 ) {
+                  layer--;
+                  errorMessage << string( layer, ' ' ) << ')' << endl;
+                } // while: loop print right-paren
+              } // if: layer still greater than zero
+              
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
               return false;
-            } // previous result is a node TODO: PRINT NODE
+            } // previous result is a node
           } // else if: argument is node
         } // if: add up the last argument
       } // for: add up the arguments
@@ -3591,7 +3771,7 @@ public:
             } // if: check if add any float
             
             else {
-              string errorMessage = "ERROR (+ with incorrect argument type) : ";
+              string errorMessage = "ERROR (- with incorrect argument type) : ";
               errorMessage += definedToken->content;
               SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
               return false;
@@ -3599,14 +3779,26 @@ public:
           } // if: get defined token
           
           else {
-            string errorMessage = "ERROR (+ with incorrect argument type) : ";
-            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+            stringstream errorMessage;
+            errorMessage << "ERROR (- with incorrect argument type) : ";
+            int layer = 0;
+            AddTreeString( definedNode, layer, false, errorMessage );
+            
+            if ( layer > 0 ) {
+              while ( layer > 0 ) {
+                layer--;
+                errorMessage << string( layer, ' ' ) << ')' << endl;
+              } // while: loop print right-paren
+            } // if: layer still greater than zero
+            
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
             return false;
-          } // else: get defined node, can't evaluate TODO: PRINT NODE?
+          } // else: get defined node, can't evaluate
         } // else if: symbol, check defined or not
         
         else {
-          string errorMessage = "ERROR (+ with incorrect argument type) : ";
+          string errorMessage = "ERROR (- with incorrect argument type) : ";
           errorMessage += walk->leftToken->content;
           SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
           return false;
@@ -3646,10 +3838,22 @@ public:
             } // if: get defined token
             
             else {
-              string errorMessage = "ERROR (- with incorrect argument type) : ";
-              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+              stringstream errorMessage;
+              errorMessage << "ERROR (- with incorrect argument type) : ";
+              int layer = 0;
+              AddTreeString( definedNode, layer, false, errorMessage );
+              
+              if ( layer > 0 ) {
+                while ( layer > 0 ) {
+                  layer--;
+                  errorMessage << string( layer, ' ' ) << ')' << endl;
+                } // while: loop print right-paren
+              } // if: layer still greater than zero
+              
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
               return false;
-            } // else: get defined node, can't evaluate TODO: PRINT NODE?
+            } // else: get defined node, can't evaluate
           } // else if: symbol, check defined or not
           
           else {
@@ -3661,10 +3865,22 @@ public:
         } // if: previous result is a token
         
         else if ( m_ResultList.back()->hasNodeResult ) {
-          string errorMessage = "ERROR (- with incorrect argument type) : ";
-          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+          TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+          stringstream errorMessage;
+          errorMessage << "ERROR (- with incorrect argument type) : ";
+          int layer = 0;
+          AddTreeString( previousNode, layer, false, errorMessage );
+          
+          if ( layer > 0 ) {
+            while ( layer > 0 ) {
+              layer--;
+              errorMessage << string( layer, ' ' ) << ')' << endl;
+            } // while: loop print right-paren
+          } // if: layer still greater than zero
+          
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
           return false;
-        } // previous result is a node TODO: PRINT NODE
+        } // previous result is a node
       } // else if: argument is node
     } // else: has only two arguments
     
@@ -3721,14 +3937,26 @@ public:
           } // if: get defined token
           
           else {
-            string errorMessage = "ERROR (* with incorrect argument type) : ";
-            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+            stringstream errorMessage;
+            errorMessage << "ERROR (* with incorrect argument type) : ";
+            int layer = 0;
+            AddTreeString( definedNode, layer, false, errorMessage );
+            
+            if ( layer > 0 ) {
+              while ( layer > 0 ) {
+                layer--;
+                errorMessage << string( layer, ' ' ) << ')' << endl;
+              } // while: loop print right-paren
+            } // if: layer still greater than zero
+            
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
             return false;
-          } // else: get defined node, can't evaluate TODO: PRINT NODE?
+          } // else: get defined node, can't evaluate
         } // else if: symbol, check defined or not
         
         else {
-          string errorMessage = "ERROR (+ with incorrect argument type) : ";
+          string errorMessage = "ERROR (* with incorrect argument type) : ";
           errorMessage += walk->leftToken->content;
           SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
           return false;
@@ -3768,10 +3996,22 @@ public:
             } // if: get defined token
             
             else {
-              string errorMessage = "ERROR (* with incorrect argument type) : ";
-              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+              stringstream errorMessage;
+              errorMessage << "ERROR (* with incorrect argument type) : ";
+              int layer = 0;
+              AddTreeString( definedNode, layer, false, errorMessage );
+              
+              if ( layer > 0 ) {
+                while ( layer > 0 ) {
+                  layer--;
+                  errorMessage << string( layer, ' ' ) << ')' << endl;
+                } // while: loop print right-paren
+              } // if: layer still greater than zero
+              
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
               return false;
-            } // else: get defined node, can't evaluate TODO: PRINT NODE?
+            } // else: get defined node, can't evaluate
           } // else if: symbol, check defined or not
           
           else {
@@ -3783,10 +4023,22 @@ public:
         } // if: previous result is a token
         
         else if ( m_ResultList.back()->hasNodeResult ) {
-          string errorMessage = "ERROR (* with incorrect argument type) : ";
-          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+          TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+          stringstream errorMessage;
+          errorMessage << "ERROR (* with incorrect argument type) : ";
+          int layer = 0;
+          AddTreeString( previousNode, layer, false, errorMessage );
+          
+          if ( layer > 0 ) {
+            while ( layer > 0 ) {
+              layer--;
+              errorMessage << string( layer, ' ' ) << ')' << endl;
+            } // while: loop print right-paren
+          } // if: layer still greater than zero
+          
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
           return false;
-        } // previous result is a node TODO: PRINT NODE
+        } // previous result is a node
       } // else if: argument is node
       
       walk = walk->rightNode;
@@ -3822,10 +4074,22 @@ public:
             } // if: get defined token
             
             else {
-              string errorMessage = "ERROR (* with incorrect argument type) : ";
-              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+              stringstream errorMessage;
+              errorMessage << "ERROR (* with incorrect argument type) : ";
+              int layer = 0;
+              AddTreeString( definedNode, layer, false, errorMessage );
+              
+              if ( layer > 0 ) {
+                while ( layer > 0 ) {
+                  layer--;
+                  errorMessage << string( layer, ' ' ) << ')' << endl;
+                } // while: loop print right-paren
+              } // if: layer still greater than zero
+              
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
               return false;
-            } // else: get defined node, can't evaluate TODO: PRINT NODE?
+            } // else: get defined node, can't evaluate
           } // else if: symbol, check defined or not
           
           else {
@@ -3869,8 +4133,20 @@ public:
               } // if: get defined token
               
               else {
-                string errorMessage = "ERROR (* with incorrect argument type) : ";
-                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+                stringstream errorMessage;
+                errorMessage << "ERROR (* with incorrect argument type) : ";
+                int layer = 0;
+                AddTreeString( definedNode, layer, false, errorMessage );
+                
+                if ( layer > 0 ) {
+                  while ( layer > 0 ) {
+                    layer--;
+                    errorMessage << string( layer, ' ' ) << ')' << endl;
+                  } // while: loop print right-paren
+                } // if: layer still greater than zero
+                
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
                 return false;
               } // else: get defined node, can't evaluate TODO: PRINT NODE?
             } // else if: symbol, check defined or not
@@ -3884,10 +4160,22 @@ public:
           } // if: previous result is a token
           
           else if ( m_ResultList.back()->hasNodeResult ) {
-            string errorMessage = "ERROR (* with incorrect argument type) : ";
-            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+            stringstream errorMessage;
+            errorMessage << "ERROR (* with incorrect argument type) : ";
+            int layer = 0;
+            AddTreeString( previousNode, layer, false, errorMessage );
+            
+            if ( layer > 0 ) {
+              while ( layer > 0 ) {
+                layer--;
+                errorMessage << string( layer, ' ' ) << ')' << endl;
+              } // while: loop print right-paren
+            } // if: layer still greater than zero
+            
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
             return false;
-          } // previous result is a node TODO: PRINT NODE
+          } // previous result is a node
         } // else if: argument is node
       } // if: add up the last argument
     } // for: add up the arguments
@@ -3944,10 +4232,22 @@ public:
         } // if: get defined token
         
         else {
-          string errorMessage = "ERROR (/ with incorrect argument type) : ";
-          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+          TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+          stringstream errorMessage;
+          errorMessage << "ERROR (/ with incorrect argument type) : ";
+          int layer = 0;
+          AddTreeString( definedNode, layer, false, errorMessage );
+          
+          if ( layer > 0 ) {
+            while ( layer > 0 ) {
+              layer--;
+              errorMessage << string( layer, ' ' ) << ')' << endl;
+            } // while: loop print right-paren
+          } // if: layer still greater than zero
+          
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
           return false;
-        } // else: get defined node, can't evaluate TODO: PRINT NODE?
+        } // else: get defined node, can't evaluate
       } // else if: symbol, check defined or not
       
       else {
@@ -3991,10 +4291,22 @@ public:
           } // if: get defined token
           
           else {
-            string errorMessage = "ERROR (/ with incorrect argument type) : ";
-            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+            stringstream errorMessage;
+            errorMessage << "ERROR (/ with incorrect argument type) : ";
+            int layer = 0;
+            AddTreeString( definedNode, layer, false, errorMessage );
+            
+            if ( layer > 0 ) {
+              while ( layer > 0 ) {
+                layer--;
+                errorMessage << string( layer, ' ' ) << ')' << endl;
+              } // while: loop print right-paren
+            } // if: layer still greater than zero
+            
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
             return false;
-          } // else: get defined node, can't evaluate TODO: PRINT NODE?
+          } // else: get defined node, can't evaluate
         } // else if: symbol, check defined or not
         
         else {
@@ -4006,10 +4318,22 @@ public:
       } // if: previous result is a token
       
       else if ( m_ResultList.back()->hasNodeResult ) {
-        string errorMessage = "ERROR (/ with incorrect argument type) : ";
-        SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+        TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+        stringstream errorMessage;
+        errorMessage << "ERROR (/ with incorrect argument type) : ";
+        int layer = 0;
+        AddTreeString( previousNode, layer, false, errorMessage );
+        
+        if ( layer > 0 ) {
+          while ( layer > 0 ) {
+            layer--;
+            errorMessage << string( layer, ' ' ) << ')' << endl;
+          } // while: loop print right-paren
+        } // if: layer still greater than zero
+        
+        SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
         return false;
-      } // previous result is a node TODO: PRINT NODE
+      } // previous result is a node
     } // else if: first argument is node
     
     walk = walk->rightNode;
@@ -4058,10 +4382,22 @@ public:
             } // if: get defined token
             
             else {
-              string errorMessage = "ERROR (/ with incorrect argument type) : ";
-              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+              stringstream errorMessage;
+              errorMessage << "ERROR (/ with incorrect argument type) : ";
+              int layer = 0;
+              AddTreeString( definedNode, layer, false, errorMessage );
+              
+              if ( layer > 0 ) {
+                while ( layer > 0 ) {
+                  layer--;
+                  errorMessage << string( layer, ' ' ) << ')' << endl;
+                } // while: loop print right-paren
+              } // if: layer still greater than zero
+              
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
               return false;
-            } // else: get defined node, can't evaluate TODO: PRINT NODE?
+            } // else: get defined node, can't evaluate
           } // else if: symbol, check defined or not
           
           else {
@@ -4117,10 +4453,22 @@ public:
               } // if: get defined token
               
               else {
-                string errorMessage = "ERROR (/ with incorrect argument type) : ";
-                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+                stringstream errorMessage;
+                errorMessage << "ERROR (/ with incorrect argument type) : ";
+                int layer = 0;
+                AddTreeString( definedNode, layer, false, errorMessage );
+                
+                if ( layer > 0 ) {
+                  while ( layer > 0 ) {
+                    layer--;
+                    errorMessage << string( layer, ' ' ) << ')' << endl;
+                  } // while: loop print right-paren
+                } // if: layer still greater than zero
+                
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
                 return false;
-              } // else: get defined node, can't evaluate TODO: PRINT NODE?
+              } // else: get defined node, can't evaluate
             } // else if: symbol, check defined or not
             
             else {
@@ -4132,10 +4480,22 @@ public:
           } // if: previous result is a token
           
           else if ( m_ResultList.back()->hasNodeResult ) {
-            string errorMessage = "ERROR (/ with incorrect argument type) : ";
-            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+            stringstream errorMessage;
+            errorMessage << "ERROR (/ with incorrect argument type) : ";
+            int layer = 0;
+            AddTreeString( previousNode, layer, false, errorMessage );
+            
+            if ( layer > 0 ) {
+              while ( layer > 0 ) {
+                layer--;
+                errorMessage << string( layer, ' ' ) << ')' << endl;
+              } // while: loop print right-paren
+            } // if: layer still greater than zero
+            
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
             return false;
-          } // previous result is a node TODO: PRINT NODE
+          } // previous result is a node
         } // else if: argument is node
         
         walk = walk->rightNode;
@@ -4183,10 +4543,22 @@ public:
               } // if: get defined token
               
               else {
-                string errorMessage = "ERROR (/ with incorrect argument type) : ";
-                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+                stringstream errorMessage;
+                errorMessage << "ERROR (/ with incorrect argument type) : ";
+                int layer = 0;
+                AddTreeString( definedNode, layer, false, errorMessage );
+                
+                if ( layer > 0 ) {
+                  while ( layer > 0 ) {
+                    layer--;
+                    errorMessage << string( layer, ' ' ) << ')' << endl;
+                  } // while: loop print right-paren
+                } // if: layer still greater than zero
+                
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
                 return false;
-              } // else: get defined node, can't evaluate TODO: PRINT NODE?
+              } // else: get defined node, can't evaluate
             } // else if: symbol, check defined or not
             
             else {
@@ -4242,10 +4614,22 @@ public:
                 } // if: get defined token
                 
                 else {
-                  string errorMessage = "ERROR (/ with incorrect argument type) : ";
-                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                  TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+                  stringstream errorMessage;
+                  errorMessage << "ERROR (/ with incorrect argument type) : ";
+                  int layer = 0;
+                  AddTreeString( definedNode, layer, false, errorMessage );
+                  
+                  if ( layer > 0 ) {
+                    while ( layer > 0 ) {
+                      layer--;
+                      errorMessage << string( layer, ' ' ) << ')' << endl;
+                    } // while: loop print right-paren
+                  } // if: layer still greater than zero
+                  
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
                   return false;
-                } // else: get defined node, can't evaluate TODO: PRINT NODE?
+                } // else: get defined node, can't evaluate
               } // else if: symbol, check defined or not
               
               else {
@@ -4257,10 +4641,22 @@ public:
             } // if: previous result is a token
             
             else if ( m_ResultList.back()->hasNodeResult ) {
-              string errorMessage = "ERROR (/ with incorrect argument type) : ";
-              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+              stringstream errorMessage;
+              errorMessage << "ERROR (/ with incorrect argument type) : ";
+              int layer = 0;
+              AddTreeString( previousNode, layer, false, errorMessage );
+              
+              if ( layer > 0 ) {
+                while ( layer > 0 ) {
+                  layer--;
+                  errorMessage << string( layer, ' ' ) << ')' << endl;
+                } // while: loop print right-paren
+              } // if: layer still greater than zero
+              
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
               return false;
-            } // previous result is a node TODO: PRINT NODE
+            } // previous result is a node
           } // else if: argument is node
         } // if: add up the last argument
       } // for: add up the arguments
@@ -4309,10 +4705,22 @@ public:
           } // if: get defined token
           
           else {
-            string errorMessage = "ERROR (/ with incorrect argument type) : ";
-            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+            stringstream errorMessage;
+            errorMessage << "ERROR (/ with incorrect argument type) : ";
+            int layer = 0;
+            AddTreeString( definedNode, layer, false, errorMessage );
+            
+            if ( layer > 0 ) {
+              while ( layer > 0 ) {
+                layer--;
+                errorMessage << string( layer, ' ' ) << ')' << endl;
+              } // while: loop print right-paren
+            } // if: layer still greater than zero
+            
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
             return false;
-          } // else: get defined node, can't evaluate TODO: PRINT NODE?
+          } // else: get defined node, can't evaluate
         } // else if: symbol, check defined or not
         
         else {
@@ -4368,10 +4776,22 @@ public:
             } // if: get defined token
             
             else {
-              string errorMessage = "ERROR (/ with incorrect argument type) : ";
-              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+              stringstream errorMessage;
+              errorMessage << "ERROR (/ with incorrect argument type) : ";
+              int layer = 0;
+              AddTreeString( definedNode, layer, false, errorMessage );
+              
+              if ( layer > 0 ) {
+                while ( layer > 0 ) {
+                  layer--;
+                  errorMessage << string( layer, ' ' ) << ')' << endl;
+                } // while: loop print right-paren
+              } // if: layer still greater than zero
+              
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
               return false;
-            } // else: get defined node, can't evaluate TODO: PRINT NODE?
+            } // else: get defined node, can't evaluate
           } // else if: symbol, check defined or not
           
           else {
@@ -4383,10 +4803,22 @@ public:
         } // if: previous result is a token
         
         else if ( m_ResultList.back()->hasNodeResult ) {
-          string errorMessage = "ERROR (/ with incorrect argument type) : ";
-          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+          TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+          stringstream errorMessage;
+          errorMessage << "ERROR (/ with incorrect argument type) : ";
+          int layer = 0;
+          AddTreeString( previousNode, layer, false, errorMessage );
+          
+          if ( layer > 0 ) {
+            while ( layer > 0 ) {
+              layer--;
+              errorMessage << string( layer, ' ' ) << ')' << endl;
+            } // while: loop print right-paren
+          } // if: layer still greater than zero
+          
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
           return false;
-        } // previous result is a node TODO: PRINT NODE
+        } // previous result is a node
       } // else if: argument is node
     } // else: has only two arguments
     
@@ -4576,6 +5008,123 @@ public:
     
     cout << endl;
   } // PrintString()
+  
+  string AddTreeString( TreeStruct *currentRoot, int &layer, bool isRightNode, stringstream &returnString ) {
+    static bool hasLineReturn = false;
+    
+    if ( isRightNode == false ) {
+      if ( currentRoot->leftToken->content != "quote" ) {
+        if ( hasLineReturn ) {
+          returnString << string( layer*2, ' ' );
+        } // if: has lineReturn
+        
+        returnString << "( ";
+        hasLineReturn = false;
+        layer++;
+      } // if: not unclear quote
+    } // if: currentNode is the leftNode of the previousNode
+    
+    if ( currentRoot->leftNode ) {
+      isRightNode = false;
+      AddTreeString( currentRoot->leftNode, layer, isRightNode, returnString );
+    } // if: has leftNode
+    
+    if ( currentRoot->leftToken && currentRoot->leftToken->content != "quote" ) {
+      if ( hasLineReturn ) {
+        returnString << string( layer*2, ' ' );
+      } // if: has line return
+      
+      AddDataString( currentRoot->leftToken, returnString );
+      isRightNode = false;
+      hasLineReturn = true;
+      
+      if ( currentRoot->rightToken && currentRoot->rightToken->tokenType != NIL ) {
+        returnString << string( layer*2, ' ' ) << '.' << endl << string( layer*2, ' ' );
+        AddDataString( currentRoot->rightToken, returnString );
+      } // if: has data in rightToken
+    } // if: has data in leftToken
+    
+    else if ( currentRoot->rightToken ) {
+      returnString << string( layer*2, ' ' ) << '.' << endl << string( layer*2, ' ' );
+      AddDataString( currentRoot->rightToken, returnString );
+    } // else if: has rightToken
+    
+    if ( currentRoot->rightNode ) {
+      isRightNode = true;
+      AddTreeString( currentRoot->rightNode, layer, isRightNode, returnString );
+    } // if: has isRightNode
+    
+    if ( layer > 1 ) {
+      layer--;
+      returnString << string( layer*2, ' ' ) << ')' << endl;
+    } // if: still space print right paren
+    
+    return returnString.str();
+  } // TreeString()
+  
+  void AddDataString( TokenStruct *currentToken, stringstream &returnString ) {
+    if ( currentToken->tokenType == INT ) {
+      returnString << atoi( currentToken->content.c_str() ) << endl;
+    } // if: int case
+    
+    else if ( currentToken->tokenType == FLOAT ) {
+      returnString << fixed << setprecision( 3 )
+                   << round( atof( currentToken->content.c_str() )*1000 )/1000
+                   << endl;
+    } // else if: float case with precision and round
+    
+    else if ( currentToken->tokenType == NIL ) {
+      returnString << "nil" << endl;
+    } // else if: nil
+    
+    else if ( currentToken->tokenType == T ) {
+      returnString << "#t" << endl;
+    } // else if: #t
+    
+    else if ( currentToken->tokenType == STRING ) {
+      AddStringString( currentToken->content, returnString );
+    } // else if: string
+    
+    else if ( currentToken->tokenType == SYMBOL ) {
+      returnString << currentToken->content << endl;
+    } // else if: symbol
+  } // AddDataString()
+  
+  void AddStringString( string stringContent, stringstream &returnString ) {
+    for ( int index = 0 ; index < stringContent.length() ; index++ ) {
+      if ( stringContent[index] == '\\' ) {
+        if ( stringContent[index + 1] == 'n' ) {
+          returnString << endl;
+          index++;
+        } // if: '\n'
+        
+        else if ( stringContent[index + 1] == 't' ) {
+          returnString << '\t';
+          index++;
+        } // else if: '\t'
+        
+        else if ( stringContent[index + 1] == '"' ) {
+          returnString << '"';
+          index++;
+        } // else if: '"'
+        
+        else if ( stringContent[index + 1] == '\\' ) {
+          returnString << '\\';
+          index++;
+        } // else if: '\\'
+        
+        else {
+          returnString << stringContent[index];
+        } // else: normal '\\'
+      } // if: escape
+      
+      else {
+        returnString << stringContent[index];
+      } // else: normal character
+    } // for: go through the string
+    
+    returnString << endl;
+  } // AddStringString()
 }; // Project2Class
 
 int main() {
