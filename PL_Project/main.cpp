@@ -1871,7 +1871,7 @@ public:
       } // else if: *
       
       else if ( function->content == "/" ) {
-        // Division( arguments, result );
+        return !Division( arguments, result );
       } // else if: /
       
       else if ( function->content == "not" ) {
@@ -1954,6 +1954,8 @@ public:
       m_ResultList.push_back( result );
       return false;
     } // else if: clean-environment
+    
+    return true;
   } // CallCorrespondingFunction()
   
   /*
@@ -3636,7 +3638,7 @@ public:
               } // if: check if add any float
               
               else {
-                string errorMessage = "ERROR (+ with incorrect argument type) : ";
+                string errorMessage = "ERROR (- with incorrect argument type) : ";
                 errorMessage += definedToken->content;
                 SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
                 return false;
@@ -3644,14 +3646,14 @@ public:
             } // if: get defined token
             
             else {
-              string errorMessage = "ERROR (+ with incorrect argument type) : ";
+              string errorMessage = "ERROR (- with incorrect argument type) : ";
               SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
               return false;
             } // else: get defined node, can't evaluate TODO: PRINT NODE?
           } // else if: symbol, check defined or not
           
           else {
-            string errorMessage = "ERROR (+ with incorrect argument type) : ";
+            string errorMessage = "ERROR (- with incorrect argument type) : ";
             errorMessage += previousResult->content;
             SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
             return false;
@@ -3659,7 +3661,7 @@ public:
         } // if: previous result is a token
         
         else if ( m_ResultList.back()->hasNodeResult ) {
-          string errorMessage = "ERROR (+ with incorrect argument type) : ";
+          string errorMessage = "ERROR (- with incorrect argument type) : ";
           SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
           return false;
         } // previous result is a node TODO: PRINT NODE
@@ -3906,6 +3908,505 @@ public:
     m_ResultList.push_back( result );
     return true;
   } // Mutiplication()
+  
+  bool Division( vector<TreeStruct *> arguments, ResultStruct *result ) {
+    bool isFloat = false;
+    float answer = 0.0;
+    TreeStruct *walk = arguments.front();
+    
+    if ( walk->leftToken ) {
+      if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
+        if ( walk->leftToken->tokenType == FLOAT ) {
+          isFloat = true;
+        } // if: argument is float, set isFLoat
+        
+        answer += atof( walk->leftToken->content.c_str() );
+      } // if: check if add any float
+      
+      else if ( walk->leftToken->tokenType == SYMBOL ) {
+        if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
+          TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+          
+          if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+            if ( definedToken->tokenType == FLOAT ) {
+              isFloat = true;
+            } // if: argument is float, set isFLoat
+            
+            answer += atof( definedToken->content.c_str() );
+          } // if: check if add any float
+          
+          else {
+            string errorMessage = "ERROR (/ with incorrect argument type) : ";
+            errorMessage += definedToken->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // else: wrong type
+        } // if: get defined token
+        
+        else {
+          string errorMessage = "ERROR (/ with incorrect argument type) : ";
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+          return false;
+        } // else: get defined node, can't evaluate TODO: PRINT NODE?
+      } // else if: symbol, check defined or not
+      
+      else {
+        string errorMessage = "ERROR (/ with incorrect argument type) : ";
+        errorMessage += walk->leftToken->content;
+        SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+        return false;
+      } // else: wrong argument type
+    } // if: first argument is token
+    
+    else if ( walk->leftNode ) {
+      if ( m_ResultList.back()->hasTokenResult ) {
+        TokenStruct *previousResult = m_ResultList.back()->tokenResult;
+        
+        if ( previousResult->tokenType == FLOAT || previousResult->tokenType == INT ) {
+          if ( previousResult->tokenType == FLOAT ) {
+            isFloat = true;
+          } // if: argument is float, set isFLoat
+          
+          answer += atof( previousResult->content.c_str() );
+        } // if: check if add any float
+        
+        else if ( previousResult->tokenType == SYMBOL ) {
+          if ( GetDefineBindings( previousResult->content )->leftToken ) {
+            TokenStruct *definedToken = GetDefineBindings( previousResult->content )->leftToken;
+            
+            if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+              if ( definedToken->tokenType == FLOAT ) {
+                isFloat = true;
+              } // if: argument is float, set isFLoat
+              
+              answer += atof( definedToken->content.c_str() );
+            } // if: check if add any float
+            
+            else {
+              string errorMessage = "ERROR (/ with incorrect argument type) : ";
+              errorMessage += definedToken->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // else: wrong type
+          } // if: get defined token
+          
+          else {
+            string errorMessage = "ERROR (/ with incorrect argument type) : ";
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // else: get defined node, can't evaluate TODO: PRINT NODE?
+        } // else if: symbol, check defined or not
+        
+        else {
+          string errorMessage = "ERROR (/ with incorrect argument type) : ";
+          errorMessage += previousResult->content;
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+          return false;
+        } // else: wrong argument type
+      } // if: previous result is a token
+      
+      else if ( m_ResultList.back()->hasNodeResult ) {
+        string errorMessage = "ERROR (/ with incorrect argument type) : ";
+        SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+        return false;
+      } // previous result is a node TODO: PRINT NODE
+    } // else if: first argument is node
+    
+    walk = walk->rightNode;
+    
+    if ( walk->rightNode ) {
+      while ( walk->rightNode ) {
+        if ( walk->leftToken ) {
+          if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
+            if ( walk->leftToken->tokenType == FLOAT ) {
+              isFloat = true;
+            } // if: argument is float, set isFLoat
+            
+            if ( atof( walk->leftToken->content.c_str() ) == 0 ) {
+              string errorMessage = "ERROR (division by zero) : /";
+              SetError( DIVISION_BY_ZERO, errorMessage );
+              return false;
+            } // if: divide by zero
+            
+            answer /= atof( walk->leftToken->content.c_str() );
+          } // if: check if add any float
+          
+          else if ( walk->leftToken->tokenType == SYMBOL ) {
+            if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
+              TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+              
+              if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                if ( definedToken->tokenType == FLOAT ) {
+                  isFloat = true;
+                } // if: argument is float, set isFLoat
+                
+                if ( atof( definedToken->content.c_str() ) == 0 ) {
+                  string errorMessage = "ERROR (division by zero) : /";
+                  SetError( DIVISION_BY_ZERO, errorMessage );
+                  return false;
+                } // if: divide by zero
+                
+                answer /= atof( definedToken->content.c_str() );
+              } // if: check if add any float
+              
+              else {
+                string errorMessage = "ERROR (/ with incorrect argument type) : ";
+                errorMessage += definedToken->content;
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                return false;
+              } // else: wrong type
+            } // if: get defined token
+            
+            else {
+              string errorMessage = "ERROR (/ with incorrect argument type) : ";
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // else: get defined node, can't evaluate TODO: PRINT NODE?
+          } // else if: symbol, check defined or not
+          
+          else {
+            string errorMessage = "ERROR (/ with incorrect argument type) : ";
+            errorMessage += walk->leftToken->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // else: wrong argument type
+        } // if: argument is token
+        
+        else if ( walk->leftNode ) {
+          if ( m_ResultList.back()->hasTokenResult ) {
+            TokenStruct *previousResult = m_ResultList.back()->tokenResult;
+            
+            if ( previousResult->tokenType == FLOAT || previousResult->tokenType == INT ) {
+              if ( previousResult->tokenType == FLOAT ) {
+                isFloat = true;
+              } // if: argument is float, set isFLoat
+              
+              if ( atof( previousResult->content.c_str() ) == 0 ) {
+                string errorMessage = "ERROR (division by zero) : /";
+                SetError( DIVISION_BY_ZERO, errorMessage );
+                return false;
+              } // if: divide by zero
+              
+              answer /= atof( previousResult->content.c_str() );
+            } // if: check if add any float
+            
+            else if ( previousResult->tokenType == SYMBOL ) {
+              if ( GetDefineBindings( previousResult->content )->leftToken ) {
+                TokenStruct *definedToken = GetDefineBindings( previousResult->content )->leftToken;
+                
+                if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                  if ( definedToken->tokenType == FLOAT ) {
+                    isFloat = true;
+                  } // if: argument is float, set isFLoat
+                  
+                  if ( atof( definedToken->content.c_str() ) == 0 ) {
+                    string errorMessage = "ERROR (division by zero) : /";
+                    SetError( DIVISION_BY_ZERO, errorMessage );
+                    return false;
+                  } // if: divide by zero
+                  
+                  answer /= atof( definedToken->content.c_str() );
+                } // if: check if add any float
+                
+                else {
+                  string errorMessage = "ERROR (/ with incorrect argument type) : ";
+                  errorMessage += definedToken->content;
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                  return false;
+                } // else: wrong type
+              } // if: get defined token
+              
+              else {
+                string errorMessage = "ERROR (/ with incorrect argument type) : ";
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                return false;
+              } // else: get defined node, can't evaluate TODO: PRINT NODE?
+            } // else if: symbol, check defined or not
+            
+            else {
+              string errorMessage = "ERROR (/ with incorrect argument type) : ";
+              errorMessage += previousResult->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // else: wrong argument type
+          } // if: previous result is a token
+          
+          else if ( m_ResultList.back()->hasNodeResult ) {
+            string errorMessage = "ERROR (/ with incorrect argument type) : ";
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // previous result is a node TODO: PRINT NODE
+        } // else if: argument is node
+        
+        walk = walk->rightNode;
+        
+        if ( walk->rightNode == NULL ) {
+          if ( walk->leftToken ) {
+            if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
+              if ( walk->leftToken->tokenType == FLOAT ) {
+                isFloat = true;
+              } // if: argument is float, set isFLoat
+              
+              if ( atof( walk->leftToken->content.c_str() ) == 0 ) {
+                string errorMessage = "ERROR (division by zero) : /";
+                SetError( DIVISION_BY_ZERO, errorMessage );
+                return false;
+              } // if: divide by zero
+              
+              answer /= atof( walk->leftToken->content.c_str() );
+            } // if: check if add any float
+            
+            else if ( walk->leftToken->tokenType == SYMBOL ) {
+              if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
+                TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+                
+                if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                  if ( definedToken->tokenType == FLOAT ) {
+                    isFloat = true;
+                  } // if: argument is float, set isFLoat
+                  
+                  if ( atof( definedToken->content.c_str() ) == 0 ) {
+                    string errorMessage = "ERROR (division by zero) : /";
+                    SetError( DIVISION_BY_ZERO, errorMessage );
+                    return false;
+                  } // if: divide by zero
+                  
+                  answer /= atof( definedToken->content.c_str() );
+                } // if: check if add any float
+                
+                else {
+                  string errorMessage = "ERROR (/ with incorrect argument type) : ";
+                  errorMessage += definedToken->content;
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                  return false;
+                } // else: wrong type
+              } // if: get defined token
+              
+              else {
+                string errorMessage = "ERROR (/ with incorrect argument type) : ";
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                return false;
+              } // else: get defined node, can't evaluate TODO: PRINT NODE?
+            } // else if: symbol, check defined or not
+            
+            else {
+              string errorMessage = "ERROR (/ with incorrect argument type) : ";
+              errorMessage += walk->leftToken->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // else: wrong argument type
+          } // if: argument is token
+          
+          else if ( walk->leftNode ) {
+            if ( m_ResultList.back()->hasTokenResult ) {
+              TokenStruct *previousResult = m_ResultList.back()->tokenResult;
+              
+              if ( previousResult->tokenType == FLOAT || previousResult->tokenType == INT ) {
+                if ( previousResult->tokenType == FLOAT ) {
+                  isFloat = true;
+                } // if: argument is float, set isFLoat
+                
+                if ( atof( previousResult->content.c_str() ) == 0 ) {
+                  string errorMessage = "ERROR (division by zero) : /";
+                  SetError( DIVISION_BY_ZERO, errorMessage );
+                  return false;
+                } // if: divide by zero
+                
+                answer /= atof( previousResult->content.c_str() );
+              } // if: check if add any float
+              
+              else if ( previousResult->tokenType == SYMBOL ) {
+                if ( GetDefineBindings( previousResult->content )->leftToken ) {
+                  TokenStruct *definedToken = GetDefineBindings( previousResult->content )->leftToken;
+                  
+                  if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                    if ( definedToken->tokenType == FLOAT ) {
+                      isFloat = true;
+                    } // if: argument is float, set isFLoat
+                    
+                    if ( atof( definedToken->content.c_str() ) == 0 ) {
+                      string errorMessage = "ERROR (division by zero) : /";
+                      SetError( DIVISION_BY_ZERO, errorMessage );
+                      return false;
+                    } // if: divide by zero
+                    
+                    answer /= atof( definedToken->content.c_str() );
+                  } // if: check if add any float
+                  
+                  else {
+                    string errorMessage = "ERROR (/ with incorrect argument type) : ";
+                    errorMessage += definedToken->content;
+                    SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                    return false;
+                  } // else: wrong type
+                } // if: get defined token
+                
+                else {
+                  string errorMessage = "ERROR (/ with incorrect argument type) : ";
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                  return false;
+                } // else: get defined node, can't evaluate TODO: PRINT NODE?
+              } // else if: symbol, check defined or not
+              
+              else {
+                string errorMessage = "ERROR (/ with incorrect argument type) : ";
+                errorMessage += previousResult->content;
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                return false;
+              } // else: wrong argument type
+            } // if: previous result is a token
+            
+            else if ( m_ResultList.back()->hasNodeResult ) {
+              string errorMessage = "ERROR (/ with incorrect argument type) : ";
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // previous result is a node TODO: PRINT NODE
+          } // else if: argument is node
+        } // if: add up the last argument
+      } // for: add up the arguments
+    } // if: has more than two arguments
+    
+    else {
+      if ( walk->leftToken ) {
+        if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
+          if ( walk->leftToken->tokenType == FLOAT ) {
+            isFloat = true;
+          } // if: argument is float, set isFLoat
+          
+          if ( atof( walk->leftToken->content.c_str() ) == 0 ) {
+            string errorMessage = "ERROR (division by zero) : /";
+            SetError( DIVISION_BY_ZERO, errorMessage );
+            return false;
+          } // if: divide by zero
+          
+          answer /= atof( walk->leftToken->content.c_str() );
+        } // if: check if add any float
+        
+        else if ( walk->leftToken->tokenType == SYMBOL ) {
+          if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
+            TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+            
+            if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+              if ( definedToken->tokenType == FLOAT ) {
+                isFloat = true;
+              } // if: argument is float, set isFLoat
+              
+              if ( atof( definedToken->content.c_str() ) == 0 ) {
+                string errorMessage = "ERROR (division by zero) : /";
+                SetError( DIVISION_BY_ZERO, errorMessage );
+                return false;
+              } // if: divide by zero
+              
+              answer /= atof( definedToken->content.c_str() );
+            } // if: check if add any float
+            
+            else {
+              string errorMessage = "ERROR (/ with incorrect argument type) : ";
+              errorMessage += definedToken->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // else: wrong type
+          } // if: get defined token
+          
+          else {
+            string errorMessage = "ERROR (/ with incorrect argument type) : ";
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // else: get defined node, can't evaluate TODO: PRINT NODE?
+        } // else if: symbol, check defined or not
+        
+        else {
+          string errorMessage = "ERROR (/ with incorrect argument type) : ";
+          errorMessage += walk->leftToken->content;
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+          return false;
+        } // else: wrong argument type
+      } // if: argument is token
+      
+      else if ( walk->leftNode ) {
+        if ( m_ResultList.back()->hasTokenResult ) {
+          TokenStruct *previousResult = m_ResultList.back()->tokenResult;
+          
+          if ( previousResult->tokenType == FLOAT || previousResult->tokenType == INT ) {
+            if ( previousResult->tokenType == FLOAT ) {
+              isFloat = true;
+            } // if: argument is float, set isFLoat
+            
+            if ( atof( previousResult->content.c_str() ) == 0 ) {
+              string errorMessage = "ERROR (division by zero) : /";
+              SetError( DIVISION_BY_ZERO, errorMessage );
+              return false;
+            } // if: divide by zero
+            
+            answer /= atof( previousResult->content.c_str() );
+          } // if: check if add any float
+          
+          else if ( previousResult->tokenType == SYMBOL ) {
+            if ( GetDefineBindings( previousResult->content )->leftToken ) {
+              TokenStruct *definedToken = GetDefineBindings( previousResult->content )->leftToken;
+              
+              if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                if ( definedToken->tokenType == FLOAT ) {
+                  isFloat = true;
+                } // if: argument is float, set isFLoat
+                
+                if ( atof( definedToken->content.c_str() ) == 0 ) {
+                  string errorMessage = "ERROR (division by zero) : /";
+                  SetError( DIVISION_BY_ZERO, errorMessage );
+                  return false;
+                } // if: divide by zero
+                
+                answer /= atof( definedToken->content.c_str() );
+              } // if: check if add any float
+              
+              else {
+                string errorMessage = "ERROR (/ with incorrect argument type) : ";
+                errorMessage += definedToken->content;
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                return false;
+              } // else: wrong type
+            } // if: get defined token
+            
+            else {
+              string errorMessage = "ERROR (/ with incorrect argument type) : ";
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // else: get defined node, can't evaluate TODO: PRINT NODE?
+          } // else if: symbol, check defined or not
+          
+          else {
+            string errorMessage = "ERROR (/ with incorrect argument type) : ";
+            errorMessage += previousResult->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // else: wrong argument type
+        } // if: previous result is a token
+        
+        else if ( m_ResultList.back()->hasNodeResult ) {
+          string errorMessage = "ERROR (/ with incorrect argument type) : ";
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+          return false;
+        } // previous result is a node TODO: PRINT NODE
+      } // else if: argument is node
+    } // else: has only two arguments
+    
+    result->hasTokenResult = true;
+    
+    if ( isFloat ) {
+      result->tokenResult->tokenType = FLOAT;
+      result->tokenResult->content = to_string( answer );
+    } // if: isFloat
+    
+    else {
+      result->tokenResult->tokenType = INT;
+      int intAnswer = (int) answer;
+      result->tokenResult->content = to_string( intAnswer );
+    } // else: notFloat
+    
+    m_ResultList.push_back( result );
+    return true;
+  } // Division()
+  
   /*
   ------------------- Print ------------------
   ------------------ Result ------------------
