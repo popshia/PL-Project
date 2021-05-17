@@ -16,7 +16,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "1175"
             endingLineNumber = "1175"
-            landmarkName = "ProcessSExp(walk, hasError)"
+            landmarkName = "IsPrimitive(currentToken)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

@@ -33,7 +33,7 @@ enum ErrorType {
 
 enum PrimitiveType {
   CONSTRUCTOR, QUOTE_BYPASSING, DEFINE_BINDING, PART_ACCESSOR, PRIMITIVE_PREDICATE, OPERATOR, EQUIVALENCE,
-  BEGIN, CONDITIONAL, CLEAN_ENVIRONMENT
+  BEGIN, CONDITIONAL, CLEAN_ENVIRONMENT, EXIT
 }; // primitive types
 
 // define structures
@@ -1194,6 +1194,11 @@ public:
       currentToken->primitiveType = CLEAN_ENVIRONMENT;
     } // else if: clean environment
     
+    else if ( currentToken->content == "exit" ) {
+      currentToken->isPrimitive = true;
+      currentToken->primitiveType = EXIT;
+    } // else if: difine binding
+    
     else {
       currentToken->isPrimitive = false;
     } // else: not primitive
@@ -1440,7 +1445,7 @@ public:
     
     while ( temp->rightNode ) {
       temp = temp->rightNode;
-    } // for: find the rightmost node
+    } // while: find the rightmost node
     
     if ( temp->rightToken ) {
       string errorMessage = "ERROR (non-list) : ";
@@ -1511,7 +1516,7 @@ public:
         string errorMessage = "ERROR (incorrect number of arguments) : quote";
         SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
         return false;
-      } // incorrect number of arguments
+      } // else: incorrect number of arguments
       
       return true;
     } // else if: quote
@@ -1564,7 +1569,7 @@ public:
         string errorMessage = "ERROR (DEFINE format) : ";
         SetError( DEFINE_FORMAT, errorMessage );
         return false;
-      } // if: number error
+      } // else: number error
       
       return true;
     } // else if: define binding
@@ -1639,7 +1644,7 @@ public:
           argumentList.push_back( current->rightNode );
           
           if ( current->rightNode->rightNode != NULL ) {
-            string errorMessage = "ERROR (incorrect number of arguments) : " + current->leftToken->content;
+            string errorMessage = "ERROR (incorrect number of arguments) : not";
             SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
             return false;
           } // if: number error
@@ -1822,12 +1827,22 @@ public:
         string errorMessage = "ERROR (incorrect number of arguments) : clean-environment";
         SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
         return false;
-      } // else: number error
+      } // if: number error
       
       else {
         return true;
       } // else: correct input
     } // else if: clean-environment
+    
+    else if ( current->leftToken->primitiveType == EXIT ) {
+      if ( current->rightNode ) {
+        string errorMessage = "ERROR (incorrect number of arguments) : exit";
+        SetError( INCORRECT_NUM_ARGUMENTS, errorMessage );
+        return false;
+      } // if: number error
+      
+      return true;
+    } // else if: exit
     
     return false;
   } // CheckArgument()
@@ -1851,38 +1866,6 @@ public:
       } // if: has rightNode
     } // if: quoteWalk is not NULL
   } // PrintQuoteArguments()
-  
-  TokenType CheckPreviousResultType( ResultStruct *result ) {
-    if ( result->hasNodeResult ) {
-      return LEFT_PAREN;
-    } // if: node
-    
-    else if ( result->tokenResult->tokenType == STRING ) {
-      return STRING;
-    } // if: string
-    
-    else if ( result->tokenResult->tokenType == SYMBOL ) {
-      return SYMBOL;
-    } // else if: symbol
-    
-    else if ( result->tokenResult->tokenType == INT ) {
-      return INT;
-    } // else if: int
-    
-    else if ( result->tokenResult->tokenType == FLOAT ) {
-      return FLOAT;
-    } // else if: float
-    
-    else if ( result->tokenResult->tokenType == T ) {
-      return T;
-    } // if: #t
-    
-    else if ( result->tokenResult->tokenType == NIL ) {
-      return NIL;
-    } // else: nil
-    
-    return NIL;
-  } // CheckPreviousResultType()
   
   /*
   ------------------ Function ----------------
@@ -2082,6 +2065,7 @@ public:
     
     else if ( function->primitiveType == CLEAN_ENVIRONMENT ) {
       m_DefineBindingList.clear();
+      result->hasTokenResult = true;
       result->tokenResult->tokenType = STRING;
       result->tokenResult->content = "environment cleaned";
       m_ResultList.push_back( result );
@@ -2482,7 +2466,7 @@ public:
           else if ( GetDefineBindings( w_String )->leftNode->leftToken ) {
             result->hasTokenResult = true;
             result->tokenResult = GetDefineBindings( w_String )->leftNode->leftToken;
-          } // else: defined has leftToken
+          } // else if: defined has leftToken
           
           else {
             result->hasTokenResult = true;
@@ -2516,7 +2500,7 @@ public:
         else if ( m_ResultList.back()->nodeResult->leftToken ) {
           result->hasTokenResult = true;
           result->tokenResult = m_ResultList.back()->nodeResult->leftToken;
-        } // else: previous result only has a leftToken
+        } // else if: previous result only has a leftToken
         
         else {
           result->hasTokenResult = true;
@@ -2537,7 +2521,7 @@ public:
             else if ( GetDefineBindings( w_String )->leftNode->leftToken ) {
               result->hasTokenResult = true;
               result->tokenResult = GetDefineBindings( w_String )->leftNode->leftToken;
-            } // else: defined has leftToken
+            } // else if: defined has leftToken
             
             else {
               result->hasTokenResult = true;
@@ -2582,7 +2566,7 @@ public:
           else if ( GetDefineBindings( w_String )->leftNode->rightToken ) {
             result->hasTokenResult = true;
             result->tokenResult = GetDefineBindings( w_String )->leftNode->rightToken;
-          } // else: defined has leftToken
+          } // else if: defined has leftToken
           
           else {
             result->hasTokenResult = true;
@@ -2616,7 +2600,7 @@ public:
         else if ( m_ResultList.back()->nodeResult->rightToken ) {
           result->hasTokenResult = true;
           result->tokenResult = m_ResultList.back()->nodeResult->rightToken;
-        } // else: previous result only has a leftToken
+        } // else if: previous result only has a leftToken
         
         else {
           result->hasTokenResult = true;
@@ -2637,7 +2621,7 @@ public:
             else if ( GetDefineBindings( w_String )->leftNode->rightToken ) {
               result->hasTokenResult = true;
               result->tokenResult = GetDefineBindings( w_String )->leftNode->rightToken;
-            } // else: defined has leftToken
+            } // else if: defined has leftToken
             
             else {
               result->hasTokenResult = true;
@@ -3314,7 +3298,7 @@ public:
           
           SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
           return false;
-        } // previous result is a node
+        } // else if: previous result is a node
         
         m_ResultList.pop_back();
       } // else if: argument is node
@@ -3462,24 +3446,28 @@ public:
             
             SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
             return false;
-          } // previous result is a node
+          } // else if: previous result is a node
           
           m_ResultList.pop_back();
         } // else if: argument is node
       } // if: add up the last argument
-    } // for: add up the arguments
+    } // while: add up the arguments
     
     result->hasTokenResult = true;
     
     if ( isFloat ) {
       result->tokenResult->tokenType = FLOAT;
-      result->tokenResult->content = to_string( answer );
+      stringstream toString;
+      toString << answer;
+      result->tokenResult->content = toString.str();
     } // if: isFloat
     
     else {
       result->tokenResult->tokenType = INT;
-      int intAnswer = (int) answer;
-      result->tokenResult->content = to_string( intAnswer );
+      int intAnswer = ( int ) answer;
+      stringstream toString;
+      toString << intAnswer;
+      result->tokenResult->content = toString.str();
     } // else: notFloat
     
     m_ResultList.push_back( result );
@@ -3632,7 +3620,7 @@ public:
         
         SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
         return false;
-      } // previous result is a node
+      } // else if: previous result is a node
       
       m_ResultList.pop_back();
     } // else if: first argument is node
@@ -3781,7 +3769,7 @@ public:
             
             SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
             return false;
-          } // previous result is a node
+          } // else if: previous result is a node
           
           m_ResultList.pop_back();
         } // else if: argument is node
@@ -3929,12 +3917,12 @@ public:
               
               SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
               return false;
-            } // previous result is a node
+            } // else if: previous result is a node
             
             m_ResultList.pop_back();
           } // else if: argument is node
         } // if: add up the last argument
-      } // for: add up the arguments
+      } // while: add up the arguments
     } // if: has more than two arguments
     
     else {
@@ -4079,7 +4067,7 @@ public:
           
           SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
           return false;
-        } // previous result is a node
+        } // else if: previous result is a node
         
         m_ResultList.pop_back();
       } // else if: argument is node
@@ -4089,13 +4077,17 @@ public:
     
     if ( isFloat ) {
       result->tokenResult->tokenType = FLOAT;
-      result->tokenResult->content = to_string( answer );
+      stringstream toString;
+      toString << answer;
+      result->tokenResult->content = toString.str();
     } // if: isFloat
     
     else {
       result->tokenResult->tokenType = INT;
-      int intAnswer = (int) answer;
-      result->tokenResult->content = to_string( intAnswer );
+      int intAnswer = ( int ) answer;
+      stringstream toString;
+      toString << intAnswer;
+      result->tokenResult->content = toString.str();
     } // else: notFloat
     
     m_ResultList.push_back( result );
@@ -4249,7 +4241,7 @@ public:
           
           SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
           return false;
-        } // previous result is a node
+        } // else if: previous result is a node
         
         m_ResultList.pop_back();
       } // else if: argument is node
@@ -4397,24 +4389,28 @@ public:
             
             SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
             return false;
-          } // previous result is a node
+          } // else if: previous result is a node
           
           m_ResultList.pop_back();
         } // else if: argument is node
       } // if: add up the last argument
-    } // for: add up the arguments
+    } // while: add up the arguments
     
     result->hasTokenResult = true;
     
     if ( isFloat ) {
       result->tokenResult->tokenType = FLOAT;
-      result->tokenResult->content = to_string( answer );
+      stringstream toString;
+      toString << answer;
+      result->tokenResult->content = toString.str();
     } // if: isFloat
     
     else {
       result->tokenResult->tokenType = INT;
-      int intAnswer = (int) answer;
-      result->tokenResult->content = to_string( intAnswer );
+      int intAnswer = ( int ) answer;
+      stringstream toString;
+      toString << intAnswer;
+      result->tokenResult->content = toString.str();
     } // else: notFloat
     
     m_ResultList.push_back( result );
@@ -4566,7 +4562,7 @@ public:
         
         SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
         return false;
-      } // previous result is a node
+      } // else if: previous result is a node
       
       m_ResultList.pop_back();
     } // else if: first argument is node
@@ -4739,7 +4735,7 @@ public:
             
             SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
             return false;
-          } // previous result is a node
+          } // else if: previous result is a node
           
           m_ResultList.pop_back();
         } // else if: argument is node
@@ -4911,12 +4907,12 @@ public:
               
               SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
               return false;
-            } // previous result is a node
+            } // else if: previous result is a node
             
             m_ResultList.pop_back();
           } // else if: argument is node
         } // if: add up the last argument
-      } // for: add up the arguments
+      } // while: add up the arguments
     } // if: has more than two arguments
     
     else {
@@ -5084,7 +5080,7 @@ public:
           
           SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
           return false;
-        } // previous result is a node
+        } // else if: previous result is a node
         
         m_ResultList.pop_back();
       } // else if: argument is node
@@ -5094,13 +5090,17 @@ public:
     
     if ( isFloat ) {
       result->tokenResult->tokenType = FLOAT;
-      result->tokenResult->content = to_string( answer );
+      stringstream toString;
+      toString << answer;
+      result->tokenResult->content = toString.str();
     } // if: isFloat
     
     else {
       result->tokenResult->tokenType = INT;
-      int intAnswer = (int) answer;
-      result->tokenResult->content = to_string( intAnswer );
+      int intAnswer = ( int ) answer;
+      stringstream toString;
+      toString << intAnswer;
+      result->tokenResult->content = toString.str();
     } // else: notFloat
     
     m_ResultList.push_back( result );
@@ -5119,76 +5119,34 @@ public:
     if ( arguments.front()->leftToken ) {
       if ( arguments.front()->leftToken->tokenType == SYMBOL ) {
         if ( GetDefineBindings( arguments.front()->leftToken->content )->leftNode ) {
-          TreeStruct *definedNode = GetDefineBindings( arguments.front()->leftToken->content )->leftNode;
-          stringstream errorMessage;
-          errorMessage << "ERROR (not with incorrect argument type) : ";
-          int layer = 0;
-          AddTreeString( definedNode, layer, false, errorMessage );
-          
-          if ( layer > 0 ) {
-            while ( layer > 0 ) {
-              layer--;
-              errorMessage << string( layer, ' ' ) << ')' << endl;
-            } // while: loop print right-paren
-          } // if: layer still greater than zero
-          
-          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
-          return false;
+          result->tokenResult = falseToken;
         } // if: get defined node, cant evaluate
         
         else if ( GetDefineBindings( arguments.front()->leftToken->content )->leftToken ) {
           TokenStruct *definedToken = GetDefineBindings( arguments.front()->leftToken->content )->leftToken;
           
-          if ( definedToken->tokenType == T ) {
-            result->tokenResult = falseToken;
-          } // else if: T, return nil
-          
-          else if ( definedToken->tokenType == NIL ) {
+          if ( definedToken->tokenType == NIL ) {
             result->tokenResult = trueToken;
           } // else if: nil, return T
           
           else {
-            string errorMessage = "ERROR (not with incorrect argument type) : ";
-            errorMessage += definedToken->content;
-            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
-            return false;
+            result->tokenResult = falseToken;
           } // else: wrong argument type
-        } // else: get defined token, check tokenType
+        } // else if: get defined token, check tokenType
       } // if: symbol, find pre-defined symbol
-      
-      else if ( arguments.front()->leftToken->tokenType == T ) {
-        result->tokenResult = falseToken;
-      } // else if: T, return nil
       
       else if ( arguments.front()->leftToken->tokenType == NIL ) {
         result->tokenResult = trueToken;
       } // else if: nil, return T
       
       else {
-        string errorMessage = "ERROR (not with incorrect argument type) : ";
-        errorMessage += arguments.front()->leftToken->content;
-        SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
-        return false;
+        result->tokenResult = falseToken;
       } // else: wrong argument type
     } // if: argument is a token
     
     else {
       if ( m_ResultList.back()->hasNodeResult ) {
-        TreeStruct *previousNode = m_ResultList.back()->nodeResult;
-        stringstream errorMessage;
-        errorMessage << "ERROR (not with incorrect argument type) : ";
-        int layer = 0;
-        AddTreeString( previousNode, layer, false, errorMessage );
-        
-        if ( layer > 0 ) {
-          while ( layer > 0 ) {
-            layer--;
-            errorMessage << string( layer, ' ' ) << ')' << endl;
-          } // while: loop print right-paren
-        } // if: layer still greater than zero
-        
-        SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
-        return false;
+        result->tokenResult = falseToken;
       } // if: previous result is a node
       
       else if ( m_ResultList.back()->hasTokenResult ) {
@@ -5197,37 +5155,16 @@ public:
         if ( previousResult->tokenType == SYMBOL ) {
           if ( FoundDefineBindings( previousResult->content ) ) {
             if ( GetDefineBindings( previousResult->content )->leftNode ) {
-              TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
-              stringstream errorMessage;
-              errorMessage << "ERROR (not with incorrect argument type) : ";
-              int layer = 0;
-              AddTreeString( definedNode, layer, false, errorMessage );
-              
-              if ( layer > 0 ) {
-                while ( layer > 0 ) {
-                  layer--;
-                  errorMessage << string( layer, ' ' ) << ')' << endl;
-                } // while: loop print right-paren
-              } // if: layer still greater than zero
-              
-              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
-              return false;
+              result->tokenResult = falseToken;
             } // if: get defined node, cant evaluate
             
             else {
-              if ( previousResult->tokenType == T ) {
-                result->tokenResult = falseToken;
-              } // else if: T, return nil
-              
-              else if ( previousResult->tokenType == NIL ) {
+              if ( previousResult->tokenType == NIL ) {
                 result->tokenResult = trueToken;
               } // else if: nil, return T
               
               else {
-                string errorMessage = "ERROR (not with incorrect argument type) : ";
-                errorMessage += previousResult->content;
-                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
-                return false;
+                result->tokenResult = falseToken;
               } // else: wrong argument type
             } // else: get defined token, check tokenType
           } // if: found previous symbol token defined
@@ -5240,21 +5177,14 @@ public:
           } // else: found previous symbol token not defined
         } // if: symbol, find pre-defined symbol
         
-        else if ( m_ResultList.back()->tokenResult->tokenType == T ) {
-          result->tokenResult = falseToken;
-        } // else if: T, return nil
-        
         else if ( m_ResultList.back()->tokenResult->tokenType == NIL ) {
           result->tokenResult = trueToken;
         } // else if: nil, return T
         
         else {
-          string errorMessage = "ERROR (not with incorrect argument type) : ";
-          errorMessage += previousResult->content;
-          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
-          return false;
+          result->tokenResult = falseToken;
         } // else: wrong argument type
-      } // else: previous result is a token
+      } // else if: previous result is a token
       
       m_ResultList.pop_back();
     } // else: argument is a node
@@ -5407,7 +5337,7 @@ public:
         
         SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
         return false;
-      } // previous result is a node
+      } // else if: previous result is a node
       
       m_ResultList.pop_back();
     } // else if: first argument is node
@@ -5564,7 +5494,7 @@ public:
             
             SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
             return false;
-          } // previous result is a node
+          } // else if: previous result is a node
           
           m_ResultList.pop_back();
         } // else if: the argument is a node
@@ -5720,7 +5650,7 @@ public:
               
               SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
               return false;
-            } // previous result is a node
+            } // else if: previous result is a node
             
             m_ResultList.pop_back();
           } // else if: the argument is a node
@@ -5877,7 +5807,7 @@ public:
           
           SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
           return false;
-        } // previous result is a node
+        } // else if: previous result is a node
         
         m_ResultList.pop_back();
       } // else if: the argument is a node
@@ -6039,7 +5969,7 @@ public:
         
         SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
         return false;
-      } // previous result is a node
+      } // else if: previous result is a node
       
       m_ResultList.pop_back();
     } // else if: first argument is node
@@ -6196,7 +6126,7 @@ public:
             
             SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
             return false;
-          } // previous result is a node
+          } // else if: previous result is a node
           
           m_ResultList.pop_back();
         } // else if: the argument is a node
@@ -6352,7 +6282,7 @@ public:
               
               SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
               return false;
-            } // previous result is a node
+            } // else if: previous result is a node
             
             m_ResultList.pop_back();
           } // else if: the argument is a node
@@ -6509,7 +6439,7 @@ public:
           
           SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
           return false;
-        } // previous result is a node
+        } // else if: previous result is a node
         
         m_ResultList.pop_back();
       } // else if: the argument is a node
@@ -6528,23 +6458,3153 @@ public:
   } // Or()
   
   bool GreaterThan( vector<TreeStruct *> arguments, ResultStruct *result ) {
-    ;
-  } // GreaterThen()
+    result->hasTokenResult = true;
+    result->tokenResult->tokenType = T;
+    TreeStruct *walk = arguments.front();
+    float previousNumber = 0;
+    
+    if ( walk->leftToken ) {
+      if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
+        previousNumber = atof( walk->leftToken->content.c_str() );
+      } // if: check if add any float
+      
+      else if ( walk->leftToken->tokenType == SYMBOL ) {
+        if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
+          TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+          
+          if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+            previousNumber = atof( definedToken->content.c_str() );
+          } // if: check if add any float
+          
+          else {
+            string errorMessage = "ERROR (> with incorrect argument type) : ";
+            errorMessage += definedToken->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // else: wrong type
+        } // if: get defined token
+        
+        else {
+          TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+          stringstream errorMessage;
+          errorMessage << "ERROR (> with incorrect argument type) : ";
+          int layer = 0;
+          AddTreeString( definedNode, layer, false, errorMessage );
+          
+          if ( layer > 0 ) {
+            while ( layer > 0 ) {
+              layer--;
+              errorMessage << string( layer, ' ' ) << ')' << endl;
+            } // while: loop print right-paren
+          } // if: layer still greater than zero
+          
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+          return false;
+        } // else: get defined node, can't evaluate
+      } // else if: symbol, check defined or not
+      
+      else {
+        string errorMessage = "ERROR (> with incorrect argument type) : ";
+        errorMessage += walk->leftToken->content;
+        SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+        return false;
+      } // else: wrong argument type
+    } // if: first argument is token
+    
+    else if ( walk->leftNode ) {
+      if ( m_ResultList.back()->hasTokenResult ) {
+        TokenStruct *previousResult = m_ResultList.back()->tokenResult;
+        
+        if ( previousResult->tokenType == FLOAT || previousResult->tokenType == INT ) {
+          previousNumber = atof( previousResult->content.c_str() );
+        } // if: check if add any float
+        
+        else if ( previousResult->tokenType == SYMBOL ) {
+          if ( FoundDefineBindings( previousResult->content ) ) {
+            if ( GetDefineBindings( previousResult->content )->leftToken ) {
+              TokenStruct *definedToken = GetDefineBindings( previousResult->content )->leftToken;
+              
+              if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                previousNumber = atof( definedToken->content.c_str() );
+              } // if: check if add any float
+              
+              else {
+                string errorMessage = "ERROR (> with incorrect argument type) : ";
+                errorMessage += definedToken->content;
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                return false;
+              } // else: wrong type
+            } // if: get defined token
+            
+            else {
+              TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+              stringstream errorMessage;
+              errorMessage << "ERROR (> with incorrect argument type) : ";
+              int layer = 0;
+              AddTreeString( definedNode, layer, false, errorMessage );
+              
+              if ( layer > 0 ) {
+                while ( layer > 0 ) {
+                  layer--;
+                  errorMessage << string( layer, ' ' ) << ')' << endl;
+                } // while: loop print right-paren
+              } // if: layer still greater than zero
+              
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+              return false;
+            } // else: get defined node, can't evaluate
+          } // if: found previous result defined
+          
+          else {
+            string errorMessage = "ERROR (unbound symbol) : ";
+            errorMessage += previousResult->content;
+            SetError( DEFINE_UNBOUND, errorMessage );
+            return false;
+          } // else: found previous symbol token not defined
+        } // else if: symbol, check defined or not
+        
+        else {
+          string errorMessage = "ERROR (> with incorrect argument type) : ";
+          errorMessage += previousResult->content;
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+          return false;
+        } // else: wrong argument type
+      } // if: previous result is a token
+      
+      else if ( m_ResultList.back()->hasNodeResult ) {
+        TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+        stringstream errorMessage;
+        errorMessage << "ERROR (> with incorrect argument type) : ";
+        int layer = 0;
+        AddTreeString( previousNode, layer, false, errorMessage );
+        
+        if ( layer > 0 ) {
+          while ( layer > 0 ) {
+            layer--;
+            errorMessage << string( layer, ' ' ) << ')' << endl;
+          } // while: loop print right-paren
+        } // if: layer still greater than zero
+        
+        SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+        return false;
+      } // else if: previous result is a node
+      
+      m_ResultList.pop_back();
+    } // else if: first argument is node
+    
+    walk = walk->rightNode;
+    
+    if ( walk->rightNode ) {
+      while ( walk->rightNode ) {
+        if ( walk->leftToken ) {
+          if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
+            if ( previousNumber > atof( walk->leftToken->content.c_str() ) ) {
+              previousNumber = atof( walk->leftToken->content.c_str() );
+            } // if: argument is float, set isFLoat
+            
+            else {
+              result->tokenResult->tokenType = NIL;
+              previousNumber = atof( walk->leftToken->content.c_str() );
+            } // else: false
+          } // if: check if add any float
+          
+          else if ( walk->leftToken->tokenType == SYMBOL ) {
+            if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
+              TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+              
+              if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                if ( previousNumber > atof( definedToken->content.c_str() ) ) {
+                  previousNumber = atof( definedToken->content.c_str() );
+                } // if: argument is float, set isFLoat
+                
+                else {
+                  result->tokenResult->tokenType = NIL;
+                  previousNumber = atof( definedToken->content.c_str() );
+                } // else: false
+              } // if: check if add any float
+              
+              else {
+                string errorMessage = "ERROR (> with incorrect argument type) : ";
+                errorMessage += definedToken->content;
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                return false;
+              } // else: wrong type
+            } // if: get defined token
+            
+            else {
+              TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+              stringstream errorMessage;
+              errorMessage << "ERROR (> with incorrect argument type) : ";
+              int layer = 0;
+              AddTreeString( definedNode, layer, false, errorMessage );
+              
+              if ( layer > 0 ) {
+                while ( layer > 0 ) {
+                  layer--;
+                  errorMessage << string( layer, ' ' ) << ')' << endl;
+                } // while: loop print right-paren
+              } // if: layer still greater than zero
+              
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+              return false;
+            } // else: get defined node, can't evaluate
+          } // else if: symbol, check defined or not
+          
+          else {
+            string errorMessage = "ERROR (> with incorrect argument type) : ";
+            errorMessage += walk->leftToken->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // else: wrong argument type
+        } // if: argument is token
+        
+        else if ( walk->leftNode ) {
+          if ( m_ResultList.back()->hasTokenResult ) {
+            TokenStruct *previousResult = m_ResultList.back()->tokenResult;
+            
+            if ( previousResult->tokenType == FLOAT || previousResult->tokenType == INT ) {
+              if ( previousNumber > atof( previousResult->content.c_str() ) ) {
+                previousNumber = atof( previousResult->content.c_str() );
+              } // if: argument is float, set isFLoat
+              
+              else {
+                result->tokenResult->tokenType = NIL;
+                previousNumber = atof( previousResult->content.c_str() );
+              } // else: false
+            } // if: check if add any float
+            
+            else if ( previousResult->tokenType == SYMBOL ) {
+              if ( FoundDefineBindings( previousResult->content ) ) {
+                if ( GetDefineBindings( previousResult->content )->leftToken ) {
+                  TokenStruct *definedToken = GetDefineBindings( previousResult->content )->leftToken;
+                  
+                  if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                    if ( previousNumber > atof( definedToken->content.c_str() ) ) {
+                      previousNumber = atof( definedToken->content.c_str() );
+                    } // if: argument is float, set isFLoat
+                    
+                    else {
+                      result->tokenResult->tokenType = NIL;
+                      previousNumber = atof( definedToken->content.c_str() );
+                    } // else: false
+                  } // if: check if add any float
+                  
+                  else {
+                    string errorMessage = "ERROR (> with incorrect argument type) : ";
+                    errorMessage += definedToken->content;
+                    SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                    return false;
+                  } // else: wrong type
+                } // if: get defined token
+                
+                else {
+                  TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+                  stringstream errorMessage;
+                  errorMessage << "ERROR (> with incorrect argument type) : ";
+                  int layer = 0;
+                  AddTreeString( definedNode, layer, false, errorMessage );
+                  
+                  if ( layer > 0 ) {
+                    while ( layer > 0 ) {
+                      layer--;
+                      errorMessage << string( layer, ' ' ) << ')' << endl;
+                    } // while: loop print right-paren
+                  } // if: layer still greater than zero
+                  
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+                  return false;
+                } // else: get defined node, can't evaluate
+              } // if: found previous result defined
+              
+              else {
+                string errorMessage = "ERROR (unbound symbol) : ";
+                errorMessage += previousResult->content;
+                SetError( DEFINE_UNBOUND, errorMessage );
+                return false;
+              } // else: found previous symbol token not defined
+            } // else if: symbol, check defined or not
+            
+            else {
+              string errorMessage = "ERROR (> with incorrect argument type) : ";
+              errorMessage += previousResult->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // else: wrong argument type
+          } // if: previous result is a token
+          
+          else if ( m_ResultList.back()->hasNodeResult ) {
+            TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+            stringstream errorMessage;
+            errorMessage << "ERROR (> with incorrect argument type) : ";
+            int layer = 0;
+            AddTreeString( previousNode, layer, false, errorMessage );
+            
+            if ( layer > 0 ) {
+              while ( layer > 0 ) {
+                layer--;
+                errorMessage << string( layer, ' ' ) << ')' << endl;
+              } // while: loop print right-paren
+            } // if: layer still greater than zero
+            
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+            return false;
+          } // else if: previous result is a node
+          
+          m_ResultList.pop_back();
+        } // else if: argument is node
+        
+        walk = walk->rightNode;
+        
+        if ( walk->rightNode == NULL ) {
+          if ( walk->leftToken ) {
+            if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
+              if ( previousNumber > atof( walk->leftToken->content.c_str() ) ) {
+                previousNumber = atof( walk->leftToken->content.c_str() );
+              } // if: argument is float, set isFLoat
+              
+              else {
+                result->tokenResult->tokenType = NIL;
+                previousNumber = atof( walk->leftToken->content.c_str() );
+              } // else: false
+            } // if: check if add any float
+            
+            else if ( walk->leftToken->tokenType == SYMBOL ) {
+              if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
+                TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+                
+                if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                  if ( previousNumber > atof( definedToken->content.c_str() ) ) {
+                    previousNumber = atof( definedToken->content.c_str() );
+                  } // if: argument is float, set isFLoat
+                  
+                  else {
+                    result->tokenResult->tokenType = NIL;
+                    previousNumber = atof( definedToken->content.c_str() );
+                  } // else: false
+                } // if: check if add any float
+                
+                else {
+                  string errorMessage = "ERROR (> with incorrect argument type) : ";
+                  errorMessage += definedToken->content;
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                  return false;
+                } // else: wrong type
+              } // if: get defined token
+              
+              else {
+                TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+                stringstream errorMessage;
+                errorMessage << "ERROR (> with incorrect argument type) : ";
+                int layer = 0;
+                AddTreeString( definedNode, layer, false, errorMessage );
+                
+                if ( layer > 0 ) {
+                  while ( layer > 0 ) {
+                    layer--;
+                    errorMessage << string( layer, ' ' ) << ')' << endl;
+                  } // while: loop print right-paren
+                } // if: layer still greater than zero
+                
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+                return false;
+              } // else: get defined node, can't evaluate
+            } // else if: symbol, check defined or not
+            
+            else {
+              string errorMessage = "ERROR (> with incorrect argument type) : ";
+              errorMessage += walk->leftToken->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // else: wrong argument type
+          } // if: argument is token
+          
+          else if ( walk->leftNode ) {
+            if ( m_ResultList.back()->hasTokenResult ) {
+              TokenStruct *previousResult = m_ResultList.back()->tokenResult;
+              
+              if ( previousResult->tokenType == FLOAT || previousResult->tokenType == INT ) {
+                if ( previousNumber > atof( previousResult->content.c_str() ) ) {
+                  previousNumber = atof( previousResult->content.c_str() );
+                } // if: argument is float, set isFLoat
+                
+                else {
+                  result->tokenResult->tokenType = NIL;
+                  previousNumber = atof( previousResult->content.c_str() );
+                } // else: false
+              } // if: check if add any float
+              
+              else if ( previousResult->tokenType == SYMBOL ) {
+                if ( FoundDefineBindings( previousResult->content ) ) {
+                  if ( GetDefineBindings( previousResult->content )->leftToken ) {
+                    TokenStruct *definedToken = GetDefineBindings( previousResult->content )->leftToken;
+                    
+                    if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                      if ( previousNumber > atof( definedToken->content.c_str() ) ) {
+                        previousNumber = atof( definedToken->content.c_str() );
+                      } // if: argument is float, set isFLoat
+                      
+                      else {
+                        result->tokenResult->tokenType = NIL;
+                        previousNumber = atof( definedToken->content.c_str() );
+                      } // else: false
+                    } // if: check if add any float
+                    
+                    else {
+                      string errorMessage = "ERROR (> with incorrect argument type) : ";
+                      errorMessage += definedToken->content;
+                      SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                      return false;
+                    } // else: wrong type
+                  } // if: get defined token
+                  
+                  else {
+                    TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+                    stringstream errorMessage;
+                    errorMessage << "ERROR (> with incorrect argument type) : ";
+                    int layer = 0;
+                    AddTreeString( definedNode, layer, false, errorMessage );
+                    
+                    if ( layer > 0 ) {
+                      while ( layer > 0 ) {
+                        layer--;
+                        errorMessage << string( layer, ' ' ) << ')' << endl;
+                      } // while: loop print right-paren
+                    } // if: layer still greater than zero
+                    
+                    SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+                    return false;
+                  } // else: get defined node, can't evaluate
+                } // if: found previous result defined
+                
+                else {
+                  string errorMessage = "ERROR (unbound symbol) : ";
+                  errorMessage += previousResult->content;
+                  SetError( DEFINE_UNBOUND, errorMessage );
+                  return false;
+                } // else: found previous symbol token not defined
+              } // else if: symbol, check defined or not
+              
+              else {
+                string errorMessage = "ERROR (> with incorrect argument type) : ";
+                errorMessage += previousResult->content;
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                return false;
+              } // else: wrong argument type
+            } // if: previous result is a token
+            
+            else if ( m_ResultList.back()->hasNodeResult ) {
+              TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+              stringstream errorMessage;
+              errorMessage << "ERROR (> with incorrect argument type) : ";
+              int layer = 0;
+              AddTreeString( previousNode, layer, false, errorMessage );
+              
+              if ( layer > 0 ) {
+                while ( layer > 0 ) {
+                  layer--;
+                  errorMessage << string( layer, ' ' ) << ')' << endl;
+                } // while: loop print right-paren
+              } // if: layer still greater than zero
+              
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+              return false;
+            } // else if: previous result is a node
+            
+            m_ResultList.pop_back();
+          } // else if: argument is node
+        } // if: add up the last argument
+      } // while: add up the arguments
+    } // if: has more than two arguments
+    
+    else {
+      if ( walk->leftToken ) {
+        if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
+          if ( previousNumber > atof( walk->leftToken->content.c_str() ) ) {
+            previousNumber = atof( walk->leftToken->content.c_str() );
+          } // if: argument is float, set isFLoat
+          
+          else {
+            result->tokenResult->tokenType = NIL;
+            previousNumber = atof( walk->leftToken->content.c_str() );
+          } // else: false
+        } // if: check if add any float
+        
+        else if ( walk->leftToken->tokenType == SYMBOL ) {
+          if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
+            TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+            
+            if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+              if ( previousNumber > atof( definedToken->content.c_str() ) ) {
+                previousNumber = atof( definedToken->content.c_str() );
+              } // if: argument is float, set isFLoat
+              
+              else {
+                result->tokenResult->tokenType = NIL;
+                previousNumber = atof( definedToken->content.c_str() );
+              } // else: false
+            } // if: check if add any float
+            
+            else {
+              string errorMessage = "ERROR (> with incorrect argument type) : ";
+              errorMessage += definedToken->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // else: wrong type
+          } // if: get defined token
+          
+          else {
+            TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+            stringstream errorMessage;
+            errorMessage << "ERROR (> with incorrect argument type) : ";
+            int layer = 0;
+            AddTreeString( definedNode, layer, false, errorMessage );
+            
+            if ( layer > 0 ) {
+              while ( layer > 0 ) {
+                layer--;
+                errorMessage << string( layer, ' ' ) << ')' << endl;
+              } // while: loop print right-paren
+            } // if: layer still greater than zero
+            
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+            return false;
+          } // else: get defined node, can't evaluate
+        } // else if: symbol, check defined or not
+        
+        else {
+          string errorMessage = "ERROR (> with incorrect argument type) : ";
+          errorMessage += walk->leftToken->content;
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+          return false;
+        } // else: wrong argument type
+      } // if: argument is token
+      
+      else if ( walk->leftNode ) {
+        if ( m_ResultList.back()->hasTokenResult ) {
+          TokenStruct *previousResult = m_ResultList.back()->tokenResult;
+          
+          if ( previousResult->tokenType == FLOAT || previousResult->tokenType == INT ) {
+            if ( previousNumber > atof( previousResult->content.c_str() ) ) {
+              previousNumber = atof( previousResult->content.c_str() );
+            } // if: argument is float, set isFLoat
+            
+            else {
+              result->tokenResult->tokenType = NIL;
+              previousNumber = atof( previousResult->content.c_str() );
+            } // else: false
+          } // if: check if add any float
+          
+          else if ( previousResult->tokenType == SYMBOL ) {
+            if ( FoundDefineBindings( previousResult->content ) ) {
+              if ( GetDefineBindings( previousResult->content )->leftToken ) {
+                TokenStruct *definedToken = GetDefineBindings( previousResult->content )->leftToken;
+                
+                if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                  if ( previousNumber > atof( definedToken->content.c_str() ) ) {
+                    previousNumber = atof( definedToken->content.c_str() );
+                  } // if: argument is float, set isFLoat
+                  
+                  else {
+                    result->tokenResult->tokenType = NIL;
+                    previousNumber = atof( definedToken->content.c_str() );
+                  } // else: false
+                } // if: check if add any float
+                
+                else {
+                  string errorMessage = "ERROR (> with incorrect argument type) : ";
+                  errorMessage += definedToken->content;
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                  return false;
+                } // else: wrong type
+              } // if: get defined token
+              
+              else {
+                TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+                stringstream errorMessage;
+                errorMessage << "ERROR (> with incorrect argument type) : ";
+                int layer = 0;
+                AddTreeString( definedNode, layer, false, errorMessage );
+                
+                if ( layer > 0 ) {
+                  while ( layer > 0 ) {
+                    layer--;
+                    errorMessage << string( layer, ' ' ) << ')' << endl;
+                  } // while: loop print right-paren
+                } // if: layer still greater than zero
+                
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+                return false;
+              } // else: get defined node, can't evaluate
+            } // if: found previous result defined
+            
+            else {
+              string errorMessage = "ERROR (unbound symbol) : ";
+              errorMessage += previousResult->content;
+              SetError( DEFINE_UNBOUND, errorMessage );
+              return false;
+            } // else: found previous symbol token not defined
+          } // else if: symbol, check defined or not
+          
+          else {
+            string errorMessage = "ERROR (> with incorrect argument type) : ";
+            errorMessage += previousResult->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // else: wrong argument type
+        } // if: previous result is a token
+        
+        else if ( m_ResultList.back()->hasNodeResult ) {
+          TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+          stringstream errorMessage;
+          errorMessage << "ERROR (> with incorrect argument type) : ";
+          int layer = 0;
+          AddTreeString( previousNode, layer, false, errorMessage );
+          
+          if ( layer > 0 ) {
+            while ( layer > 0 ) {
+              layer--;
+              errorMessage << string( layer, ' ' ) << ')' << endl;
+            } // while: loop print right-paren
+          } // if: layer still greater than zero
+          
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+          return false;
+        } // else if: previous result is a node
+        
+        m_ResultList.pop_back();
+      } // else if: argument is node
+    } // else: has only two arguments
+    
+    if ( result->tokenResult->tokenType == T ) {
+      result->tokenResult->content = "#t";
+    } // if: the result is true, set the content
+    
+    else {
+      result->tokenResult->content = "nil";
+    } // else: the result is nil, set the content
+    
+    m_ResultList.push_back( result );
+    return true;
+  } // GreaterThan()
   
   bool GreaterThanOrEqualTo( vector<TreeStruct *> arguments, ResultStruct *result ) {
-    ;
+    result->hasTokenResult = true;
+    result->tokenResult->tokenType = T;
+    TreeStruct *walk = arguments.front();
+    float previousNumber = 0;
+    
+    if ( walk->leftToken ) {
+      if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
+        previousNumber = atof( walk->leftToken->content.c_str() );
+      } // if: check if add any float
+      
+      else if ( walk->leftToken->tokenType == SYMBOL ) {
+        if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
+          TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+          
+          if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+            previousNumber = atof( definedToken->content.c_str() );
+          } // if: check if add any float
+          
+          else {
+            string errorMessage = "ERROR (>= with incorrect argument type) : ";
+            errorMessage += definedToken->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // else: wrong type
+        } // if: get defined token
+        
+        else {
+          TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+          stringstream errorMessage;
+          errorMessage << "ERROR (>= with incorrect argument type) : ";
+          int layer = 0;
+          AddTreeString( definedNode, layer, false, errorMessage );
+          
+          if ( layer > 0 ) {
+            while ( layer > 0 ) {
+              layer--;
+              errorMessage << string( layer, ' ' ) << ')' << endl;
+            } // while: loop print right-paren
+          } // if: layer still greater than zero
+          
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+          return false;
+        } // else: get defined node, can't evaluate
+      } // else if: symbol, check defined or not
+      
+      else {
+        string errorMessage = "ERROR (>= with incorrect argument type) : ";
+        errorMessage += walk->leftToken->content;
+        SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+        return false;
+      } // else: wrong argument type
+    } // if: first argument is token
+    
+    else if ( walk->leftNode ) {
+      if ( m_ResultList.back()->hasTokenResult ) {
+        TokenStruct *previousResult = m_ResultList.back()->tokenResult;
+        
+        if ( previousResult->tokenType == FLOAT || previousResult->tokenType == INT ) {
+          previousNumber = atof( previousResult->content.c_str() );
+        } // if: check if add any float
+        
+        else if ( previousResult->tokenType == SYMBOL ) {
+          if ( FoundDefineBindings( previousResult->content ) ) {
+            if ( GetDefineBindings( previousResult->content )->leftToken ) {
+              TokenStruct *definedToken = GetDefineBindings( previousResult->content )->leftToken;
+              
+              if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                previousNumber = atof( definedToken->content.c_str() );
+              } // if: check if add any float
+              
+              else {
+                string errorMessage = "ERROR (>= with incorrect argument type) : ";
+                errorMessage += definedToken->content;
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                return false;
+              } // else: wrong type
+            } // if: get defined token
+            
+            else {
+              TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+              stringstream errorMessage;
+              errorMessage << "ERROR (>= with incorrect argument type) : ";
+              int layer = 0;
+              AddTreeString( definedNode, layer, false, errorMessage );
+              
+              if ( layer > 0 ) {
+                while ( layer > 0 ) {
+                  layer--;
+                  errorMessage << string( layer, ' ' ) << ')' << endl;
+                } // while: loop print right-paren
+              } // if: layer still greater than zero
+              
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+              return false;
+            } // else: get defined node, can't evaluate
+          } // if: found previous result defined
+          
+          else {
+            string errorMessage = "ERROR (unbound symbol) : ";
+            errorMessage += previousResult->content;
+            SetError( DEFINE_UNBOUND, errorMessage );
+            return false;
+          } // else: found previous symbol token not defined
+        } // else if: symbol, check defined or not
+        
+        else {
+          string errorMessage = "ERROR (>= with incorrect argument type) : ";
+          errorMessage += previousResult->content;
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+          return false;
+        } // else: wrong argument type
+      } // if: previous result is a token
+      
+      else if ( m_ResultList.back()->hasNodeResult ) {
+        TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+        stringstream errorMessage;
+        errorMessage << "ERROR (>= with incorrect argument type) : ";
+        int layer = 0;
+        AddTreeString( previousNode, layer, false, errorMessage );
+        
+        if ( layer > 0 ) {
+          while ( layer > 0 ) {
+            layer--;
+            errorMessage << string( layer, ' ' ) << ')' << endl;
+          } // while: loop print right-paren
+        } // if: layer still greater than zero
+        
+        SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+        return false;
+      } // else if: previous result is a node
+      
+      m_ResultList.pop_back();
+    } // else if: first argument is node
+    
+    walk = walk->rightNode;
+    
+    if ( walk->rightNode ) {
+      while ( walk->rightNode ) {
+        if ( walk->leftToken ) {
+          if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
+            if ( previousNumber >= atof( walk->leftToken->content.c_str() ) ) {
+              previousNumber = atof( walk->leftToken->content.c_str() );
+            } // if: argument is float, set isFLoat
+            
+            else {
+              result->tokenResult->tokenType = NIL;
+              previousNumber = atof( walk->leftToken->content.c_str() );
+            } // else: false
+          } // if: check if add any float
+          
+          else if ( walk->leftToken->tokenType == SYMBOL ) {
+            if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
+              TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+              
+              if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                if ( previousNumber >= atof( definedToken->content.c_str() ) ) {
+                  previousNumber = atof( definedToken->content.c_str() );
+                } // if: argument is float, set isFLoat
+                
+                else {
+                  result->tokenResult->tokenType = NIL;
+                  previousNumber = atof( definedToken->content.c_str() );
+                } // else: false
+              } // if: check if add any float
+              
+              else {
+                string errorMessage = "ERROR (>= with incorrect argument type) : ";
+                errorMessage += definedToken->content;
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                return false;
+              } // else: wrong type
+            } // if: get defined token
+            
+            else {
+              TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+              stringstream errorMessage;
+              errorMessage << "ERROR (>= with incorrect argument type) : ";
+              int layer = 0;
+              AddTreeString( definedNode, layer, false, errorMessage );
+              
+              if ( layer > 0 ) {
+                while ( layer > 0 ) {
+                  layer--;
+                  errorMessage << string( layer, ' ' ) << ')' << endl;
+                } // while: loop print right-paren
+              } // if: layer still greater than zero
+              
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+              return false;
+            } // else: get defined node, can't evaluate
+          } // else if: symbol, check defined or not
+          
+          else {
+            string errorMessage = "ERROR (>= with incorrect argument type) : ";
+            errorMessage += walk->leftToken->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // else: wrong argument type
+        } // if: argument is token
+        
+        else if ( walk->leftNode ) {
+          if ( m_ResultList.back()->hasTokenResult ) {
+            TokenStruct *previousResult = m_ResultList.back()->tokenResult;
+            
+            if ( previousResult->tokenType == FLOAT || previousResult->tokenType == INT ) {
+              if ( previousNumber >= atof( previousResult->content.c_str() ) ) {
+                previousNumber = atof( previousResult->content.c_str() );
+              } // if: argument is float, set isFLoat
+              
+              else {
+                result->tokenResult->tokenType = NIL;
+                previousNumber = atof( previousResult->content.c_str() );
+              } // else: false
+            } // if: check if add any float
+            
+            else if ( previousResult->tokenType == SYMBOL ) {
+              if ( FoundDefineBindings( previousResult->content ) ) {
+                if ( GetDefineBindings( previousResult->content )->leftToken ) {
+                  TokenStruct *definedToken = GetDefineBindings( previousResult->content )->leftToken;
+                  
+                  if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                    if ( previousNumber >= atof( definedToken->content.c_str() ) ) {
+                      previousNumber = atof( definedToken->content.c_str() );
+                    } // if: argument is float, set isFLoat
+                    
+                    else {
+                      result->tokenResult->tokenType = NIL;
+                      previousNumber = atof( definedToken->content.c_str() );
+                    } // else: false
+                  } // if: check if add any float
+                  
+                  else {
+                    string errorMessage = "ERROR (>= with incorrect argument type) : ";
+                    errorMessage += definedToken->content;
+                    SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                    return false;
+                  } // else: wrong type
+                } // if: get defined token
+                
+                else {
+                  TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+                  stringstream errorMessage;
+                  errorMessage << "ERROR (>= with incorrect argument type) : ";
+                  int layer = 0;
+                  AddTreeString( definedNode, layer, false, errorMessage );
+                  
+                  if ( layer > 0 ) {
+                    while ( layer > 0 ) {
+                      layer--;
+                      errorMessage << string( layer, ' ' ) << ')' << endl;
+                    } // while: loop print right-paren
+                  } // if: layer still greater than zero
+                  
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+                  return false;
+                } // else: get defined node, can't evaluate
+              } // if: found previous result defined
+              
+              else {
+                string errorMessage = "ERROR (unbound symbol) : ";
+                errorMessage += previousResult->content;
+                SetError( DEFINE_UNBOUND, errorMessage );
+                return false;
+              } // else: found previous symbol token not defined
+            } // else if: symbol, check defined or not
+            
+            else {
+              string errorMessage = "ERROR (>= with incorrect argument type) : ";
+              errorMessage += previousResult->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // else: wrong argument type
+          } // if: previous result is a token
+          
+          else if ( m_ResultList.back()->hasNodeResult ) {
+            TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+            stringstream errorMessage;
+            errorMessage << "ERROR (>= with incorrect argument type) : ";
+            int layer = 0;
+            AddTreeString( previousNode, layer, false, errorMessage );
+            
+            if ( layer > 0 ) {
+              while ( layer > 0 ) {
+                layer--;
+                errorMessage << string( layer, ' ' ) << ')' << endl;
+              } // while: loop print right-paren
+            } // if: layer still greater than zero
+            
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+            return false;
+          } // else if: previous result is a node
+          
+          m_ResultList.pop_back();
+        } // else if: argument is node
+        
+        walk = walk->rightNode;
+        
+        if ( walk->rightNode == NULL ) {
+          if ( walk->leftToken ) {
+            if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
+              if ( previousNumber >= atof( walk->leftToken->content.c_str() ) ) {
+                previousNumber = atof( walk->leftToken->content.c_str() );
+              } // if: argument is float, set isFLoat
+              
+              else {
+                result->tokenResult->tokenType = NIL;
+                previousNumber = atof( walk->leftToken->content.c_str() );
+              } // else: false
+            } // if: check if add any float
+            
+            else if ( walk->leftToken->tokenType == SYMBOL ) {
+              if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
+                TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+                
+                if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                  if ( previousNumber >= atof( definedToken->content.c_str() ) ) {
+                    previousNumber = atof( definedToken->content.c_str() );
+                  } // if: argument is float, set isFLoat
+                  
+                  else {
+                    result->tokenResult->tokenType = NIL;
+                    previousNumber = atof( definedToken->content.c_str() );
+                  } // else: false
+                } // if: check if add any float
+                
+                else {
+                  string errorMessage = "ERROR (>= with incorrect argument type) : ";
+                  errorMessage += definedToken->content;
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                  return false;
+                } // else: wrong type
+              } // if: get defined token
+              
+              else {
+                TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+                stringstream errorMessage;
+                errorMessage << "ERROR (>= with incorrect argument type) : ";
+                int layer = 0;
+                AddTreeString( definedNode, layer, false, errorMessage );
+                
+                if ( layer > 0 ) {
+                  while ( layer > 0 ) {
+                    layer--;
+                    errorMessage << string( layer, ' ' ) << ')' << endl;
+                  } // while: loop print right-paren
+                } // if: layer still greater than zero
+                
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+                return false;
+              } // else: get defined node, can't evaluate
+            } // else if: symbol, check defined or not
+            
+            else {
+              string errorMessage = "ERROR (>= with incorrect argument type) : ";
+              errorMessage += walk->leftToken->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // else: wrong argument type
+          } // if: argument is token
+          
+          else if ( walk->leftNode ) {
+            if ( m_ResultList.back()->hasTokenResult ) {
+              TokenStruct *previousResult = m_ResultList.back()->tokenResult;
+              
+              if ( previousResult->tokenType == FLOAT || previousResult->tokenType == INT ) {
+                if ( previousNumber >= atof( previousResult->content.c_str() ) ) {
+                  previousNumber = atof( previousResult->content.c_str() );
+                } // if: argument is float, set isFLoat
+                
+                else {
+                  result->tokenResult->tokenType = NIL;
+                  previousNumber = atof( previousResult->content.c_str() );
+                } // else: false
+              } // if: check if add any float
+              
+              else if ( previousResult->tokenType == SYMBOL ) {
+                if ( FoundDefineBindings( previousResult->content ) ) {
+                  if ( GetDefineBindings( previousResult->content )->leftToken ) {
+                    TokenStruct *definedToken = GetDefineBindings( previousResult->content )->leftToken;
+                    
+                    if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                      if ( previousNumber >= atof( definedToken->content.c_str() ) ) {
+                        previousNumber = atof( definedToken->content.c_str() );
+                      } // if: argument is float, set isFLoat
+                      
+                      else {
+                        result->tokenResult->tokenType = NIL;
+                        previousNumber = atof( definedToken->content.c_str() );
+                      } // else: false
+                    } // if: check if add any float
+                    
+                    else {
+                      string errorMessage = "ERROR (>= with incorrect argument type) : ";
+                      errorMessage += definedToken->content;
+                      SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                      return false;
+                    } // else: wrong type
+                  } // if: get defined token
+                  
+                  else {
+                    TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+                    stringstream errorMessage;
+                    errorMessage << "ERROR (>= with incorrect argument type) : ";
+                    int layer = 0;
+                    AddTreeString( definedNode, layer, false, errorMessage );
+                    
+                    if ( layer > 0 ) {
+                      while ( layer > 0 ) {
+                        layer--;
+                        errorMessage << string( layer, ' ' ) << ')' << endl;
+                      } // while: loop print right-paren
+                    } // if: layer still greater than zero
+                    
+                    SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+                    return false;
+                  } // else: get defined node, can't evaluate
+                } // if: found previous result defined
+                
+                else {
+                  string errorMessage = "ERROR (unbound symbol) : ";
+                  errorMessage += previousResult->content;
+                  SetError( DEFINE_UNBOUND, errorMessage );
+                  return false;
+                } // else: found previous symbol token not defined
+              } // else if: symbol, check defined or not
+              
+              else {
+                string errorMessage = "ERROR (>= with incorrect argument type) : ";
+                errorMessage += previousResult->content;
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                return false;
+              } // else: wrong argument type
+            } // if: previous result is a token
+            
+            else if ( m_ResultList.back()->hasNodeResult ) {
+              TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+              stringstream errorMessage;
+              errorMessage << "ERROR (>= with incorrect argument type) : ";
+              int layer = 0;
+              AddTreeString( previousNode, layer, false, errorMessage );
+              
+              if ( layer > 0 ) {
+                while ( layer > 0 ) {
+                  layer--;
+                  errorMessage << string( layer, ' ' ) << ')' << endl;
+                } // while: loop print right-paren
+              } // if: layer still greater than zero
+              
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+              return false;
+            } // else if: previous result is a node
+            
+            m_ResultList.pop_back();
+          } // else if: argument is node
+        } // if: add up the last argument
+      } // while: add up the arguments
+    } // if: has more than two arguments
+    
+    else {
+      if ( walk->leftToken ) {
+        if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
+          if ( previousNumber >= atof( walk->leftToken->content.c_str() ) ) {
+            previousNumber = atof( walk->leftToken->content.c_str() );
+          } // if: argument is float, set isFLoat
+          
+          else {
+            result->tokenResult->tokenType = NIL;
+            previousNumber = atof( walk->leftToken->content.c_str() );
+          } // else: false
+        } // if: check if add any float
+        
+        else if ( walk->leftToken->tokenType == SYMBOL ) {
+          if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
+            TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+            
+            if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+              if ( previousNumber >= atof( definedToken->content.c_str() ) ) {
+                previousNumber = atof( definedToken->content.c_str() );
+              } // if: argument is float, set isFLoat
+              
+              else {
+                result->tokenResult->tokenType = NIL;
+                previousNumber = atof( definedToken->content.c_str() );
+              } // else: false
+            } // if: check if add any float
+            
+            else {
+              string errorMessage = "ERROR (>= with incorrect argument type) : ";
+              errorMessage += definedToken->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // else: wrong type
+          } // if: get defined token
+          
+          else {
+            TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+            stringstream errorMessage;
+            errorMessage << "ERROR (>= with incorrect argument type) : ";
+            int layer = 0;
+            AddTreeString( definedNode, layer, false, errorMessage );
+            
+            if ( layer > 0 ) {
+              while ( layer > 0 ) {
+                layer--;
+                errorMessage << string( layer, ' ' ) << ')' << endl;
+              } // while: loop print right-paren
+            } // if: layer still greater than zero
+            
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+            return false;
+          } // else: get defined node, can't evaluate
+        } // else if: symbol, check defined or not
+        
+        else {
+          string errorMessage = "ERROR (>= with incorrect argument type) : ";
+          errorMessage += walk->leftToken->content;
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+          return false;
+        } // else: wrong argument type
+      } // if: argument is token
+      
+      else if ( walk->leftNode ) {
+        if ( m_ResultList.back()->hasTokenResult ) {
+          TokenStruct *previousResult = m_ResultList.back()->tokenResult;
+          
+          if ( previousResult->tokenType == FLOAT || previousResult->tokenType == INT ) {
+            if ( previousNumber >= atof( previousResult->content.c_str() ) ) {
+              previousNumber = atof( previousResult->content.c_str() );
+            } // if: argument is float, set isFLoat
+            
+            else {
+              result->tokenResult->tokenType = NIL;
+              previousNumber = atof( previousResult->content.c_str() );
+            } // else: false
+          } // if: check if add any float
+          
+          else if ( previousResult->tokenType == SYMBOL ) {
+            if ( FoundDefineBindings( previousResult->content ) ) {
+              if ( GetDefineBindings( previousResult->content )->leftToken ) {
+                TokenStruct *definedToken = GetDefineBindings( previousResult->content )->leftToken;
+                
+                if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                  if ( previousNumber >= atof( definedToken->content.c_str() ) ) {
+                    previousNumber = atof( definedToken->content.c_str() );
+                  } // if: argument is float, set isFLoat
+                  
+                  else {
+                    result->tokenResult->tokenType = NIL;
+                    previousNumber = atof( definedToken->content.c_str() );
+                  } // else: false
+                } // if: check if add any float
+                
+                else {
+                  string errorMessage = "ERROR (>= with incorrect argument type) : ";
+                  errorMessage += definedToken->content;
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                  return false;
+                } // else: wrong type
+              } // if: get defined token
+              
+              else {
+                TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+                stringstream errorMessage;
+                errorMessage << "ERROR (>= with incorrect argument type) : ";
+                int layer = 0;
+                AddTreeString( definedNode, layer, false, errorMessage );
+                
+                if ( layer > 0 ) {
+                  while ( layer > 0 ) {
+                    layer--;
+                    errorMessage << string( layer, ' ' ) << ')' << endl;
+                  } // while: loop print right-paren
+                } // if: layer still greater than zero
+                
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+                return false;
+              } // else: get defined node, can't evaluate
+            } // if: found previous result defined
+            
+            else {
+              string errorMessage = "ERROR (unbound symbol) : ";
+              errorMessage += previousResult->content;
+              SetError( DEFINE_UNBOUND, errorMessage );
+              return false;
+            } // else: found previous symbol token not defined
+          } // else if: symbol, check defined or not
+          
+          else {
+            string errorMessage = "ERROR (>= with incorrect argument type) : ";
+            errorMessage += previousResult->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // else: wrong argument type
+        } // if: previous result is a token
+        
+        else if ( m_ResultList.back()->hasNodeResult ) {
+          TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+          stringstream errorMessage;
+          errorMessage << "ERROR (>= with incorrect argument type) : ";
+          int layer = 0;
+          AddTreeString( previousNode, layer, false, errorMessage );
+          
+          if ( layer > 0 ) {
+            while ( layer > 0 ) {
+              layer--;
+              errorMessage << string( layer, ' ' ) << ')' << endl;
+            } // while: loop print right-paren
+          } // if: layer still greater than zero
+          
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+          return false;
+        } // else if: previous result is a node
+        
+        m_ResultList.pop_back();
+      } // else if: argument is node
+    } // else: has only two arguments
+    
+    if ( result->tokenResult->tokenType == T ) {
+      result->tokenResult->content = "#t";
+    } // if: the result is true, set the content
+    
+    else {
+      result->tokenResult->content = "nil";
+    } // else: the result is nil, set the content
+    
+    m_ResultList.push_back( result );
+    return true;
   } // GreaterThanOrEqualTo()
   
   bool LessThan( vector<TreeStruct *> arguments, ResultStruct *result ) {
-    ;
+    result->hasTokenResult = true;
+    result->tokenResult->tokenType = T;
+    TreeStruct *walk = arguments.front();
+    float previousNumber = 0;
+    
+    if ( walk->leftToken ) {
+      if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
+        previousNumber = atof( walk->leftToken->content.c_str() );
+      } // if: check if add any float
+      
+      else if ( walk->leftToken->tokenType == SYMBOL ) {
+        if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
+          TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+          
+          if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+            previousNumber = atof( definedToken->content.c_str() );
+          } // if: check if add any float
+          
+          else {
+            string errorMessage = "ERROR (< with incorrect argument type) : ";
+            errorMessage += definedToken->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // else: wrong type
+        } // if: get defined token
+        
+        else {
+          TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+          stringstream errorMessage;
+          errorMessage << "ERROR (< with incorrect argument type) : ";
+          int layer = 0;
+          AddTreeString( definedNode, layer, false, errorMessage );
+          
+          if ( layer > 0 ) {
+            while ( layer > 0 ) {
+              layer--;
+              errorMessage << string( layer, ' ' ) << ')' << endl;
+            } // while: loop print right-paren
+          } // if: layer still greater than zero
+          
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+          return false;
+        } // else: get defined node, can't evaluate
+      } // else if: symbol, check defined or not
+      
+      else {
+        string errorMessage = "ERROR (< with incorrect argument type) : ";
+        errorMessage += walk->leftToken->content;
+        SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+        return false;
+      } // else: wrong argument type
+    } // if: first argument is token
+    
+    else if ( walk->leftNode ) {
+      if ( m_ResultList.back()->hasTokenResult ) {
+        TokenStruct *previousResult = m_ResultList.back()->tokenResult;
+        
+        if ( previousResult->tokenType == FLOAT || previousResult->tokenType == INT ) {
+          previousNumber = atof( previousResult->content.c_str() );
+        } // if: check if add any float
+        
+        else if ( previousResult->tokenType == SYMBOL ) {
+          if ( FoundDefineBindings( previousResult->content ) ) {
+            if ( GetDefineBindings( previousResult->content )->leftToken ) {
+              TokenStruct *definedToken = GetDefineBindings( previousResult->content )->leftToken;
+              
+              if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                previousNumber = atof( definedToken->content.c_str() );
+              } // if: check if add any float
+              
+              else {
+                string errorMessage = "ERROR (< with incorrect argument type) : ";
+                errorMessage += definedToken->content;
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                return false;
+              } // else: wrong type
+            } // if: get defined token
+            
+            else {
+              TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+              stringstream errorMessage;
+              errorMessage << "ERROR (< with incorrect argument type) : ";
+              int layer = 0;
+              AddTreeString( definedNode, layer, false, errorMessage );
+              
+              if ( layer > 0 ) {
+                while ( layer > 0 ) {
+                  layer--;
+                  errorMessage << string( layer, ' ' ) << ')' << endl;
+                } // while: loop print right-paren
+              } // if: layer still greater than zero
+              
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+              return false;
+            } // else: get defined node, can't evaluate
+          } // if: found previous result defined
+          
+          else {
+            string errorMessage = "ERROR (unbound symbol) : ";
+            errorMessage += previousResult->content;
+            SetError( DEFINE_UNBOUND, errorMessage );
+            return false;
+          } // else: found previous symbol token not defined
+        } // else if: symbol, check defined or not
+        
+        else {
+          string errorMessage = "ERROR (< with incorrect argument type) : ";
+          errorMessage += previousResult->content;
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+          return false;
+        } // else: wrong argument type
+      } // if: previous result is a token
+      
+      else if ( m_ResultList.back()->hasNodeResult ) {
+        TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+        stringstream errorMessage;
+        errorMessage << "ERROR (< with incorrect argument type) : ";
+        int layer = 0;
+        AddTreeString( previousNode, layer, false, errorMessage );
+        
+        if ( layer > 0 ) {
+          while ( layer > 0 ) {
+            layer--;
+            errorMessage << string( layer, ' ' ) << ')' << endl;
+          } // while: loop print right-paren
+        } // if: layer still greater than zero
+        
+        SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+        return false;
+      } // else if: previous result is a node
+      
+      m_ResultList.pop_back();
+    } // else if: first argument is node
+    
+    walk = walk->rightNode;
+    
+    if ( walk->rightNode ) {
+      while ( walk->rightNode ) {
+        if ( walk->leftToken ) {
+          if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
+            if ( previousNumber < atof( walk->leftToken->content.c_str() ) ) {
+              previousNumber = atof( walk->leftToken->content.c_str() );
+            } // if: argument is float, set isFLoat
+            
+            else {
+              result->tokenResult->tokenType = NIL;
+              previousNumber = atof( walk->leftToken->content.c_str() );
+            } // else: false
+          } // if: check if add any float
+          
+          else if ( walk->leftToken->tokenType == SYMBOL ) {
+            if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
+              TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+              
+              if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                if ( previousNumber < atof( definedToken->content.c_str() ) ) {
+                  previousNumber = atof( definedToken->content.c_str() );
+                } // if: argument is float, set isFLoat
+                
+                else {
+                  result->tokenResult->tokenType = NIL;
+                  previousNumber = atof( definedToken->content.c_str() );
+                } // else: false
+              } // if: check if add any float
+              
+              else {
+                string errorMessage = "ERROR (< with incorrect argument type) : ";
+                errorMessage += definedToken->content;
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                return false;
+              } // else: wrong type
+            } // if: get defined token
+            
+            else {
+              TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+              stringstream errorMessage;
+              errorMessage << "ERROR (< with incorrect argument type) : ";
+              int layer = 0;
+              AddTreeString( definedNode, layer, false, errorMessage );
+              
+              if ( layer > 0 ) {
+                while ( layer > 0 ) {
+                  layer--;
+                  errorMessage << string( layer, ' ' ) << ')' << endl;
+                } // while: loop print right-paren
+              } // if: layer still greater than zero
+              
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+              return false;
+            } // else: get defined node, can't evaluate
+          } // else if: symbol, check defined or not
+          
+          else {
+            string errorMessage = "ERROR (< with incorrect argument type) : ";
+            errorMessage += walk->leftToken->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // else: wrong argument type
+        } // if: argument is token
+        
+        else if ( walk->leftNode ) {
+          if ( m_ResultList.back()->hasTokenResult ) {
+            TokenStruct *previousResult = m_ResultList.back()->tokenResult;
+            
+            if ( previousResult->tokenType == FLOAT || previousResult->tokenType == INT ) {
+              if ( previousNumber < atof( previousResult->content.c_str() ) ) {
+                previousNumber = atof( previousResult->content.c_str() );
+              } // if: argument is float, set isFLoat
+              
+              else {
+                result->tokenResult->tokenType = NIL;
+                previousNumber = atof( previousResult->content.c_str() );
+              } // else: false
+            } // if: check if add any float
+            
+            else if ( previousResult->tokenType == SYMBOL ) {
+              if ( FoundDefineBindings( previousResult->content ) ) {
+                if ( GetDefineBindings( previousResult->content )->leftToken ) {
+                  TokenStruct *definedToken = GetDefineBindings( previousResult->content )->leftToken;
+                  
+                  if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                    if ( previousNumber < atof( definedToken->content.c_str() ) ) {
+                      previousNumber = atof( definedToken->content.c_str() );
+                    } // if: argument is float, set isFLoat
+                    
+                    else {
+                      result->tokenResult->tokenType = NIL;
+                      previousNumber = atof( definedToken->content.c_str() );
+                    } // else: false
+                  } // if: check if add any float
+                  
+                  else {
+                    string errorMessage = "ERROR (< with incorrect argument type) : ";
+                    errorMessage += definedToken->content;
+                    SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                    return false;
+                  } // else: wrong type
+                } // if: get defined token
+                
+                else {
+                  TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+                  stringstream errorMessage;
+                  errorMessage << "ERROR (< with incorrect argument type) : ";
+                  int layer = 0;
+                  AddTreeString( definedNode, layer, false, errorMessage );
+                  
+                  if ( layer > 0 ) {
+                    while ( layer > 0 ) {
+                      layer--;
+                      errorMessage << string( layer, ' ' ) << ')' << endl;
+                    } // while: loop print right-paren
+                  } // if: layer still greater than zero
+                  
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+                  return false;
+                } // else: get defined node, can't evaluate
+              } // if: found previous result defined
+              
+              else {
+                string errorMessage = "ERROR (unbound symbol) : ";
+                errorMessage += previousResult->content;
+                SetError( DEFINE_UNBOUND, errorMessage );
+                return false;
+              } // else: found previous symbol token not defined
+            } // else if: symbol, check defined or not
+            
+            else {
+              string errorMessage = "ERROR (< with incorrect argument type) : ";
+              errorMessage += previousResult->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // else: wrong argument type
+          } // if: previous result is a token
+          
+          else if ( m_ResultList.back()->hasNodeResult ) {
+            TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+            stringstream errorMessage;
+            errorMessage << "ERROR (< with incorrect argument type) : ";
+            int layer = 0;
+            AddTreeString( previousNode, layer, false, errorMessage );
+            
+            if ( layer > 0 ) {
+              while ( layer > 0 ) {
+                layer--;
+                errorMessage << string( layer, ' ' ) << ')' << endl;
+              } // while: loop print right-paren
+            } // if: layer still greater than zero
+            
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+            return false;
+          } // else if: previous result is a node
+          
+          m_ResultList.pop_back();
+        } // else if: argument is node
+        
+        walk = walk->rightNode;
+        
+        if ( walk->rightNode == NULL ) {
+          if ( walk->leftToken ) {
+            if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
+              if ( previousNumber < atof( walk->leftToken->content.c_str() ) ) {
+                previousNumber = atof( walk->leftToken->content.c_str() );
+              } // if: argument is float, set isFLoat
+              
+              else {
+                result->tokenResult->tokenType = NIL;
+                previousNumber = atof( walk->leftToken->content.c_str() );
+              } // else: false
+            } // if: check if add any float
+            
+            else if ( walk->leftToken->tokenType == SYMBOL ) {
+              if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
+                TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+                
+                if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                  if ( previousNumber < atof( definedToken->content.c_str() ) ) {
+                    previousNumber = atof( definedToken->content.c_str() );
+                  } // if: argument is float, set isFLoat
+                  
+                  else {
+                    result->tokenResult->tokenType = NIL;
+                    previousNumber = atof( definedToken->content.c_str() );
+                  } // else: false
+                } // if: check if add any float
+                
+                else {
+                  string errorMessage = "ERROR (< with incorrect argument type) : ";
+                  errorMessage += definedToken->content;
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                  return false;
+                } // else: wrong type
+              } // if: get defined token
+              
+              else {
+                TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+                stringstream errorMessage;
+                errorMessage << "ERROR (< with incorrect argument type) : ";
+                int layer = 0;
+                AddTreeString( definedNode, layer, false, errorMessage );
+                
+                if ( layer > 0 ) {
+                  while ( layer > 0 ) {
+                    layer--;
+                    errorMessage << string( layer, ' ' ) << ')' << endl;
+                  } // while: loop print right-paren
+                } // if: layer still greater than zero
+                
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+                return false;
+              } // else: get defined node, can't evaluate
+            } // else if: symbol, check defined or not
+            
+            else {
+              string errorMessage = "ERROR (< with incorrect argument type) : ";
+              errorMessage += walk->leftToken->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // else: wrong argument type
+          } // if: argument is token
+          
+          else if ( walk->leftNode ) {
+            if ( m_ResultList.back()->hasTokenResult ) {
+              TokenStruct *previousResult = m_ResultList.back()->tokenResult;
+              
+              if ( previousResult->tokenType == FLOAT || previousResult->tokenType == INT ) {
+                if ( previousNumber < atof( previousResult->content.c_str() ) ) {
+                  previousNumber = atof( previousResult->content.c_str() );
+                } // if: argument is float, set isFLoat
+                
+                else {
+                  result->tokenResult->tokenType = NIL;
+                  previousNumber = atof( previousResult->content.c_str() );
+                } // else: false
+              } // if: check if add any float
+              
+              else if ( previousResult->tokenType == SYMBOL ) {
+                if ( FoundDefineBindings( previousResult->content ) ) {
+                  if ( GetDefineBindings( previousResult->content )->leftToken ) {
+                    TokenStruct *definedToken = GetDefineBindings( previousResult->content )->leftToken;
+                    
+                    if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                      if ( previousNumber < atof( definedToken->content.c_str() ) ) {
+                        previousNumber = atof( definedToken->content.c_str() );
+                      } // if: argument is float, set isFLoat
+                      
+                      else {
+                        result->tokenResult->tokenType = NIL;
+                        previousNumber = atof( definedToken->content.c_str() );
+                      } // else: false
+                    } // if: check if add any float
+                    
+                    else {
+                      string errorMessage = "ERROR (< with incorrect argument type) : ";
+                      errorMessage += definedToken->content;
+                      SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                      return false;
+                    } // else: wrong type
+                  } // if: get defined token
+                  
+                  else {
+                    TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+                    stringstream errorMessage;
+                    errorMessage << "ERROR (< with incorrect argument type) : ";
+                    int layer = 0;
+                    AddTreeString( definedNode, layer, false, errorMessage );
+                    
+                    if ( layer > 0 ) {
+                      while ( layer > 0 ) {
+                        layer--;
+                        errorMessage << string( layer, ' ' ) << ')' << endl;
+                      } // while: loop print right-paren
+                    } // if: layer still greater than zero
+                    
+                    SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+                    return false;
+                  } // else: get defined node, can't evaluate
+                } // if: found previous result defined
+                
+                else {
+                  string errorMessage = "ERROR (unbound symbol) : ";
+                  errorMessage += previousResult->content;
+                  SetError( DEFINE_UNBOUND, errorMessage );
+                  return false;
+                } // else: found previous symbol token not defined
+              } // else if: symbol, check defined or not
+              
+              else {
+                string errorMessage = "ERROR (< with incorrect argument type) : ";
+                errorMessage += previousResult->content;
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                return false;
+              } // else: wrong argument type
+            } // if: previous result is a token
+            
+            else if ( m_ResultList.back()->hasNodeResult ) {
+              TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+              stringstream errorMessage;
+              errorMessage << "ERROR (< with incorrect argument type) : ";
+              int layer = 0;
+              AddTreeString( previousNode, layer, false, errorMessage );
+              
+              if ( layer > 0 ) {
+                while ( layer > 0 ) {
+                  layer--;
+                  errorMessage << string( layer, ' ' ) << ')' << endl;
+                } // while: loop print right-paren
+              } // if: layer still greater than zero
+              
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+              return false;
+            } // else if: previous result is a node
+            
+            m_ResultList.pop_back();
+          } // else if: argument is node
+        } // if: add up the last argument
+      } // while: add up the arguments
+    } // if: has more than two arguments
+    
+    else {
+      if ( walk->leftToken ) {
+        if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
+          if ( previousNumber < atof( walk->leftToken->content.c_str() ) ) {
+            previousNumber = atof( walk->leftToken->content.c_str() );
+          } // if: argument is float, set isFLoat
+          
+          else {
+            result->tokenResult->tokenType = NIL;
+            previousNumber = atof( walk->leftToken->content.c_str() );
+          } // else: false
+        } // if: check if add any float
+        
+        else if ( walk->leftToken->tokenType == SYMBOL ) {
+          if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
+            TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+            
+            if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+              if ( previousNumber < atof( definedToken->content.c_str() ) ) {
+                previousNumber = atof( definedToken->content.c_str() );
+              } // if: argument is float, set isFLoat
+              
+              else {
+                result->tokenResult->tokenType = NIL;
+                previousNumber = atof( definedToken->content.c_str() );
+              } // else: false
+            } // if: check if add any float
+            
+            else {
+              string errorMessage = "ERROR (< with incorrect argument type) : ";
+              errorMessage += definedToken->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // else: wrong type
+          } // if: get defined token
+          
+          else {
+            TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+            stringstream errorMessage;
+            errorMessage << "ERROR (< with incorrect argument type) : ";
+            int layer = 0;
+            AddTreeString( definedNode, layer, false, errorMessage );
+            
+            if ( layer > 0 ) {
+              while ( layer > 0 ) {
+                layer--;
+                errorMessage << string( layer, ' ' ) << ')' << endl;
+              } // while: loop print right-paren
+            } // if: layer still greater than zero
+            
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+            return false;
+          } // else: get defined node, can't evaluate
+        } // else if: symbol, check defined or not
+        
+        else {
+          string errorMessage = "ERROR (< with incorrect argument type) : ";
+          errorMessage += walk->leftToken->content;
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+          return false;
+        } // else: wrong argument type
+      } // if: argument is token
+      
+      else if ( walk->leftNode ) {
+        if ( m_ResultList.back()->hasTokenResult ) {
+          TokenStruct *previousResult = m_ResultList.back()->tokenResult;
+          
+          if ( previousResult->tokenType == FLOAT || previousResult->tokenType == INT ) {
+            if ( previousNumber < atof( previousResult->content.c_str() ) ) {
+              previousNumber = atof( previousResult->content.c_str() );
+            } // if: argument is float, set isFLoat
+            
+            else {
+              result->tokenResult->tokenType = NIL;
+              previousNumber = atof( previousResult->content.c_str() );
+            } // else: false
+          } // if: check if add any float
+          
+          else if ( previousResult->tokenType == SYMBOL ) {
+            if ( FoundDefineBindings( previousResult->content ) ) {
+              if ( GetDefineBindings( previousResult->content )->leftToken ) {
+                TokenStruct *definedToken = GetDefineBindings( previousResult->content )->leftToken;
+                
+                if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                  if ( previousNumber < atof( definedToken->content.c_str() ) ) {
+                    previousNumber = atof( definedToken->content.c_str() );
+                  } // if: argument is float, set isFLoat
+                  
+                  else {
+                    result->tokenResult->tokenType = NIL;
+                    previousNumber = atof( definedToken->content.c_str() );
+                  } // else: false
+                } // if: check if add any float
+                
+                else {
+                  string errorMessage = "ERROR (< with incorrect argument type) : ";
+                  errorMessage += definedToken->content;
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                  return false;
+                } // else: wrong type
+              } // if: get defined token
+              
+              else {
+                TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+                stringstream errorMessage;
+                errorMessage << "ERROR (< with incorrect argument type) : ";
+                int layer = 0;
+                AddTreeString( definedNode, layer, false, errorMessage );
+                
+                if ( layer > 0 ) {
+                  while ( layer > 0 ) {
+                    layer--;
+                    errorMessage << string( layer, ' ' ) << ')' << endl;
+                  } // while: loop print right-paren
+                } // if: layer still greater than zero
+                
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+                return false;
+              } // else: get defined node, can't evaluate
+            } // if: found previous result defined
+            
+            else {
+              string errorMessage = "ERROR (unbound symbol) : ";
+              errorMessage += previousResult->content;
+              SetError( DEFINE_UNBOUND, errorMessage );
+              return false;
+            } // else: found previous symbol token not defined
+          } // else if: symbol, check defined or not
+          
+          else {
+            string errorMessage = "ERROR (< with incorrect argument type) : ";
+            errorMessage += previousResult->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // else: wrong argument type
+        } // if: previous result is a token
+        
+        else if ( m_ResultList.back()->hasNodeResult ) {
+          TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+          stringstream errorMessage;
+          errorMessage << "ERROR (< with incorrect argument type) : ";
+          int layer = 0;
+          AddTreeString( previousNode, layer, false, errorMessage );
+          
+          if ( layer > 0 ) {
+            while ( layer > 0 ) {
+              layer--;
+              errorMessage << string( layer, ' ' ) << ')' << endl;
+            } // while: loop print right-paren
+          } // if: layer still greater than zero
+          
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+          return false;
+        } // else if: previous result is a node
+        
+        m_ResultList.pop_back();
+      } // else if: argument is node
+    } // else: has only two arguments
+    
+    if ( result->tokenResult->tokenType == T ) {
+      result->tokenResult->content = "#t";
+    } // if: the result is true, set the content
+    
+    else {
+      result->tokenResult->content = "nil";
+    } // else: the result is nil, set the content
+    
+    m_ResultList.push_back( result );
+    return true;
   } // LessThan()
   
   bool LessThanOrEqualTo( vector<TreeStruct *> arguments, ResultStruct *result ) {
-    ;
+    result->hasTokenResult = true;
+    result->tokenResult->tokenType = T;
+    TreeStruct *walk = arguments.front();
+    float previousNumber = 0;
+    
+    if ( walk->leftToken ) {
+      if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
+        previousNumber = atof( walk->leftToken->content.c_str() );
+      } // if: check if add any float
+      
+      else if ( walk->leftToken->tokenType == SYMBOL ) {
+        if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
+          TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+          
+          if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+            previousNumber = atof( definedToken->content.c_str() );
+          } // if: check if add any float
+          
+          else {
+            string errorMessage = "ERROR (<= with incorrect argument type) : ";
+            errorMessage += definedToken->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // else: wrong type
+        } // if: get defined token
+        
+        else {
+          TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+          stringstream errorMessage;
+          errorMessage << "ERROR (<= with incorrect argument type) : ";
+          int layer = 0;
+          AddTreeString( definedNode, layer, false, errorMessage );
+          
+          if ( layer > 0 ) {
+            while ( layer > 0 ) {
+              layer--;
+              errorMessage << string( layer, ' ' ) << ')' << endl;
+            } // while: loop print right-paren
+          } // if: layer still greater than zero
+          
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+          return false;
+        } // else: get defined node, can't evaluate
+      } // else if: symbol, check defined or not
+      
+      else {
+        string errorMessage = "ERROR (<= with incorrect argument type) : ";
+        errorMessage += walk->leftToken->content;
+        SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+        return false;
+      } // else: wrong argument type
+    } // if: first argument is token
+    
+    else if ( walk->leftNode ) {
+      if ( m_ResultList.back()->hasTokenResult ) {
+        TokenStruct *previousResult = m_ResultList.back()->tokenResult;
+        
+        if ( previousResult->tokenType == FLOAT || previousResult->tokenType == INT ) {
+          previousNumber = atof( previousResult->content.c_str() );
+        } // if: check if add any float
+        
+        else if ( previousResult->tokenType == SYMBOL ) {
+          if ( FoundDefineBindings( previousResult->content ) ) {
+            if ( GetDefineBindings( previousResult->content )->leftToken ) {
+              TokenStruct *definedToken = GetDefineBindings( previousResult->content )->leftToken;
+              
+              if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                previousNumber = atof( definedToken->content.c_str() );
+              } // if: check if add any float
+              
+              else {
+                string errorMessage = "ERROR (<= with incorrect argument type) : ";
+                errorMessage += definedToken->content;
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                return false;
+              } // else: wrong type
+            } // if: get defined token
+            
+            else {
+              TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+              stringstream errorMessage;
+              errorMessage << "ERROR (<= with incorrect argument type) : ";
+              int layer = 0;
+              AddTreeString( definedNode, layer, false, errorMessage );
+              
+              if ( layer > 0 ) {
+                while ( layer > 0 ) {
+                  layer--;
+                  errorMessage << string( layer, ' ' ) << ')' << endl;
+                } // while: loop print right-paren
+              } // if: layer still greater than zero
+              
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+              return false;
+            } // else: get defined node, can't evaluate
+          } // if: found previous result defined
+          
+          else {
+            string errorMessage = "ERROR (unbound symbol) : ";
+            errorMessage += previousResult->content;
+            SetError( DEFINE_UNBOUND, errorMessage );
+            return false;
+          } // else: found previous symbol token not defined
+        } // else if: symbol, check defined or not
+        
+        else {
+          string errorMessage = "ERROR (<= with incorrect argument type) : ";
+          errorMessage += previousResult->content;
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+          return false;
+        } // else: wrong argument type
+      } // if: previous result is a token
+      
+      else if ( m_ResultList.back()->hasNodeResult ) {
+        TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+        stringstream errorMessage;
+        errorMessage << "ERROR (<= with incorrect argument type) : ";
+        int layer = 0;
+        AddTreeString( previousNode, layer, false, errorMessage );
+        
+        if ( layer > 0 ) {
+          while ( layer > 0 ) {
+            layer--;
+            errorMessage << string( layer, ' ' ) << ')' << endl;
+          } // while: loop print right-paren
+        } // if: layer still greater than zero
+        
+        SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+        return false;
+      } // else if: previous result is a node
+      
+      m_ResultList.pop_back();
+    } // else if: first argument is node
+    
+    walk = walk->rightNode;
+    
+    if ( walk->rightNode ) {
+      while ( walk->rightNode ) {
+        if ( walk->leftToken ) {
+          if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
+            if ( previousNumber <= atof( walk->leftToken->content.c_str() ) ) {
+              previousNumber = atof( walk->leftToken->content.c_str() );
+            } // if: argument is float, set isFLoat
+            
+            else {
+              result->tokenResult->tokenType = NIL;
+              previousNumber = atof( walk->leftToken->content.c_str() );
+            } // else: false
+          } // if: check if add any float
+          
+          else if ( walk->leftToken->tokenType == SYMBOL ) {
+            if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
+              TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+              
+              if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                if ( previousNumber <= atof( definedToken->content.c_str() ) ) {
+                  previousNumber = atof( definedToken->content.c_str() );
+                } // if: argument is float, set isFLoat
+                
+                else {
+                  result->tokenResult->tokenType = NIL;
+                  previousNumber = atof( definedToken->content.c_str() );
+                } // else: false
+              } // if: check if add any float
+              
+              else {
+                string errorMessage = "ERROR (<= with incorrect argument type) : ";
+                errorMessage += definedToken->content;
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                return false;
+              } // else: wrong type
+            } // if: get defined token
+            
+            else {
+              TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+              stringstream errorMessage;
+              errorMessage << "ERROR (<= with incorrect argument type) : ";
+              int layer = 0;
+              AddTreeString( definedNode, layer, false, errorMessage );
+              
+              if ( layer > 0 ) {
+                while ( layer > 0 ) {
+                  layer--;
+                  errorMessage << string( layer, ' ' ) << ')' << endl;
+                } // while: loop print right-paren
+              } // if: layer still greater than zero
+              
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+              return false;
+            } // else: get defined node, can't evaluate
+          } // else if: symbol, check defined or not
+          
+          else {
+            string errorMessage = "ERROR (<= with incorrect argument type) : ";
+            errorMessage += walk->leftToken->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // else: wrong argument type
+        } // if: argument is token
+        
+        else if ( walk->leftNode ) {
+          if ( m_ResultList.back()->hasTokenResult ) {
+            TokenStruct *previousResult = m_ResultList.back()->tokenResult;
+            
+            if ( previousResult->tokenType == FLOAT || previousResult->tokenType == INT ) {
+              if ( previousNumber <= atof( previousResult->content.c_str() ) ) {
+                previousNumber = atof( previousResult->content.c_str() );
+              } // if: argument is float, set isFLoat
+              
+              else {
+                result->tokenResult->tokenType = NIL;
+                previousNumber = atof( previousResult->content.c_str() );
+              } // else: false
+            } // if: check if add any float
+            
+            else if ( previousResult->tokenType == SYMBOL ) {
+              if ( FoundDefineBindings( previousResult->content ) ) {
+                if ( GetDefineBindings( previousResult->content )->leftToken ) {
+                  TokenStruct *definedToken = GetDefineBindings( previousResult->content )->leftToken;
+                  
+                  if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                    if ( previousNumber <= atof( definedToken->content.c_str() ) ) {
+                      previousNumber = atof( definedToken->content.c_str() );
+                    } // if: argument is float, set isFLoat
+                    
+                    else {
+                      result->tokenResult->tokenType = NIL;
+                      previousNumber = atof( definedToken->content.c_str() );
+                    } // else: false
+                  } // if: check if add any float
+                  
+                  else {
+                    string errorMessage = "ERROR (<= with incorrect argument type) : ";
+                    errorMessage += definedToken->content;
+                    SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                    return false;
+                  } // else: wrong type
+                } // if: get defined token
+                
+                else {
+                  TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+                  stringstream errorMessage;
+                  errorMessage << "ERROR (<= with incorrect argument type) : ";
+                  int layer = 0;
+                  AddTreeString( definedNode, layer, false, errorMessage );
+                  
+                  if ( layer > 0 ) {
+                    while ( layer > 0 ) {
+                      layer--;
+                      errorMessage << string( layer, ' ' ) << ')' << endl;
+                    } // while: loop print right-paren
+                  } // if: layer still greater than zero
+                  
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+                  return false;
+                } // else: get defined node, can't evaluate
+              } // if: found previous result defined
+              
+              else {
+                string errorMessage = "ERROR (unbound symbol) : ";
+                errorMessage += previousResult->content;
+                SetError( DEFINE_UNBOUND, errorMessage );
+                return false;
+              } // else: found previous symbol token not defined
+            } // else if: symbol, check defined or not
+            
+            else {
+              string errorMessage = "ERROR (<= with incorrect argument type) : ";
+              errorMessage += previousResult->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // else: wrong argument type
+          } // if: previous result is a token
+          
+          else if ( m_ResultList.back()->hasNodeResult ) {
+            TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+            stringstream errorMessage;
+            errorMessage << "ERROR (<= with incorrect argument type) : ";
+            int layer = 0;
+            AddTreeString( previousNode, layer, false, errorMessage );
+            
+            if ( layer > 0 ) {
+              while ( layer > 0 ) {
+                layer--;
+                errorMessage << string( layer, ' ' ) << ')' << endl;
+              } // while: loop print right-paren
+            } // if: layer still greater than zero
+            
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+            return false;
+          } // else if: previous result is a node
+          
+          m_ResultList.pop_back();
+        } // else if: argument is node
+        
+        walk = walk->rightNode;
+        
+        if ( walk->rightNode == NULL ) {
+          if ( walk->leftToken ) {
+            if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
+              if ( previousNumber <= atof( walk->leftToken->content.c_str() ) ) {
+                previousNumber = atof( walk->leftToken->content.c_str() );
+              } // if: argument is float, set isFLoat
+              
+              else {
+                result->tokenResult->tokenType = NIL;
+                previousNumber = atof( walk->leftToken->content.c_str() );
+              } // else: false
+            } // if: check if add any float
+            
+            else if ( walk->leftToken->tokenType == SYMBOL ) {
+              if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
+                TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+                
+                if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                  if ( previousNumber <= atof( definedToken->content.c_str() ) ) {
+                    previousNumber = atof( definedToken->content.c_str() );
+                  } // if: argument is float, set isFLoat
+                  
+                  else {
+                    result->tokenResult->tokenType = NIL;
+                    previousNumber = atof( definedToken->content.c_str() );
+                  } // else: false
+                } // if: check if add any float
+                
+                else {
+                  string errorMessage = "ERROR (<= with incorrect argument type) : ";
+                  errorMessage += definedToken->content;
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                  return false;
+                } // else: wrong type
+              } // if: get defined token
+              
+              else {
+                TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+                stringstream errorMessage;
+                errorMessage << "ERROR (<= with incorrect argument type) : ";
+                int layer = 0;
+                AddTreeString( definedNode, layer, false, errorMessage );
+                
+                if ( layer > 0 ) {
+                  while ( layer > 0 ) {
+                    layer--;
+                    errorMessage << string( layer, ' ' ) << ')' << endl;
+                  } // while: loop print right-paren
+                } // if: layer still greater than zero
+                
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+                return false;
+              } // else: get defined node, can't evaluate
+            } // else if: symbol, check defined or not
+            
+            else {
+              string errorMessage = "ERROR (<= with incorrect argument type) : ";
+              errorMessage += walk->leftToken->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // else: wrong argument type
+          } // if: argument is token
+          
+          else if ( walk->leftNode ) {
+            if ( m_ResultList.back()->hasTokenResult ) {
+              TokenStruct *previousResult = m_ResultList.back()->tokenResult;
+              
+              if ( previousResult->tokenType == FLOAT || previousResult->tokenType == INT ) {
+                if ( previousNumber <= atof( previousResult->content.c_str() ) ) {
+                  previousNumber = atof( previousResult->content.c_str() );
+                } // if: argument is float, set isFLoat
+                
+                else {
+                  result->tokenResult->tokenType = NIL;
+                  previousNumber = atof( previousResult->content.c_str() );
+                } // else: false
+              } // if: check if add any float
+              
+              else if ( previousResult->tokenType == SYMBOL ) {
+                if ( FoundDefineBindings( previousResult->content ) ) {
+                  if ( GetDefineBindings( previousResult->content )->leftToken ) {
+                    TokenStruct *definedToken = GetDefineBindings( previousResult->content )->leftToken;
+                    
+                    if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                      if ( previousNumber <= atof( definedToken->content.c_str() ) ) {
+                        previousNumber = atof( definedToken->content.c_str() );
+                      } // if: argument is float, set isFLoat
+                      
+                      else {
+                        result->tokenResult->tokenType = NIL;
+                        previousNumber = atof( definedToken->content.c_str() );
+                      } // else: false
+                    } // if: check if add any float
+                    
+                    else {
+                      string errorMessage = "ERROR (<= with incorrect argument type) : ";
+                      errorMessage += definedToken->content;
+                      SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                      return false;
+                    } // else: wrong type
+                  } // if: get defined token
+                  
+                  else {
+                    TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+                    stringstream errorMessage;
+                    errorMessage << "ERROR (<= with incorrect argument type) : ";
+                    int layer = 0;
+                    AddTreeString( definedNode, layer, false, errorMessage );
+                    
+                    if ( layer > 0 ) {
+                      while ( layer > 0 ) {
+                        layer--;
+                        errorMessage << string( layer, ' ' ) << ')' << endl;
+                      } // while: loop print right-paren
+                    } // if: layer still greater than zero
+                    
+                    SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+                    return false;
+                  } // else: get defined node, can't evaluate
+                } // if: found previous result defined
+                
+                else {
+                  string errorMessage = "ERROR (unbound symbol) : ";
+                  errorMessage += previousResult->content;
+                  SetError( DEFINE_UNBOUND, errorMessage );
+                  return false;
+                } // else: found previous symbol token not defined
+              } // else if: symbol, check defined or not
+              
+              else {
+                string errorMessage = "ERROR (<= with incorrect argument type) : ";
+                errorMessage += previousResult->content;
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                return false;
+              } // else: wrong argument type
+            } // if: previous result is a token
+            
+            else if ( m_ResultList.back()->hasNodeResult ) {
+              TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+              stringstream errorMessage;
+              errorMessage << "ERROR (<= with incorrect argument type) : ";
+              int layer = 0;
+              AddTreeString( previousNode, layer, false, errorMessage );
+              
+              if ( layer > 0 ) {
+                while ( layer > 0 ) {
+                  layer--;
+                  errorMessage << string( layer, ' ' ) << ')' << endl;
+                } // while: loop print right-paren
+              } // if: layer still greater than zero
+              
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+              return false;
+            } // else if: previous result is a node
+            
+            m_ResultList.pop_back();
+          } // else if: argument is node
+        } // if: add up the last argument
+      } // while: add up the arguments
+    } // if: has more than two arguments
+    
+    else {
+      if ( walk->leftToken ) {
+        if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
+          if ( previousNumber <= atof( walk->leftToken->content.c_str() ) ) {
+            previousNumber = atof( walk->leftToken->content.c_str() );
+          } // if: argument is float, set isFLoat
+          
+          else {
+            result->tokenResult->tokenType = NIL;
+            previousNumber = atof( walk->leftToken->content.c_str() );
+          } // else: false
+        } // if: check if add any float
+        
+        else if ( walk->leftToken->tokenType == SYMBOL ) {
+          if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
+            TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+            
+            if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+              if ( previousNumber <= atof( definedToken->content.c_str() ) ) {
+                previousNumber = atof( definedToken->content.c_str() );
+              } // if: argument is float, set isFLoat
+              
+              else {
+                result->tokenResult->tokenType = NIL;
+                previousNumber = atof( definedToken->content.c_str() );
+              } // else: false
+            } // if: check if add any float
+            
+            else {
+              string errorMessage = "ERROR (<= with incorrect argument type) : ";
+              errorMessage += definedToken->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // else: wrong type
+          } // if: get defined token
+          
+          else {
+            TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+            stringstream errorMessage;
+            errorMessage << "ERROR (<= with incorrect argument type) : ";
+            int layer = 0;
+            AddTreeString( definedNode, layer, false, errorMessage );
+            
+            if ( layer > 0 ) {
+              while ( layer > 0 ) {
+                layer--;
+                errorMessage << string( layer, ' ' ) << ')' << endl;
+              } // while: loop print right-paren
+            } // if: layer still greater than zero
+            
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+            return false;
+          } // else: get defined node, can't evaluate
+        } // else if: symbol, check defined or not
+        
+        else {
+          string errorMessage = "ERROR (<= with incorrect argument type) : ";
+          errorMessage += walk->leftToken->content;
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+          return false;
+        } // else: wrong argument type
+      } // if: argument is token
+      
+      else if ( walk->leftNode ) {
+        if ( m_ResultList.back()->hasTokenResult ) {
+          TokenStruct *previousResult = m_ResultList.back()->tokenResult;
+          
+          if ( previousResult->tokenType == FLOAT || previousResult->tokenType == INT ) {
+            if ( previousNumber <= atof( previousResult->content.c_str() ) ) {
+              previousNumber = atof( previousResult->content.c_str() );
+            } // if: argument is float, set isFLoat
+            
+            else {
+              result->tokenResult->tokenType = NIL;
+              previousNumber = atof( previousResult->content.c_str() );
+            } // else: false
+          } // if: check if add any float
+          
+          else if ( previousResult->tokenType == SYMBOL ) {
+            if ( FoundDefineBindings( previousResult->content ) ) {
+              if ( GetDefineBindings( previousResult->content )->leftToken ) {
+                TokenStruct *definedToken = GetDefineBindings( previousResult->content )->leftToken;
+                
+                if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                  if ( previousNumber <= atof( definedToken->content.c_str() ) ) {
+                    previousNumber = atof( definedToken->content.c_str() );
+                  } // if: argument is float, set isFLoat
+                  
+                  else {
+                    result->tokenResult->tokenType = NIL;
+                    previousNumber = atof( definedToken->content.c_str() );
+                  } // else: false
+                } // if: check if add any float
+                
+                else {
+                  string errorMessage = "ERROR (<= with incorrect argument type) : ";
+                  errorMessage += definedToken->content;
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                  return false;
+                } // else: wrong type
+              } // if: get defined token
+              
+              else {
+                TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+                stringstream errorMessage;
+                errorMessage << "ERROR (<= with incorrect argument type) : ";
+                int layer = 0;
+                AddTreeString( definedNode, layer, false, errorMessage );
+                
+                if ( layer > 0 ) {
+                  while ( layer > 0 ) {
+                    layer--;
+                    errorMessage << string( layer, ' ' ) << ')' << endl;
+                  } // while: loop print right-paren
+                } // if: layer still greater than zero
+                
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+                return false;
+              } // else: get defined node, can't evaluate
+            } // if: found previous result defined
+            
+            else {
+              string errorMessage = "ERROR (unbound symbol) : ";
+              errorMessage += previousResult->content;
+              SetError( DEFINE_UNBOUND, errorMessage );
+              return false;
+            } // else: found previous symbol token not defined
+          } // else if: symbol, check defined or not
+          
+          else {
+            string errorMessage = "ERROR (<= with incorrect argument type) : ";
+            errorMessage += previousResult->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // else: wrong argument type
+        } // if: previous result is a token
+        
+        else if ( m_ResultList.back()->hasNodeResult ) {
+          TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+          stringstream errorMessage;
+          errorMessage << "ERROR (<= with incorrect argument type) : ";
+          int layer = 0;
+          AddTreeString( previousNode, layer, false, errorMessage );
+          
+          if ( layer > 0 ) {
+            while ( layer > 0 ) {
+              layer--;
+              errorMessage << string( layer, ' ' ) << ')' << endl;
+            } // while: loop print right-paren
+          } // if: layer still greater than zero
+          
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+          return false;
+        } // else if: previous result is a node
+        
+        m_ResultList.pop_back();
+      } // else if: argument is node
+    } // else: has only two arguments
+    
+    if ( result->tokenResult->tokenType == T ) {
+      result->tokenResult->content = "#t";
+    } // if: the result is true, set the content
+    
+    else {
+      result->tokenResult->content = "nil";
+    } // else: the result is nil, set the content
+    
+    m_ResultList.push_back( result );
+    return true;
   } // LessThanOrEqualTo()
   
   bool EqualTo( vector<TreeStruct *> arguments, ResultStruct *result ) {
-    ;
+    result->hasTokenResult = true;
+    result->tokenResult->tokenType = T;
+    TreeStruct *walk = arguments.front();
+    float previousNumber = 0;
+    
+    if ( walk->leftToken ) {
+      if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
+        previousNumber = atof( walk->leftToken->content.c_str() );
+      } // if: check if add any float
+      
+      else if ( walk->leftToken->tokenType == SYMBOL ) {
+        if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
+          TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+          
+          if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+            previousNumber = atof( definedToken->content.c_str() );
+          } // if: check if add any float
+          
+          else {
+            string errorMessage = "ERROR (= with incorrect argument type) : ";
+            errorMessage += definedToken->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // else: wrong type
+        } // if: get defined token
+        
+        else {
+          TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+          stringstream errorMessage;
+          errorMessage << "ERROR (= with incorrect argument type) : ";
+          int layer = 0;
+          AddTreeString( definedNode, layer, false, errorMessage );
+          
+          if ( layer > 0 ) {
+            while ( layer > 0 ) {
+              layer--;
+              errorMessage << string( layer, ' ' ) << ')' << endl;
+            } // while: loop print right-paren
+          } // if: layer still greater than zero
+          
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+          return false;
+        } // else: get defined node, can't evaluate
+      } // else if: symbol, check defined or not
+      
+      else {
+        string errorMessage = "ERROR (= with incorrect argument type) : ";
+        errorMessage += walk->leftToken->content;
+        SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+        return false;
+      } // else: wrong argument type
+    } // if: first argument is token
+    
+    else if ( walk->leftNode ) {
+      if ( m_ResultList.back()->hasTokenResult ) {
+        TokenStruct *previousResult = m_ResultList.back()->tokenResult;
+        
+        if ( previousResult->tokenType == FLOAT || previousResult->tokenType == INT ) {
+          previousNumber = atof( previousResult->content.c_str() );
+        } // if: check if add any float
+        
+        else if ( previousResult->tokenType == SYMBOL ) {
+          if ( FoundDefineBindings( previousResult->content ) ) {
+            if ( GetDefineBindings( previousResult->content )->leftToken ) {
+              TokenStruct *definedToken = GetDefineBindings( previousResult->content )->leftToken;
+              
+              if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                previousNumber = atof( definedToken->content.c_str() );
+              } // if: check if add any float
+              
+              else {
+                string errorMessage = "ERROR (= with incorrect argument type) : ";
+                errorMessage += definedToken->content;
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                return false;
+              } // else: wrong type
+            } // if: get defined token
+            
+            else {
+              TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+              stringstream errorMessage;
+              errorMessage << "ERROR (= with incorrect argument type) : ";
+              int layer = 0;
+              AddTreeString( definedNode, layer, false, errorMessage );
+              
+              if ( layer > 0 ) {
+                while ( layer > 0 ) {
+                  layer--;
+                  errorMessage << string( layer, ' ' ) << ')' << endl;
+                } // while: loop print right-paren
+              } // if: layer still greater than zero
+              
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+              return false;
+            } // else: get defined node, can't evaluate
+          } // if: found previous result defined
+          
+          else {
+            string errorMessage = "ERROR (unbound symbol) : ";
+            errorMessage += previousResult->content;
+            SetError( DEFINE_UNBOUND, errorMessage );
+            return false;
+          } // else: found previous symbol token not defined
+        } // else if: symbol, check defined or not
+        
+        else {
+          string errorMessage = "ERROR (= with incorrect argument type) : ";
+          errorMessage += previousResult->content;
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+          return false;
+        } // else: wrong argument type
+      } // if: previous result is a token
+      
+      else if ( m_ResultList.back()->hasNodeResult ) {
+        TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+        stringstream errorMessage;
+        errorMessage << "ERROR (= with incorrect argument type) : ";
+        int layer = 0;
+        AddTreeString( previousNode, layer, false, errorMessage );
+        
+        if ( layer > 0 ) {
+          while ( layer > 0 ) {
+            layer--;
+            errorMessage << string( layer, ' ' ) << ')' << endl;
+          } // while: loop print right-paren
+        } // if: layer still greater than zero
+        
+        SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+        return false;
+      } // else if: previous result is a node
+      
+      m_ResultList.pop_back();
+    } // else if: first argument is node
+    
+    walk = walk->rightNode;
+    
+    if ( walk->rightNode ) {
+      while ( walk->rightNode ) {
+        if ( walk->leftToken ) {
+          if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
+            if ( previousNumber == atof( walk->leftToken->content.c_str() ) ) {
+              previousNumber = atof( walk->leftToken->content.c_str() );
+            } // if: argument is float, set isFLoat
+            
+            else {
+              result->tokenResult->tokenType = NIL;
+              previousNumber = atof( walk->leftToken->content.c_str() );
+            } // else: false
+          } // if: check if add any float
+          
+          else if ( walk->leftToken->tokenType == SYMBOL ) {
+            if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
+              TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+              
+              if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                if ( previousNumber == atof( definedToken->content.c_str() ) ) {
+                  previousNumber = atof( definedToken->content.c_str() );
+                } // if: argument is float, set isFLoat
+                
+                else {
+                  result->tokenResult->tokenType = NIL;
+                  previousNumber = atof( definedToken->content.c_str() );
+                } // else: false
+              } // if: check if add any float
+              
+              else {
+                string errorMessage = "ERROR (= with incorrect argument type) : ";
+                errorMessage += definedToken->content;
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                return false;
+              } // else: wrong type
+            } // if: get defined token
+            
+            else {
+              TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+              stringstream errorMessage;
+              errorMessage << "ERROR (= with incorrect argument type) : ";
+              int layer = 0;
+              AddTreeString( definedNode, layer, false, errorMessage );
+              
+              if ( layer > 0 ) {
+                while ( layer > 0 ) {
+                  layer--;
+                  errorMessage << string( layer, ' ' ) << ')' << endl;
+                } // while: loop print right-paren
+              } // if: layer still greater than zero
+              
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+              return false;
+            } // else: get defined node, can't evaluate
+          } // else if: symbol, check defined or not
+          
+          else {
+            string errorMessage = "ERROR (= with incorrect argument type) : ";
+            errorMessage += walk->leftToken->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // else: wrong argument type
+        } // if: argument is token
+        
+        else if ( walk->leftNode ) {
+          if ( m_ResultList.back()->hasTokenResult ) {
+            TokenStruct *previousResult = m_ResultList.back()->tokenResult;
+            
+            if ( previousResult->tokenType == FLOAT || previousResult->tokenType == INT ) {
+              if ( previousNumber == atof( previousResult->content.c_str() ) ) {
+                previousNumber = atof( previousResult->content.c_str() );
+              } // if: argument is float, set isFLoat
+              
+              else {
+                result->tokenResult->tokenType = NIL;
+                previousNumber = atof( previousResult->content.c_str() );
+              } // else: false
+            } // if: check if add any float
+            
+            else if ( previousResult->tokenType == SYMBOL ) {
+              if ( FoundDefineBindings( previousResult->content ) ) {
+                if ( GetDefineBindings( previousResult->content )->leftToken ) {
+                  TokenStruct *definedToken = GetDefineBindings( previousResult->content )->leftToken;
+                  
+                  if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                    if ( previousNumber == atof( definedToken->content.c_str() ) ) {
+                      previousNumber = atof( definedToken->content.c_str() );
+                    } // if: argument is float, set isFLoat
+                    
+                    else {
+                      result->tokenResult->tokenType = NIL;
+                      previousNumber = atof( definedToken->content.c_str() );
+                    } // else: false
+                  } // if: check if add any float
+                  
+                  else {
+                    string errorMessage = "ERROR (= with incorrect argument type) : ";
+                    errorMessage += definedToken->content;
+                    SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                    return false;
+                  } // else: wrong type
+                } // if: get defined token
+                
+                else {
+                  TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+                  stringstream errorMessage;
+                  errorMessage << "ERROR (= with incorrect argument type) : ";
+                  int layer = 0;
+                  AddTreeString( definedNode, layer, false, errorMessage );
+                  
+                  if ( layer > 0 ) {
+                    while ( layer > 0 ) {
+                      layer--;
+                      errorMessage << string( layer, ' ' ) << ')' << endl;
+                    } // while: loop print right-paren
+                  } // if: layer still greater than zero
+                  
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+                  return false;
+                } // else: get defined node, can't evaluate
+              } // if: found previous result defined
+              
+              else {
+                string errorMessage = "ERROR (unbound symbol) : ";
+                errorMessage += previousResult->content;
+                SetError( DEFINE_UNBOUND, errorMessage );
+                return false;
+              } // else: found previous symbol token not defined
+            } // else if: symbol, check defined or not
+            
+            else {
+              string errorMessage = "ERROR (= with incorrect argument type) : ";
+              errorMessage += previousResult->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // else: wrong argument type
+          } // if: previous result is a token
+          
+          else if ( m_ResultList.back()->hasNodeResult ) {
+            TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+            stringstream errorMessage;
+            errorMessage << "ERROR (= with incorrect argument type) : ";
+            int layer = 0;
+            AddTreeString( previousNode, layer, false, errorMessage );
+            
+            if ( layer > 0 ) {
+              while ( layer > 0 ) {
+                layer--;
+                errorMessage << string( layer, ' ' ) << ')' << endl;
+              } // while: loop print right-paren
+            } // if: layer still greater than zero
+            
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+            return false;
+          } // else if: previous result is a node
+          
+          m_ResultList.pop_back();
+        } // else if: argument is node
+        
+        walk = walk->rightNode;
+        
+        if ( walk->rightNode == NULL ) {
+          if ( walk->leftToken ) {
+            if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
+              if ( previousNumber == atof( walk->leftToken->content.c_str() ) ) {
+                previousNumber = atof( walk->leftToken->content.c_str() );
+              } // if: argument is float, set isFLoat
+              
+              else {
+                result->tokenResult->tokenType = NIL;
+                previousNumber = atof( walk->leftToken->content.c_str() );
+              } // else: false
+            } // if: check if add any float
+            
+            else if ( walk->leftToken->tokenType == SYMBOL ) {
+              if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
+                TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+                
+                if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                  if ( previousNumber == atof( definedToken->content.c_str() ) ) {
+                    previousNumber = atof( definedToken->content.c_str() );
+                  } // if: argument is float, set isFLoat
+                  
+                  else {
+                    result->tokenResult->tokenType = NIL;
+                    previousNumber = atof( definedToken->content.c_str() );
+                  } // else: false
+                } // if: check if add any float
+                
+                else {
+                  string errorMessage = "ERROR (= with incorrect argument type) : ";
+                  errorMessage += definedToken->content;
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                  return false;
+                } // else: wrong type
+              } // if: get defined token
+              
+              else {
+                TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+                stringstream errorMessage;
+                errorMessage << "ERROR (= with incorrect argument type) : ";
+                int layer = 0;
+                AddTreeString( definedNode, layer, false, errorMessage );
+                
+                if ( layer > 0 ) {
+                  while ( layer > 0 ) {
+                    layer--;
+                    errorMessage << string( layer, ' ' ) << ')' << endl;
+                  } // while: loop print right-paren
+                } // if: layer still greater than zero
+                
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+                return false;
+              } // else: get defined node, can't evaluate
+            } // else if: symbol, check defined or not
+            
+            else {
+              string errorMessage = "ERROR (= with incorrect argument type) : ";
+              errorMessage += walk->leftToken->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // else: wrong argument type
+          } // if: argument is token
+          
+          else if ( walk->leftNode ) {
+            if ( m_ResultList.back()->hasTokenResult ) {
+              TokenStruct *previousResult = m_ResultList.back()->tokenResult;
+              
+              if ( previousResult->tokenType == FLOAT || previousResult->tokenType == INT ) {
+                if ( previousNumber == atof( previousResult->content.c_str() ) ) {
+                  previousNumber = atof( previousResult->content.c_str() );
+                } // if: argument is float, set isFLoat
+                
+                else {
+                  result->tokenResult->tokenType = NIL;
+                  previousNumber = atof( previousResult->content.c_str() );
+                } // else: false
+              } // if: check if add any float
+              
+              else if ( previousResult->tokenType == SYMBOL ) {
+                if ( FoundDefineBindings( previousResult->content ) ) {
+                  if ( GetDefineBindings( previousResult->content )->leftToken ) {
+                    TokenStruct *definedToken = GetDefineBindings( previousResult->content )->leftToken;
+                    
+                    if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                      if ( previousNumber == atof( definedToken->content.c_str() ) ) {
+                        previousNumber = atof( definedToken->content.c_str() );
+                      } // if: argument is float, set isFLoat
+                      
+                      else {
+                        result->tokenResult->tokenType = NIL;
+                        previousNumber = atof( definedToken->content.c_str() );
+                      } // else: false
+                    } // if: check if add any float
+                    
+                    else {
+                      string errorMessage = "ERROR (= with incorrect argument type) : ";
+                      errorMessage += definedToken->content;
+                      SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                      return false;
+                    } // else: wrong type
+                  } // if: get defined token
+                  
+                  else {
+                    TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+                    stringstream errorMessage;
+                    errorMessage << "ERROR (= with incorrect argument type) : ";
+                    int layer = 0;
+                    AddTreeString( definedNode, layer, false, errorMessage );
+                    
+                    if ( layer > 0 ) {
+                      while ( layer > 0 ) {
+                        layer--;
+                        errorMessage << string( layer, ' ' ) << ')' << endl;
+                      } // while: loop print right-paren
+                    } // if: layer still greater than zero
+                    
+                    SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+                    return false;
+                  } // else: get defined node, can't evaluate
+                } // if: found previous result defined
+                
+                else {
+                  string errorMessage = "ERROR (unbound symbol) : ";
+                  errorMessage += previousResult->content;
+                  SetError( DEFINE_UNBOUND, errorMessage );
+                  return false;
+                } // else: found previous symbol token not defined
+              } // else if: symbol, check defined or not
+              
+              else {
+                string errorMessage = "ERROR (= with incorrect argument type) : ";
+                errorMessage += previousResult->content;
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                return false;
+              } // else: wrong argument type
+            } // if: previous result is a token
+            
+            else if ( m_ResultList.back()->hasNodeResult ) {
+              TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+              stringstream errorMessage;
+              errorMessage << "ERROR (= with incorrect argument type) : ";
+              int layer = 0;
+              AddTreeString( previousNode, layer, false, errorMessage );
+              
+              if ( layer > 0 ) {
+                while ( layer > 0 ) {
+                  layer--;
+                  errorMessage << string( layer, ' ' ) << ')' << endl;
+                } // while: loop print right-paren
+              } // if: layer still greater than zero
+              
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+              return false;
+            } // else if: previous result is a node
+            
+            m_ResultList.pop_back();
+          } // else if: argument is node
+        } // if: add up the last argument
+      } // while: add up the arguments
+    } // if: has more than two arguments
+    
+    else {
+      if ( walk->leftToken ) {
+        if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
+          if ( previousNumber == atof( walk->leftToken->content.c_str() ) ) {
+            previousNumber = atof( walk->leftToken->content.c_str() );
+          } // if: argument is float, set isFLoat
+          
+          else {
+            result->tokenResult->tokenType = NIL;
+            previousNumber = atof( walk->leftToken->content.c_str() );
+          } // else: false
+        } // if: check if add any float
+        
+        else if ( walk->leftToken->tokenType == SYMBOL ) {
+          if ( GetDefineBindings( walk->leftToken->content )->leftToken ) {
+            TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
+            
+            if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+              if ( previousNumber == atof( definedToken->content.c_str() ) ) {
+                previousNumber = atof( definedToken->content.c_str() );
+              } // if: argument is float, set isFLoat
+              
+              else {
+                result->tokenResult->tokenType = NIL;
+                previousNumber = atof( definedToken->content.c_str() );
+              } // else: false
+            } // if: check if add any float
+            
+            else {
+              string errorMessage = "ERROR (= with incorrect argument type) : ";
+              errorMessage += definedToken->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // else: wrong type
+          } // if: get defined token
+          
+          else {
+            TreeStruct *definedNode = GetDefineBindings( walk->leftToken->content )->leftNode;
+            stringstream errorMessage;
+            errorMessage << "ERROR (= with incorrect argument type) : ";
+            int layer = 0;
+            AddTreeString( definedNode, layer, false, errorMessage );
+            
+            if ( layer > 0 ) {
+              while ( layer > 0 ) {
+                layer--;
+                errorMessage << string( layer, ' ' ) << ')' << endl;
+              } // while: loop print right-paren
+            } // if: layer still greater than zero
+            
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+            return false;
+          } // else: get defined node, can't evaluate
+        } // else if: symbol, check defined or not
+        
+        else {
+          string errorMessage = "ERROR (= with incorrect argument type) : ";
+          errorMessage += walk->leftToken->content;
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+          return false;
+        } // else: wrong argument type
+      } // if: argument is token
+      
+      else if ( walk->leftNode ) {
+        if ( m_ResultList.back()->hasTokenResult ) {
+          TokenStruct *previousResult = m_ResultList.back()->tokenResult;
+          
+          if ( previousResult->tokenType == FLOAT || previousResult->tokenType == INT ) {
+            if ( previousNumber == atof( previousResult->content.c_str() ) ) {
+              previousNumber = atof( previousResult->content.c_str() );
+            } // if: argument is float, set isFLoat
+            
+            else {
+              result->tokenResult->tokenType = NIL;
+              previousNumber = atof( previousResult->content.c_str() );
+            } // else: false
+          } // if: check if add any float
+          
+          else if ( previousResult->tokenType == SYMBOL ) {
+            if ( FoundDefineBindings( previousResult->content ) ) {
+              if ( GetDefineBindings( previousResult->content )->leftToken ) {
+                TokenStruct *definedToken = GetDefineBindings( previousResult->content )->leftToken;
+                
+                if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
+                  if ( previousNumber == atof( definedToken->content.c_str() ) ) {
+                    previousNumber = atof( definedToken->content.c_str() );
+                  } // if: argument is float, set isFLoat
+                  
+                  else {
+                    result->tokenResult->tokenType = NIL;
+                    previousNumber = atof( definedToken->content.c_str() );
+                  } // else: false
+                } // if: check if add any float
+                
+                else {
+                  string errorMessage = "ERROR (= with incorrect argument type) : ";
+                  errorMessage += definedToken->content;
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                  return false;
+                } // else: wrong type
+              } // if: get defined token
+              
+              else {
+                TreeStruct *definedNode = GetDefineBindings( previousResult->content )->leftNode;
+                stringstream errorMessage;
+                errorMessage << "ERROR (= with incorrect argument type) : ";
+                int layer = 0;
+                AddTreeString( definedNode, layer, false, errorMessage );
+                
+                if ( layer > 0 ) {
+                  while ( layer > 0 ) {
+                    layer--;
+                    errorMessage << string( layer, ' ' ) << ')' << endl;
+                  } // while: loop print right-paren
+                } // if: layer still greater than zero
+                
+                SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+                return false;
+              } // else: get defined node, can't evaluate
+            } // if: found previous result defined
+            
+            else {
+              string errorMessage = "ERROR (unbound symbol) : ";
+              errorMessage += previousResult->content;
+              SetError( DEFINE_UNBOUND, errorMessage );
+              return false;
+            } // else: found previous symbol token not defined
+          } // else if: symbol, check defined or not
+          
+          else {
+            string errorMessage = "ERROR (= with incorrect argument type) : ";
+            errorMessage += previousResult->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // else: wrong argument type
+        } // if: previous result is a token
+        
+        else if ( m_ResultList.back()->hasNodeResult ) {
+          TreeStruct *previousNode = m_ResultList.back()->nodeResult;
+          stringstream errorMessage;
+          errorMessage << "ERROR (= with incorrect argument type) : ";
+          int layer = 0;
+          AddTreeString( previousNode, layer, false, errorMessage );
+          
+          if ( layer > 0 ) {
+            while ( layer > 0 ) {
+              layer--;
+              errorMessage << string( layer, ' ' ) << ')' << endl;
+            } // while: loop print right-paren
+          } // if: layer still greater than zero
+          
+          SetError( INCORRECT_ARGUMENT_TYPE, errorMessage.str() );
+          return false;
+        } // else if: previous result is a node
+        
+        m_ResultList.pop_back();
+      } // else if: argument is node
+    } // else: has only two arguments
+    
+    if ( result->tokenResult->tokenType == T ) {
+      result->tokenResult->content = "#t";
+    } // if: the result is true, set the content
+    
+    else {
+      result->tokenResult->content = "nil";
+    } // else: the result is nil, set the content
+    
+    m_ResultList.push_back( result );
+    return true;
   } // EqualTo()
   
   /*
@@ -6606,7 +9666,8 @@ public:
     static bool hasLineReturn = false;
     
     if ( isRightNode == false ) {
-      if ( currentRoot->leftToken->content != "quote" ) {
+      if ( ( currentRoot->leftNode ) ||
+           ( currentRoot->leftToken && currentRoot->leftToken->content != "quote" ) ) {
         if ( hasLineReturn ) {
           cout << string( layer*2, ' ' );
         } // if: has lineReturn
@@ -6721,7 +9782,8 @@ public:
     static bool hasLineReturn = false;
     
     if ( isRightNode == false ) {
-      if ( currentRoot->leftToken->content != "quote" ) {
+      if ( ( currentRoot->leftNode ) ||
+           ( currentRoot->leftToken && currentRoot->leftToken->content != "quote" ) ) {
         if ( hasLineReturn ) {
           returnString << string( layer*2, ' ' );
         } // if: has lineReturn
@@ -6768,7 +9830,7 @@ public:
     } // if: still space print right paren
     
     return returnString.str();
-  } // TreeString()
+  } // AddTreeString()
   
   void AddDataString( TokenStruct *currentToken, stringstream &returnString ) {
     if ( currentToken->tokenType == INT ) {
