@@ -28,7 +28,7 @@ enum TokenType {
 enum ErrorType {
   NOT_S_EXP, NO_CLOSING_QUOTE, UNEXPECTED_TOKEN_ATOM_LEFT_PAREN, UNEXPECTED_RIGHT_PAREN, NO_MORE_INPUT,
   INCORRECT_NUM_ARGUMENTS, INCORRECT_ARGUMENT_TYPE, DEFINE_UNBOUND, APPLY_NON_FUNCTION, NO_RETURN_VALUE,
-  DIVISION_BY_ZERO, NON_LIST, DEFINE_FORMAT
+  DIVISION_BY_ZERO, NON_LIST, DEFINE_FORMAT, LEVEL_OF_DEFINE
 }; // error types
 
 enum PrimitiveType {
@@ -480,7 +480,10 @@ public:
     ------------------- Syntax -----------------
   */
   
-  bool CheckSExp() {
+  bool CheckSExp() { // TODO: COUNT THE PARENTHESIS
+    static int leftParenCount = 0;
+    static int rightParenCount = 0;
+    
     if ( IsAtom( m_LineOfTokens.back() ) ) {
       if ( m_Root != NULL ) {
         if ( m_CurrentTreeLocation->leftToken != NULL ) {
@@ -1620,6 +1623,12 @@ public:
     } // else if: quote
     
     else if ( current->leftToken->primitiveType == DEFINE_BINDING ) {
+      if ( current->previousNode ) {
+        string errorMessage = "ERROR (level of DEFINE)";
+        SetError( LEVEL_OF_DEFINE, errorMessage );
+        return false;
+      } // if: level of define error
+      
       if ( current->rightNode ) {
         if ( current->rightNode->leftToken ) {
           if ( current->rightNode->leftToken->tokenType != SYMBOL ||
@@ -3050,11 +3059,20 @@ public:
     while ( walk->rightNode ) {
       if ( walk->leftToken ) {
         if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
-          if ( walk->leftToken->tokenType == FLOAT ) {
-            isFloat = true;
-          } // if: argument is float, set isFLoat
+          if ( walk->leftToken->isQuoteResult ) {
+            string errorMessage = "ERROR (+ with incorrect argument type) : ";
+            errorMessage += walk->leftToken->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // if: is a quote symbol
           
-          answer += atof( walk->leftToken->content.c_str() );
+          else {
+            if ( walk->leftToken->tokenType == FLOAT ) {
+              isFloat = true;
+            } // if: argument is float, set isFLoat
+            
+            answer += atof( walk->leftToken->content.c_str() );
+          } // else: not quote result
         } // if: check if add any float
         
         else if ( walk->leftToken->tokenType == SYMBOL ) {
@@ -3070,11 +3088,20 @@ public:
               TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
               
               if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
-                if ( definedToken->tokenType == FLOAT ) {
-                  isFloat = true;
-                } // if: argument is float, set isFLoat
+                if ( definedToken->isQuoteResult ) {
+                  string errorMessage = "ERROR (+ with incorrect argument type) : ";
+                  errorMessage += definedToken->content;
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                  return false;
+                } // if: is a quote symbol
                 
-                answer += atof( definedToken->content.c_str() );
+                else {
+                  if ( definedToken->tokenType == FLOAT ) {
+                    isFloat = true;
+                  } // if: argument is float, set isFLoat
+                  
+                  answer += atof( definedToken->content.c_str() );
+                } // else: not quote result
               } // if: check if add any float
               
               else {
@@ -3136,11 +3163,20 @@ public:
       if ( walk->rightNode == NULL ) {
         if ( walk->leftToken ) {
           if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
-            if ( walk->leftToken->tokenType == FLOAT ) {
-              isFloat = true;
-            } // if: argument is float, set isFLoat
+            if ( walk->leftToken->isQuoteResult ) {
+              string errorMessage = "ERROR (+ with incorrect argument type) : ";
+              errorMessage += walk->leftToken->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // if: is a quote symbol
             
-            answer += atof( walk->leftToken->content.c_str() );
+            else {
+              if ( walk->leftToken->tokenType == FLOAT ) {
+                isFloat = true;
+              } // if: argument is float, set isFLoat
+              
+              answer += atof( walk->leftToken->content.c_str() );
+            } // else: not quote result
           } // if: check if add any float
           
           else if ( walk->leftToken->tokenType == SYMBOL ) {
@@ -3156,11 +3192,20 @@ public:
                 TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
                 
                 if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
-                  if ( definedToken->tokenType == FLOAT ) {
-                    isFloat = true;
-                  } // if: argument is float, set isFLoat
+                  if ( definedToken->isQuoteResult ) {
+                    string errorMessage = "ERROR (+ with incorrect argument type) : ";
+                    errorMessage += definedToken->content;
+                    SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                    return false;
+                  } // if: is a quote symbol
                   
-                  answer += atof( definedToken->content.c_str() );
+                  else {
+                    if ( definedToken->tokenType == FLOAT ) {
+                      isFloat = true;
+                    } // if: argument is float, set isFLoat
+                    
+                    answer += atof( definedToken->content.c_str() );
+                  } // else: not quote result
                 } // if: check if add any float
                 
                 else {
@@ -3248,18 +3293,27 @@ public:
     while ( walk->rightNode ) {
       if ( walk->leftToken ) {
         if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
-          if ( walk->leftToken->tokenType == FLOAT ) {
-            isFloat = true;
-          } // if: argument is float, set isFLoat
-          
-          if ( isFirstNum ) {
-            answer = atof( walk->leftToken->content.c_str() );
-            isFirstNum = false;
-          } // if: firstNum
+          if ( walk->leftToken->isQuoteResult ) {
+            string errorMessage = "ERROR (- with incorrect argument type) : ";
+            errorMessage += walk->leftToken->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // if: is a quote symbol
           
           else {
-            answer -= atof( walk->leftToken->content.c_str() );
-          } // else: not firstNum
+            if ( walk->leftToken->tokenType == FLOAT ) {
+              isFloat = true;
+            } // if: argument is float, set isFLoat
+            
+            if ( isFirstNum ) {
+              answer = atof( walk->leftToken->content.c_str() );
+              isFirstNum = false;
+            } // if: firstNum
+            
+            else {
+              answer -= atof( walk->leftToken->content.c_str() );
+            } // else: not firstNum
+          } // else: not quote result
         } // if: check if add any float
         
         else if ( walk->leftToken->tokenType == SYMBOL ) {
@@ -3275,18 +3329,27 @@ public:
               TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
               
               if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
-                if ( definedToken->tokenType == FLOAT ) {
-                  isFloat = true;
-                } // if: argument is float, set isFLoat
-                
-                if ( isFirstNum ) {
-                  answer = atof( walk->leftToken->content.c_str() );
-                  isFirstNum = false;
-                } // if: firstNum
+                if ( definedToken->isQuoteResult ) {
+                  string errorMessage = "ERROR (- with incorrect argument type) : ";
+                  errorMessage += definedToken->content;
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                  return false;
+                } // if: is a quote symbol
                 
                 else {
-                  answer -= atof( walk->leftToken->content.c_str() );
-                } // else: not firstNum
+                  if ( definedToken->tokenType == FLOAT ) {
+                    isFloat = true;
+                  } // if: argument is float, set isFLoat
+                  
+                  if ( isFirstNum ) {
+                    answer = atof( walk->leftToken->content.c_str() );
+                    isFirstNum = false;
+                  } // if: firstNum
+                  
+                  else {
+                    answer -= atof( walk->leftToken->content.c_str() );
+                  } // else: not firstNum
+                } // else: not quote result
               } // if: check if add any float
               
               else {
@@ -3348,11 +3411,20 @@ public:
       if ( walk->rightNode == NULL ) {
         if ( walk->leftToken ) {
           if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
-            if ( walk->leftToken->tokenType == FLOAT ) {
-              isFloat = true;
-            } // if: argument is float, set isFLoat
+            if ( walk->leftToken->isQuoteResult ) {
+              string errorMessage = "ERROR (- with incorrect argument type) : ";
+              errorMessage += walk->leftToken->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // if: is a quote symbol
             
-            answer -= atof( walk->leftToken->content.c_str() );
+            else {
+              if ( walk->leftToken->tokenType == FLOAT ) {
+                isFloat = true;
+              } // if: argument is float, set isFLoat
+              
+              answer -= atof( walk->leftToken->content.c_str() );
+            } // else: not quote result
           } // if: check if add any float
           
           else if ( walk->leftToken->tokenType == SYMBOL ) {
@@ -3368,11 +3440,20 @@ public:
                 TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
                 
                 if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
-                  if ( definedToken->tokenType == FLOAT ) {
-                    isFloat = true;
-                  } // if: argument is float, set isFLoat
+                  if ( definedToken->isQuoteResult ) {
+                    string errorMessage = "ERROR (- with incorrect argument type) : ";
+                    errorMessage += definedToken->content;
+                    SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                    return false;
+                  } // if: is a quote symbol
                   
-                  answer -= atof( definedToken->content.c_str() );
+                  else {
+                    if ( definedToken->tokenType == FLOAT ) {
+                      isFloat = true;
+                    } // if: argument is float, set isFLoat
+                    
+                    answer -= atof( definedToken->content.c_str() );
+                  } // else: not quote result
                 } // if: check if add any float
                 
                 else {
@@ -3459,11 +3540,20 @@ public:
     while ( walk->rightNode ) {
       if ( walk->leftToken ) {
         if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
-          if ( walk->leftToken->tokenType == FLOAT ) {
-            isFloat = true;
-          } // if: argument is float, set isFLoat
+          if ( walk->leftToken->isQuoteResult ) {
+            string errorMessage = "ERROR (* with incorrect argument type) : ";
+            errorMessage += walk->leftToken->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // if: is a quote symbol
           
-          answer *= atof( walk->leftToken->content.c_str() );
+          else {
+            if ( walk->leftToken->tokenType == FLOAT ) {
+              isFloat = true;
+            } // if: argument is float, set isFLoat
+            
+            answer *= atof( walk->leftToken->content.c_str() );
+          } // else: not quote result
         } // if: check if add any float
         
         else if ( walk->leftToken->tokenType == SYMBOL ) {
@@ -3479,11 +3569,20 @@ public:
               TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
               
               if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
-                if ( definedToken->tokenType == FLOAT ) {
-                  isFloat = true;
-                } // if: argument is float, set isFLoat
+                if ( definedToken->isQuoteResult ) {
+                  string errorMessage = "ERROR (* with incorrect argument type) : ";
+                  errorMessage += definedToken->content;
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                  return false;
+                } // if: is a quote symbol
                 
-                answer *= atof( definedToken->content.c_str() );
+                else {
+                  if ( definedToken->tokenType == FLOAT ) {
+                    isFloat = true;
+                  } // if: argument is float, set isFLoat
+                  
+                  answer *= atof( definedToken->content.c_str() );
+                } // else: not quote result
               } // if: check if add any float
               
               else {
@@ -3545,11 +3644,20 @@ public:
       if ( walk->rightNode == NULL ) {
         if ( walk->leftToken ) {
           if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
-            if ( walk->leftToken->tokenType == FLOAT ) {
-              isFloat = true;
-            } // if: argument is float, set isFLoat
+            if ( walk->leftToken->isQuoteResult ) {
+              string errorMessage = "ERROR (* with incorrect argument type) : ";
+              errorMessage += walk->leftToken->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // if: is a quote symbol
             
-            answer *= atof( walk->leftToken->content.c_str() );
+            else {
+              if ( walk->leftToken->tokenType == FLOAT ) {
+                isFloat = true;
+              } // if: argument is float, set isFLoat
+              
+              answer *= atof( walk->leftToken->content.c_str() );
+            } // else: not quote result
           } // if: check if add any float
           
           else if ( walk->leftToken->tokenType == SYMBOL ) {
@@ -3565,11 +3673,20 @@ public:
                 TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
                 
                 if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
-                  if ( definedToken->tokenType == FLOAT ) {
-                    isFloat = true;
-                  } // if: argument is float, set isFLoat
+                  if ( definedToken->isQuoteResult ) {
+                    string errorMessage = "ERROR (* with incorrect argument type) : ";
+                    errorMessage += definedToken->content;
+                    SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                    return false;
+                  } // if: is a quote symbol
                   
-                  answer *= atof( definedToken->content.c_str() );
+                  else {
+                    if ( definedToken->tokenType == FLOAT ) {
+                      isFloat = true;
+                    } // if: argument is float, set isFLoat
+                    
+                    answer *= atof( definedToken->content.c_str() );
+                  } // else: not quote result
                 } // if: check if add any float
                 
                 else {
@@ -3657,24 +3774,33 @@ public:
     while ( walk->rightNode ) {
       if ( walk->leftToken ) {
         if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
-          if ( walk->leftToken->tokenType == FLOAT ) {
-            isFloat = true;
-          } // if: argument is float, set isFLoat
-          
-          if ( isFirstNum ) {
-            answer = atof( walk->leftToken->content.c_str() );
-            isFirstNum = false;
-          } // if: firstNum
+          if ( walk->leftToken->isQuoteResult ) {
+            string errorMessage = "ERROR (/ with incorrect argument type) : ";
+            errorMessage += walk->leftToken->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // if: is a quote symbol
           
           else {
-            if ( atof( walk->leftToken->content.c_str() ) == 0 ) {
-              string errorMessage = "ERROR (division by zero) : /";
-              SetError( DIVISION_BY_ZERO, errorMessage );
-              return false;
-            } // if: divide by zero
+            if ( walk->leftToken->tokenType == FLOAT ) {
+              isFloat = true;
+            } // if: argument is float, set isFLoat
             
-            answer /= atof( walk->leftToken->content.c_str() );
-          } // else: calculate
+            if ( isFirstNum ) {
+              answer = atof( walk->leftToken->content.c_str() );
+              isFirstNum = false;
+            } // if: firstNum
+            
+            else {
+              if ( atof( walk->leftToken->content.c_str() ) == 0 ) {
+                string errorMessage = "ERROR (division by zero) : /";
+                SetError( DIVISION_BY_ZERO, errorMessage );
+                return false;
+              } // if: divide by zero
+              
+              answer /= atof( walk->leftToken->content.c_str() );
+            } // else: calculate
+          } // else: not quote result
         } // if: check if add any float
         
         else if ( walk->leftToken->tokenType == SYMBOL ) {
@@ -3690,24 +3816,33 @@ public:
               TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
               
               if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
-                if ( definedToken->tokenType == FLOAT ) {
-                  isFloat = true;
-                } // if: argument is float, set isFLoat
-                
-                if ( isFirstNum ) {
-                  answer = atof( walk->leftToken->content.c_str() );
-                  isFirstNum = false;
-                } // if: firstNum
+                if ( definedToken->isQuoteResult ) {
+                  string errorMessage = "ERROR (/ with incorrect argument type) : ";
+                  errorMessage += definedToken->content;
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                  return false;
+                } // if: is a quote symbol
                 
                 else {
-                  if ( atof( walk->leftToken->content.c_str() ) == 0 ) {
-                    string errorMessage = "ERROR (division by zero) : /";
-                    SetError( DIVISION_BY_ZERO, errorMessage );
-                    return false;
-                  } // if: divide by zero
+                  if ( definedToken->tokenType == FLOAT ) {
+                    isFloat = true;
+                  } // if: argument is float, set isFLoat
                   
-                  answer /= atof( walk->leftToken->content.c_str() );
-                } // else: calculate
+                  if ( isFirstNum ) {
+                    answer = atof( walk->leftToken->content.c_str() );
+                    isFirstNum = false;
+                  } // if: firstNum
+                  
+                  else {
+                    if ( atof( walk->leftToken->content.c_str() ) == 0 ) {
+                      string errorMessage = "ERROR (division by zero) : /";
+                      SetError( DIVISION_BY_ZERO, errorMessage );
+                      return false;
+                    } // if: divide by zero
+                    
+                    answer /= atof( walk->leftToken->content.c_str() );
+                  } // else: calculate
+                } // else: not quote result
               } // if: check if add any float
               
               else {
@@ -3769,17 +3904,26 @@ public:
       if ( walk->rightNode == NULL ) {
         if ( walk->leftToken ) {
           if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
-            if ( walk->leftToken->tokenType == FLOAT ) {
-              isFloat = true;
-            } // if: argument is float, set isFLoat
-            
-            if ( atof( walk->leftToken->content.c_str() ) == 0 ) {
-              string errorMessage = "ERROR (division by zero) : /";
-              SetError( DIVISION_BY_ZERO, errorMessage );
+            if ( walk->leftToken->isQuoteResult ) {
+              string errorMessage = "ERROR (/ with incorrect argument type) : ";
+              errorMessage += walk->leftToken->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
               return false;
-            } // if: divide by zero
+            } // if: is a quote symbol
             
-            answer /= atof( walk->leftToken->content.c_str() );
+            else {
+              if ( walk->leftToken->tokenType == FLOAT ) {
+                isFloat = true;
+              } // if: argument is float, set isFLoat
+              
+              if ( atof( walk->leftToken->content.c_str() ) == 0 ) {
+                string errorMessage = "ERROR (division by zero) : /";
+                SetError( DIVISION_BY_ZERO, errorMessage );
+                return false;
+              } // if: divide by zero
+              
+              answer /= atof( walk->leftToken->content.c_str() );
+            } // else: not quote result
           } // if: check if add any float
           
           else if ( walk->leftToken->tokenType == SYMBOL ) {
@@ -3795,17 +3939,26 @@ public:
                 TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
                 
                 if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
-                  if ( definedToken->tokenType == FLOAT ) {
-                    isFloat = true;
-                  } // if: argument is float, set isFLoat
-                  
-                  if ( atof( definedToken->content.c_str() ) == 0 ) {
-                    string errorMessage = "ERROR (division by zero) : /";
-                    SetError( DIVISION_BY_ZERO, errorMessage );
+                  if ( definedToken->isQuoteResult ) {
+                    string errorMessage = "ERROR (/ with incorrect argument type) : ";
+                    errorMessage += definedToken->content;
+                    SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
                     return false;
-                  } // if: divide by zero
+                  } // if: is a quote symbol
                   
-                  answer /= atof( definedToken->content.c_str() );
+                  else {
+                    if ( definedToken->tokenType == FLOAT ) {
+                      isFloat = true;
+                    } // if: argument is float, set isFLoat
+                    
+                    if ( atof( definedToken->content.c_str() ) == 0 ) {
+                      string errorMessage = "ERROR (division by zero) : /";
+                      SetError( DIVISION_BY_ZERO, errorMessage );
+                      return false;
+                    } // if: divide by zero
+                    
+                    answer /= atof( definedToken->content.c_str() );
+                  } // else: not quote result
                 } // if: check if add any float
                 
                 else {
@@ -4214,21 +4367,30 @@ public:
     while ( walk->rightNode ) {
       if ( walk->leftToken ) {
         if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
-          if ( isFirstNum ) {
-            previousNumber = atof( walk->leftToken->content.c_str() );
-            isFirstNum = false;
-          } // if: firstNum
+          if ( walk->leftToken->isQuoteResult ) {
+            string errorMessage = "ERROR (> with incorrect argument type) : ";
+            errorMessage += walk->leftToken->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // if: is a quote symbol
           
           else {
-            if ( previousNumber > atof( walk->leftToken->content.c_str() ) ) {
+            if ( isFirstNum ) {
               previousNumber = atof( walk->leftToken->content.c_str() );
-            } // if: argument is float, set isFLoat
+              isFirstNum = false;
+            } // if: firstNum
             
             else {
-              result->tokenResult->tokenType = NIL;
-              previousNumber = atof( walk->leftToken->content.c_str() );
-            } // else: false
-          } // else: not firstNum
+              if ( previousNumber > atof( walk->leftToken->content.c_str() ) ) {
+                previousNumber = atof( walk->leftToken->content.c_str() );
+              } // if: argument is float, set isFLoat
+              
+              else {
+                result->tokenResult->tokenType = NIL;
+                previousNumber = atof( walk->leftToken->content.c_str() );
+              } // else: false
+            } // else: not firstNum
+          } // else: not quote result
         } // if: check if add any float
         
         else if ( walk->leftToken->tokenType == SYMBOL ) {
@@ -4244,21 +4406,30 @@ public:
               TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
               
               if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
-                if ( isFirstNum ) {
-                  previousNumber = atof( definedToken->content.c_str() );
-                  isFirstNum = false;
-                } // if: firstNum
+                if ( definedToken->isQuoteResult ) {
+                  string errorMessage = "ERROR (> with incorrect argument type) : ";
+                  errorMessage += definedToken->content;
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                  return false;
+                } // if: is a quote symbol
                 
                 else {
-                  if ( previousNumber > atof( definedToken->content.c_str() ) ) {
+                  if ( isFirstNum ) {
                     previousNumber = atof( definedToken->content.c_str() );
-                  } // if: argument is float, set isFLoat
+                    isFirstNum = false;
+                  } // if: firstNum
                   
                   else {
-                    result->tokenResult->tokenType = NIL;
-                    previousNumber = atof( definedToken->content.c_str() );
-                  } // else: false
-                } // else: not firstNum
+                    if ( previousNumber > atof( definedToken->content.c_str() ) ) {
+                      previousNumber = atof( definedToken->content.c_str() );
+                    } // if: argument is float, set isFLoat
+                    
+                    else {
+                      result->tokenResult->tokenType = NIL;
+                      previousNumber = atof( definedToken->content.c_str() );
+                    } // else: false
+                  } // else: not firstNum
+                } // else: not quote result
               } // if: check if add any float
               
               else {
@@ -4320,14 +4491,23 @@ public:
       if ( walk->rightNode == NULL ) {
         if ( walk->leftToken ) {
           if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
-            if ( previousNumber > atof( walk->leftToken->content.c_str() ) ) {
-              previousNumber = atof( walk->leftToken->content.c_str() );
-            } // if: argument is float, set isFLoat
+            if ( walk->leftToken->isQuoteResult ) {
+              string errorMessage = "ERROR (> with incorrect argument type) : ";
+              errorMessage += walk->leftToken->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // if: is a quote symbol
             
             else {
-              result->tokenResult->tokenType = NIL;
-              previousNumber = atof( walk->leftToken->content.c_str() );
-            } // else: false
+              if ( previousNumber > atof( walk->leftToken->content.c_str() ) ) {
+                previousNumber = atof( walk->leftToken->content.c_str() );
+              } // if: argument is float, set isFLoat
+              
+              else {
+                result->tokenResult->tokenType = NIL;
+                previousNumber = atof( walk->leftToken->content.c_str() );
+              } // else: false
+            } // else: not quote result
           } // if: check if add any float
           
           else if ( walk->leftToken->tokenType == SYMBOL ) {
@@ -4343,14 +4523,23 @@ public:
                 TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
                 
                 if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
-                  if ( previousNumber > atof( definedToken->content.c_str() ) ) {
-                    previousNumber = atof( definedToken->content.c_str() );
-                  } // if: argument is float, set isFLoat
+                  if ( definedToken->isQuoteResult ) {
+                    string errorMessage = "ERROR (> with incorrect argument type) : ";
+                    errorMessage += definedToken->content;
+                    SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                    return false;
+                  } // if: is a quote symbol
                   
                   else {
-                    result->tokenResult->tokenType = NIL;
-                    previousNumber = atof( definedToken->content.c_str() );
-                  } // else: false
+                    if ( previousNumber > atof( definedToken->content.c_str() ) ) {
+                      previousNumber = atof( definedToken->content.c_str() );
+                    } // if: argument is float, set isFLoat
+                    
+                    else {
+                      result->tokenResult->tokenType = NIL;
+                      previousNumber = atof( definedToken->content.c_str() );
+                    } // else: false
+                  } // else: not quote result
                 } // if: check if add any float
                 
                 else {
@@ -4430,21 +4619,30 @@ public:
     while ( walk->rightNode ) {
       if ( walk->leftToken ) {
         if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
-          if ( isFirstNum ) {
-            previousNumber = atof( walk->leftToken->content.c_str() );
-            isFirstNum = false;
-          } // if: isFirstNum
+          if ( walk->leftToken->isQuoteResult ) {
+            string errorMessage = "ERROR (>= with incorrect argument type) : ";
+            errorMessage += walk->leftToken->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // if: is a quote symbol
           
           else {
-            if ( previousNumber >= atof( walk->leftToken->content.c_str() ) ) {
+            if ( isFirstNum ) {
               previousNumber = atof( walk->leftToken->content.c_str() );
-            } // if: argument is float, set isFLoat
+              isFirstNum = false;
+            } // if: isFirstNum
             
             else {
-              result->tokenResult->tokenType = NIL;
-              previousNumber = atof( walk->leftToken->content.c_str() );
-            } // else: false
-          } // else: not firstNum
+              if ( previousNumber >= atof( walk->leftToken->content.c_str() ) ) {
+                previousNumber = atof( walk->leftToken->content.c_str() );
+              } // if: argument is float, set isFLoat
+              
+              else {
+                result->tokenResult->tokenType = NIL;
+                previousNumber = atof( walk->leftToken->content.c_str() );
+              } // else: false
+            } // else: not firstNum
+          } // else: not quote result
         } // if: check if add any float
         
         else if ( walk->leftToken->tokenType == SYMBOL ) {
@@ -4460,21 +4658,30 @@ public:
               TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
               
               if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
-                if ( isFirstNum ) {
-                  previousNumber = atof( definedToken->content.c_str() );
-                  isFirstNum = false;
-                } // if: isFirstNum
+                if ( definedToken->isQuoteResult ) {
+                  string errorMessage = "ERROR (>= with incorrect argument type) : ";
+                  errorMessage += definedToken->content;
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                  return false;
+                } // if: is a quote symbol
                 
                 else {
-                  if ( previousNumber >= atof( definedToken->content.c_str() ) ) {
+                  if ( isFirstNum ) {
                     previousNumber = atof( definedToken->content.c_str() );
-                  } // if: argument is float, set isFLoat
+                    isFirstNum = false;
+                  } // if: isFirstNum
                   
                   else {
-                    result->tokenResult->tokenType = NIL;
-                    previousNumber = atof( definedToken->content.c_str() );
-                  } // else: false
-                } // else: not firstNum
+                    if ( previousNumber >= atof( definedToken->content.c_str() ) ) {
+                      previousNumber = atof( definedToken->content.c_str() );
+                    } // if: argument is float, set isFLoat
+                    
+                    else {
+                      result->tokenResult->tokenType = NIL;
+                      previousNumber = atof( definedToken->content.c_str() );
+                    } // else: false
+                  } // else: not firstNum
+                } // else: not quote result
               } // if: check if add any float
               
               else {
@@ -4536,14 +4743,23 @@ public:
       if ( walk->rightNode == NULL ) {
         if ( walk->leftToken ) {
           if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
-            if ( previousNumber >= atof( walk->leftToken->content.c_str() ) ) {
-              previousNumber = atof( walk->leftToken->content.c_str() );
-            } // if: argument is float, set isFLoat
+            if ( walk->leftToken->isQuoteResult ) {
+              string errorMessage = "ERROR (>= with incorrect argument type) : ";
+              errorMessage += walk->leftToken->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // if: is a quote symbol
             
             else {
-              result->tokenResult->tokenType = NIL;
-              previousNumber = atof( walk->leftToken->content.c_str() );
-            } // else: false
+              if ( previousNumber >= atof( walk->leftToken->content.c_str() ) ) {
+                previousNumber = atof( walk->leftToken->content.c_str() );
+              } // if: argument is float, set isFLoat
+              
+              else {
+                result->tokenResult->tokenType = NIL;
+                previousNumber = atof( walk->leftToken->content.c_str() );
+              } // else: false
+            } // else: not quote result
           } // if: check if add any float
           
           else if ( walk->leftToken->tokenType == SYMBOL ) {
@@ -4559,14 +4775,23 @@ public:
                 TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
                 
                 if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
-                  if ( previousNumber >= atof( definedToken->content.c_str() ) ) {
-                    previousNumber = atof( definedToken->content.c_str() );
-                  } // if: argument is float, set isFLoat
+                  if ( definedToken->isQuoteResult ) {
+                    string errorMessage = "ERROR (>= with incorrect argument type) : ";
+                    errorMessage += definedToken->content;
+                    SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                    return false;
+                  } // if: is a quote symbol
                   
                   else {
-                    result->tokenResult->tokenType = NIL;
-                    previousNumber = atof( definedToken->content.c_str() );
-                  } // else: false
+                    if ( previousNumber >= atof( definedToken->content.c_str() ) ) {
+                      previousNumber = atof( definedToken->content.c_str() );
+                    } // if: argument is float, set isFLoat
+                    
+                    else {
+                      result->tokenResult->tokenType = NIL;
+                      previousNumber = atof( definedToken->content.c_str() );
+                    } // else: false
+                  } // else: not quote result
                 } // if: check if add any float
                 
                 else {
@@ -4646,21 +4871,30 @@ public:
     while ( walk->rightNode ) {
       if ( walk->leftToken ) {
         if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
-          if ( isFirstNum ) {
-            previousNumber = atof( walk->leftToken->content.c_str() );
-            isFirstNum = false;
-          } // if: isFirstNum
+          if ( walk->leftToken->isQuoteResult ) {
+            string errorMessage = "ERROR (< with incorrect argument type) : ";
+            errorMessage += walk->leftToken->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // if: is a quote symbol
           
           else {
-            if ( previousNumber < atof( walk->leftToken->content.c_str() ) ) {
+            if ( isFirstNum ) {
               previousNumber = atof( walk->leftToken->content.c_str() );
-            } // if: argument is float, set isFLoat
+              isFirstNum = false;
+            } // if: isFirstNum
             
             else {
-              result->tokenResult->tokenType = NIL;
-              previousNumber = atof( walk->leftToken->content.c_str() );
-            } // else: false
-          } // else: not first num
+              if ( previousNumber < atof( walk->leftToken->content.c_str() ) ) {
+                previousNumber = atof( walk->leftToken->content.c_str() );
+              } // if: argument is float, set isFLoat
+              
+              else {
+                result->tokenResult->tokenType = NIL;
+                previousNumber = atof( walk->leftToken->content.c_str() );
+              } // else: false
+            } // else: not first num
+          } // else: not quote result
         } // if: check if add any float
         
         else if ( walk->leftToken->tokenType == SYMBOL ) {
@@ -4676,21 +4910,30 @@ public:
               TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
               
               if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
-                if ( isFirstNum ) {
-                  previousNumber = atof( definedToken->content.c_str() );
-                  isFirstNum = false;
-                } // if: isFirstNum
+                if ( definedToken->isQuoteResult ) {
+                  string errorMessage = "ERROR (< with incorrect argument type) : ";
+                  errorMessage += definedToken->content;
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                  return false;
+                } // if: is a quote symbol
                 
                 else {
-                  if ( previousNumber < atof( definedToken->content.c_str() ) ) {
+                  if ( isFirstNum ) {
                     previousNumber = atof( definedToken->content.c_str() );
-                  } // if: argument is float, set isFLoat
+                    isFirstNum = false;
+                  } // if: isFirstNum
                   
                   else {
-                    result->tokenResult->tokenType = NIL;
-                    previousNumber = atof( definedToken->content.c_str() );
-                  } // else: false
-                } // else: not first num
+                    if ( previousNumber < atof( definedToken->content.c_str() ) ) {
+                      previousNumber = atof( definedToken->content.c_str() );
+                    } // if: argument is float, set isFLoat
+                    
+                    else {
+                      result->tokenResult->tokenType = NIL;
+                      previousNumber = atof( definedToken->content.c_str() );
+                    } // else: false
+                  } // else: not first num
+                } // else: not quote result
               } // if: check if add any float
               
               else {
@@ -4752,14 +4995,23 @@ public:
       if ( walk->rightNode == NULL ) {
         if ( walk->leftToken ) {
           if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
-            if ( previousNumber < atof( walk->leftToken->content.c_str() ) ) {
-              previousNumber = atof( walk->leftToken->content.c_str() );
-            } // if: argument is float, set isFLoat
+            if ( walk->leftToken->isQuoteResult ) {
+              string errorMessage = "ERROR (< with incorrect argument type) : ";
+              errorMessage += walk->leftToken->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // if: is a quote symbol
             
             else {
-              result->tokenResult->tokenType = NIL;
-              previousNumber = atof( walk->leftToken->content.c_str() );
-            } // else: false
+              if ( previousNumber < atof( walk->leftToken->content.c_str() ) ) {
+                previousNumber = atof( walk->leftToken->content.c_str() );
+              } // if: argument is float, set isFLoat
+              
+              else {
+                result->tokenResult->tokenType = NIL;
+                previousNumber = atof( walk->leftToken->content.c_str() );
+              } // else: false
+            } // else: not quote result
           } // if: check if add any float
           
           else if ( walk->leftToken->tokenType == SYMBOL ) {
@@ -4775,14 +5027,23 @@ public:
                 TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
                 
                 if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
-                  if ( previousNumber < atof( definedToken->content.c_str() ) ) {
-                    previousNumber = atof( definedToken->content.c_str() );
-                  } // if: argument is float, set isFLoat
+                  if ( definedToken->isQuoteResult ) {
+                    string errorMessage = "ERROR (< with incorrect argument type) : ";
+                    errorMessage += definedToken->content;
+                    SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                    return false;
+                  } // if: is a quote symbol
                   
                   else {
-                    result->tokenResult->tokenType = NIL;
-                    previousNumber = atof( definedToken->content.c_str() );
-                  } // else: false
+                    if ( previousNumber < atof( definedToken->content.c_str() ) ) {
+                      previousNumber = atof( definedToken->content.c_str() );
+                    } // if: argument is float, set isFLoat
+                    
+                    else {
+                      result->tokenResult->tokenType = NIL;
+                      previousNumber = atof( definedToken->content.c_str() );
+                    } // else: false
+                  } // else: not quote result
                 } // if: check if add any float
                 
                 else {
@@ -4862,21 +5123,30 @@ public:
     while ( walk->rightNode ) {
       if ( walk->leftToken ) {
         if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
-          if ( isFirstNum ) {
-            previousNumber = atof( walk->leftToken->content.c_str() );
-            isFirstNum = false;
-          } // if: isFirstNum
+          if ( walk->leftToken->isQuoteResult ) {
+            string errorMessage = "ERROR (<= with incorrect argument type) : ";
+            errorMessage += walk->leftToken->content;
+            SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+            return false;
+          } // if: is a quote symbol
           
           else {
-            if ( previousNumber <= atof( walk->leftToken->content.c_str() ) ) {
+            if ( isFirstNum ) {
               previousNumber = atof( walk->leftToken->content.c_str() );
-            } // if: argument is float, set isFLoat
+              isFirstNum = false;
+            } // if: isFirstNum
             
             else {
-              result->tokenResult->tokenType = NIL;
-              previousNumber = atof( walk->leftToken->content.c_str() );
-            } // else: false
-          } // else: not first num
+              if ( previousNumber <= atof( walk->leftToken->content.c_str() ) ) {
+                previousNumber = atof( walk->leftToken->content.c_str() );
+              } // if: argument is float, set isFLoat
+              
+              else {
+                result->tokenResult->tokenType = NIL;
+                previousNumber = atof( walk->leftToken->content.c_str() );
+              } // else: false
+            } // else: not first num
+          } // else: not quote result
         } // if: check if add any float
         
         else if ( walk->leftToken->tokenType == SYMBOL ) {
@@ -4892,21 +5162,30 @@ public:
               TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
               
               if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
-                if ( isFirstNum ) {
-                  previousNumber = atof( definedToken->content.c_str() );
-                  isFirstNum = false;
-                } // if: isFirstNum
+                if ( walk->leftToken->isQuoteResult ) {
+                  string errorMessage = "ERROR (<= with incorrect argument type) : ";
+                  errorMessage += walk->leftToken->content;
+                  SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                  return false;
+                } // if: is a quote symbol
                 
                 else {
-                  if ( previousNumber <= atof( definedToken->content.c_str() ) ) {
+                  if ( isFirstNum ) {
                     previousNumber = atof( definedToken->content.c_str() );
-                  } // if: argument is float, set isFLoat
+                    isFirstNum = false;
+                  } // if: isFirstNum
                   
                   else {
-                    result->tokenResult->tokenType = NIL;
-                    previousNumber = atof( definedToken->content.c_str() );
-                  } // else: false
-                } // else: not first num
+                    if ( previousNumber <= atof( definedToken->content.c_str() ) ) {
+                      previousNumber = atof( definedToken->content.c_str() );
+                    } // if: argument is float, set isFLoat
+                    
+                    else {
+                      result->tokenResult->tokenType = NIL;
+                      previousNumber = atof( definedToken->content.c_str() );
+                    } // else: false
+                  } // else: not first num
+                } // else: not quote result
               } // if: check if add any float
               
               else {
@@ -4968,14 +5247,23 @@ public:
       if ( walk->rightNode == NULL ) {
         if ( walk->leftToken ) {
           if ( walk->leftToken->tokenType == FLOAT || walk->leftToken->tokenType == INT ) {
-            if ( previousNumber <= atof( walk->leftToken->content.c_str() ) ) {
-              previousNumber = atof( walk->leftToken->content.c_str() );
-            } // if: argument is float, set isFLoat
+            if ( walk->leftToken->isQuoteResult ) {
+              string errorMessage = "ERROR (<= with incorrect argument type) : ";
+              errorMessage += walk->leftToken->content;
+              SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+              return false;
+            } // if: is a quote symbol
             
             else {
-              result->tokenResult->tokenType = NIL;
-              previousNumber = atof( walk->leftToken->content.c_str() );
-            } // else: false
+              if ( previousNumber <= atof( walk->leftToken->content.c_str() ) ) {
+                previousNumber = atof( walk->leftToken->content.c_str() );
+              } // if: argument is float, set isFLoat
+              
+              else {
+                result->tokenResult->tokenType = NIL;
+                previousNumber = atof( walk->leftToken->content.c_str() );
+              } // else: false
+            } // else: not quote result
           } // if: check if add any float
           
           else if ( walk->leftToken->tokenType == SYMBOL ) {
@@ -4991,14 +5279,23 @@ public:
                 TokenStruct *definedToken = GetDefineBindings( walk->leftToken->content )->leftToken;
                 
                 if ( definedToken->tokenType == FLOAT || definedToken->tokenType == INT ) {
-                  if ( previousNumber <= atof( definedToken->content.c_str() ) ) {
-                    previousNumber = atof( definedToken->content.c_str() );
-                  } // if: argument is float, set isFLoat
+                  if ( definedToken->isQuoteResult ) {
+                    string errorMessage = "ERROR (<= with incorrect argument type) : ";
+                    errorMessage += definedToken->content;
+                    SetError( INCORRECT_ARGUMENT_TYPE, errorMessage );
+                    return false;
+                  } // if: is a quote symbol
                   
                   else {
-                    result->tokenResult->tokenType = NIL;
-                    previousNumber = atof( definedToken->content.c_str() );
-                  } // else: false
+                    if ( previousNumber <= atof( definedToken->content.c_str() ) ) {
+                      previousNumber = atof( definedToken->content.c_str() );
+                    } // if: argument is float, set isFLoat
+                    
+                    else {
+                      result->tokenResult->tokenType = NIL;
+                      previousNumber = atof( definedToken->content.c_str() );
+                    } // else: false
+                  } // else: not quote result
                 } // if: check if add any float
                 
                 else {
@@ -6183,7 +6480,11 @@ public:
     
     if ( firstTokenArgument ) {
       if ( secondTokenArgument ) {
-        if ( firstTokenArgument->tokenType == STRING || secondTokenArgument->tokenType == STRING ) {
+        if ( firstTokenArgument->isQuoteResult || secondTokenArgument->isQuoteResult ) {
+          result->tokenResult->tokenType = NIL;
+        } // if: quote result
+        
+        else if ( firstTokenArgument->tokenType == STRING || secondTokenArgument->tokenType == STRING ) {
           result->tokenResult->tokenType = NIL;
         } // if: any of the token is a string, then nil
         
@@ -6285,7 +6586,23 @@ public:
     
     if ( firstTokenArgument ) {
       if ( secondTokenArgument ) {
-        if ( firstTokenArgument->content == secondTokenArgument->content ) {
+        if ( firstTokenArgument->isQuoteResult || secondTokenArgument->isQuoteResult ) {
+          if ( firstTokenArgument->isQuoteResult && secondTokenArgument->isQuoteResult ) {
+            if ( firstTokenArgument->content == secondTokenArgument->content ) {
+              result->tokenResult->tokenType = T;
+            } // if: same content
+            
+            else {
+              result->tokenResult->tokenType = NIL;
+            } // else: both atom, t
+          } // if: both quote result
+          
+          else {
+            result->tokenResult->tokenType = NIL;
+          } // else: only one of the arguments is quote result
+        } // if: quote result
+        
+        else if ( firstTokenArgument->content == secondTokenArgument->content ) {
           result->tokenResult->tokenType = T;
         } // if: same content
         
