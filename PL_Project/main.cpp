@@ -241,9 +241,11 @@ public:
     m_Root = NULL;
     m_Error.errorType = NOT_S_EXP;
     m_Error.errorMessage = "\0";
+    int leftParenCount = 0;
+    int rightParenCount = 0;
     
     if ( HasNextToken() == true ) {
-      if ( CheckSExp() == false ) {
+      if ( CheckSExp( leftParenCount, rightParenCount ) == false ) {
         return false;
       } // if: handle the error
       
@@ -480,10 +482,7 @@ public:
     ------------------- Syntax -----------------
   */
   
-  bool CheckSExp() { // TODO: COUNT THE PARENTHESIS
-    static int leftParenCount = 0;
-    static int rightParenCount = 0;
-    
+  bool CheckSExp( int &leftParenCount, int &rightParenCount ) { // TODO: COUNT THE PARENTHESIS
     if ( IsAtom( m_LineOfTokens.back() ) ) {
       if ( m_Root != NULL ) {
         if ( m_CurrentTreeLocation->leftToken != NULL ) {
@@ -523,6 +522,13 @@ public:
     } // if: <ATOM>
     
     else if ( m_LineOfTokens.back().tokenType == LEFT_PAREN ) {
+      if ( leftParenCount == rightParenCount + 1 && leftParenCount != 0 && rightParenCount != 0 ) {
+        FindPreviousPrimitive();
+        m_CurrentTreeLocation = m_CurrentTreeLocation->previousNode;
+        leftParenCount = 0;
+        rightParenCount = 0;
+      } // if: parenCount equals, find previous primitive
+      
       // initialize or create node
       if ( m_Root == NULL ) {
         InitializeRoot();
@@ -532,15 +538,6 @@ public:
       else {
         if ( m_CurrentTreeLocation->leftToken != NULL ) {
           FindValidNodePosition();
-          
-          if ( m_CurrentTreeLocation->previousNode && m_CurrentTreeLocation->previousNode->leftToken ) {
-            if ( IsPrimitive( m_CurrentTreeLocation->previousNode->leftToken ) &&
-                 m_CurrentTreeLocation->previousNode->previousNode != NULL ) {
-              m_CurrentTreeLocation = m_CurrentTreeLocation->previousNode;
-              FindValidNodePosition();
-            } // if: is function
-          } // if: previousNode && previousNode->leftToken
-          
           RightCreateNode();
           
           if ( m_LineOfTokens.at( m_LineOfTokens.size() - 2 ).tokenType != DOT ) {
@@ -551,15 +548,6 @@ public:
         else {
           if ( m_CurrentTreeLocation->leftNode != NULL ) {
             FindValidNodePosition();
-            
-            if ( m_CurrentTreeLocation->previousNode && m_CurrentTreeLocation->previousNode->leftToken ) {
-              if ( IsPrimitive( m_CurrentTreeLocation->previousNode->leftToken ) &&
-                   m_CurrentTreeLocation->previousNode->previousNode != NULL ) {
-                m_CurrentTreeLocation = m_CurrentTreeLocation->previousNode;
-                FindValidNodePosition();
-              } // if: is function
-            } // if: previousNode && previousNode->leftToken
-            
             RightCreateNode();
             
             if ( m_LineOfTokens.at( m_LineOfTokens.size() - 2 ).tokenType != DOT ) {
@@ -569,15 +557,6 @@ public:
           
           else {
             FindValidNodePosition();
-            
-            if ( m_CurrentTreeLocation->previousNode && m_CurrentTreeLocation->previousNode->leftToken ) {
-              if ( IsPrimitive( m_CurrentTreeLocation->previousNode->leftToken ) &&
-                   m_CurrentTreeLocation->previousNode->previousNode != NULL ) {
-                m_CurrentTreeLocation = m_CurrentTreeLocation->previousNode;
-                FindValidNodePosition();
-              } // if: is function
-            } // if: previousNode && previousNode->leftToken
-            
             LeftCreateNode();
           } // else: insert right
         } // else: right insert node
@@ -585,18 +564,20 @@ public:
         m_CurrentTreeLocation->leftParenCreate = true;
       } // else: create a node
       
+      leftParenCount++;
+      
       if ( HasNextToken() == false ) {
         return false;
       } // if: check if there is any token left
       
       // LEFT-PAREN <S-exp>
-      if ( CheckSExp() == true ) {
+      if ( CheckSExp( leftParenCount, rightParenCount ) == true ) {
         if ( HasNextToken() == false ) {
           return false;
         } // if: check if there is any token left
         
         // LEFT-PAREN <S-exp> { <S-exp> }
-        while ( CheckSExp() == true ) {
+        while ( CheckSExp( leftParenCount, rightParenCount ) == true ) {
           if ( HasNextToken() == false ) {
             return false;
           } // if: check if there is any token left
@@ -613,7 +594,7 @@ public:
           } // if: check if there is any token left
           
           // LEFT-PAREN <S-exp> { <S-exp> } [ DOT <S-exp> ]
-          if ( CheckSExp() == true ) {
+          if ( CheckSExp( leftParenCount, rightParenCount ) == true ) {
             if ( HasNextToken() == false ) {
               return false;
             } // if: check if there is any token left
@@ -631,6 +612,7 @@ public:
         // LEFT-PAREN <S-exp> { <S-exp> } [ DOT <S-exp> ] RIGHT-PAREN
         if ( m_LineOfTokens.back().tokenType == RIGHT_PAREN ) {
           m_CurrentTreeLocation = m_CurrentTreeLocation->previousNode;
+          rightParenCount++;
           return true;
         } // if: RIGHT-PAREN
         
@@ -650,7 +632,7 @@ public:
     } // else if: LEFT-PAREN
     
     else if ( m_LineOfTokens.back().tokenType == QUOTE ) {
-      bool isQuoteWordCase = false;
+      bool isQuoteSymbolCase = false;
       
       if ( m_LineOfTokens.back().content == "'" ) {
         m_LineOfTokens.pop_back();
@@ -662,7 +644,14 @@ public:
         quoteString.content = "quote";
         m_LineOfTokens.push_back( quoteLeftParen );
         m_LineOfTokens.push_back( quoteString );
-        isQuoteWordCase = true;
+        isQuoteSymbolCase = true;
+        
+        if ( leftParenCount == rightParenCount + 1 && leftParenCount != 0 && rightParenCount != 0 ) {
+          FindPreviousPrimitive();
+          m_CurrentTreeLocation = m_CurrentTreeLocation->previousNode;
+          leftParenCount = 0;
+          rightParenCount = 0;
+        } // if: parenCount equals, find previous primitive
         
         if ( m_Root == NULL ) {
           InitializeRoot();
@@ -673,15 +662,6 @@ public:
         else {
           if ( m_CurrentTreeLocation->leftToken != NULL ) {
             FindValidNodePosition();
-            
-            if ( m_CurrentTreeLocation->previousNode && m_CurrentTreeLocation->previousNode->leftToken ) {
-              if ( IsPrimitive( m_CurrentTreeLocation->previousNode->leftToken ) &&
-                   m_CurrentTreeLocation->previousNode->previousNode != NULL ) {
-                m_CurrentTreeLocation = m_CurrentTreeLocation->previousNode;
-                FindValidNodePosition();
-              } // if: is function
-            } // if: previousNode && previousNode->leftToken
-            
             RightCreateNode();
             
             if ( m_LineOfTokens.at( m_LineOfTokens.size() - 3 ).tokenType != DOT ) {
@@ -695,15 +675,6 @@ public:
           else {
             if ( m_CurrentTreeLocation->leftNode != NULL ) {
               FindValidNodePosition();
-              
-              if ( m_CurrentTreeLocation->previousNode && m_CurrentTreeLocation->previousNode->leftToken ) {
-                if ( IsPrimitive( m_CurrentTreeLocation->previousNode->leftToken ) &&
-                     m_CurrentTreeLocation->previousNode->previousNode != NULL ) {
-                  m_CurrentTreeLocation = m_CurrentTreeLocation->previousNode;
-                  FindValidNodePosition();
-                } // if: is function
-              } // if: previousNode && previousNode->leftToken
-              
               RightCreateNode();
               
               if ( m_LineOfTokens.at( m_LineOfTokens.size() - 3 ).tokenType != DOT ) {
@@ -716,15 +687,6 @@ public:
             
             else {
               FindValidNodePosition();
-              
-              if ( m_CurrentTreeLocation->previousNode && m_CurrentTreeLocation->previousNode->leftToken ) {
-                if ( IsPrimitive( m_CurrentTreeLocation->previousNode->leftToken ) &&
-                     m_CurrentTreeLocation->previousNode->previousNode != NULL ) {
-                  m_CurrentTreeLocation = m_CurrentTreeLocation->previousNode;
-                  FindValidNodePosition();
-                } // if: is function
-              } // if: previousNode && previousNode->leftToken
-              
               LeftCreateNode();
               m_CurrentTreeLocation->leftParenCreate = true;
               LeftInsertToken();
@@ -738,17 +700,20 @@ public:
         LeftInsertToken();
       } // else: quote word case
       
+      leftParenCount++;
+      
       if ( HasNextToken() == false ) {
         return false;
       } // if: check if there is any token left
       
       // QUOTE <S-exp>
-      if ( CheckSExp() == true ) {
-        if ( isQuoteWordCase ) {
+      if ( CheckSExp( leftParenCount, rightParenCount ) == true ) {
+        if ( isQuoteSymbolCase ) {
           TokenStruct quoteRightParen;
           quoteRightParen.tokenType = RIGHT_PAREN;
           quoteRightParen.content = ")";
           m_LineOfTokens.push_back( quoteRightParen );
+          rightParenCount++;
           m_CurrentTreeLocation = m_CurrentTreeLocation->previousNode;
         } // if: is quote symbol case
         
@@ -817,6 +782,16 @@ public:
       m_CurrentTreeLocation = m_CurrentTreeLocation->previousNode;
     } // while: move currentTreeLocation to an available position
   } // FindValidNodePosition()
+  
+  void FindPreviousPrimitive() {
+    while ( m_CurrentTreeLocation->previousNode ) {
+      m_CurrentTreeLocation = m_CurrentTreeLocation->previousNode;
+      
+      if ( m_CurrentTreeLocation->leftToken && IsPrimitive( m_CurrentTreeLocation->leftToken ) ) {
+        return;
+      } // if: found primitive
+    } // while: move currentTreeLocation to an primitive node
+  } // FindPreviousPrimitive()
   
   void LeftInsertToken() {
     m_CurrentTreeLocation->leftToken = new TokenStruct;
@@ -1993,21 +1968,51 @@ public:
   
   bool CompareTwoTrees( TreeStruct *firstTree, TreeStruct *secondTree ) {
     if ( firstTree == NULL && secondTree == NULL ) {
-      return 1;
+      return true;
     } // if: both empty
     
     if ( firstTree != NULL && secondTree != NULL ) {
-      bool sameContent = false;
+      bool sameLeftContent = false;
+      bool sameRightContent = false;
       
       if ( firstTree->leftToken && secondTree->leftToken ) {
         if ( firstTree->leftToken->content == secondTree->leftToken->content ) {
-          sameContent = true;
+          sameLeftContent = true;
         } // if: same content
       } // if: both have leftToken
       
-      return ( sameContent &&
-               CompareTwoTrees( firstTree->leftNode, secondTree->leftNode ) &&
-               CompareTwoTrees( firstTree->rightNode, secondTree->rightNode ) );
+      if ( firstTree->rightToken && secondTree->rightToken ) {
+        if ( firstTree->rightToken->content == secondTree->rightToken->content ) {
+          sameRightContent = true;
+        } // if: same content
+      } // if: both have rightToken
+      
+      if ( firstTree->leftToken || secondTree->leftToken ) {
+        if ( firstTree->rightToken || secondTree->rightToken ) {
+          return ( sameLeftContent && sameRightContent );
+        } // if: have both token
+        
+        else {
+          return ( sameLeftContent &&
+                   CompareTwoTrees( firstTree->rightNode, secondTree->rightNode ) );
+        } // else: only leftToken
+      } // if: have any leftToken
+      
+      else if ( firstTree->rightToken || secondTree->rightToken ) {
+        if ( firstTree->leftToken || secondTree->leftToken ) {
+          return ( sameLeftContent && sameRightContent );
+        } // if: have both token
+        
+        else {
+          return ( sameRightContent &&
+                   CompareTwoTrees( firstTree->leftNode, secondTree->leftNode ) );
+        } // else: only rightToken
+      } // if; have any rightToken
+      
+      else {
+        return ( CompareTwoTrees( firstTree->leftNode, secondTree->leftNode ) &&
+                 CompareTwoTrees( firstTree->rightNode, secondTree->rightNode ) );
+      } // else: has no token to compare
     } // if: both not empty, compare two trees
     
     return false;
