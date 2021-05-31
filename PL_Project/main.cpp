@@ -1,6 +1,3 @@
-// main.cpp
-// PL_Project
-
 // include libraries
 # include <cctype>
 # include <stdio.h>
@@ -29,7 +26,7 @@ enum TokenType {
 enum ErrorType {
   NOT_S_EXP, NO_CLOSING_QUOTE, UNEXPECTED_TOKEN_ATOM_LEFT_PAREN, UNEXPECTED_RIGHT_PAREN, NO_MORE_INPUT,
   INCORRECT_NUM_ARGUMENTS, INCORRECT_ARGUMENT_TYPE, DEFINE_UNBOUND, APPLY_NON_FUNCTION, NO_RETURN_VALUE,
-  DIVISION_BY_ZERO, NON_LIST, DEFINE_FORMAT, LEVEL_OF_DEFINE, COND_FORMAT
+  DIVISION_BY_ZERO, NON_LIST, DEFINE_FORMAT, LEVEL_OF_ERROR, COND_FORMAT
 }; // error types
 
 enum PrimitiveType {
@@ -75,11 +72,6 @@ private:
   ErrorStruct m_Error;
 
 public:
-  /*
-    ------------------ Class -------------------
-    ------------------ Getter ------------------
-  */
-  
   vector<TokenStruct *> GetSExp() {
     return m_OriginalTokens;
   } // GetSExp()
@@ -87,11 +79,6 @@ public:
   TreeStruct *GetRoot() {
     return m_Root;
   } // GetRoot()
-  
-  /*
-    ------------------ Check -------------------
-    ------------------- exit -------------------
-  */
   
   bool CheckExit() {
     string exit = "\0";
@@ -126,11 +113,6 @@ public:
       return false;
     } // else: not exit case
   } // CheckExit()
-  
-  /*
-    -------------------- Is --------------------
-    ----------------- function -----------------
-  */
   
   bool IsFloat( TokenStruct *newToken ) {
     for ( int i = 0 ; i < newToken->content.length() ; i++ ) {
@@ -226,13 +208,10 @@ public:
     return currentToken->isPrimitive;
   } // IsPrimitive()
   
-  /*
-    ------------------- Token ------------------
-    ---------------- Processing ----------------
-  */
-  
   bool ReadSExp() {
     m_OriginalTokens.clear();
+    m_BuildTreeTokens.clear();
+    m_BuildTreeTokensBackUp.clear();
     m_Root = NULL;
     m_Error.errorType = NOT_S_EXP;
     m_Error.errorMessage = "\0";
@@ -477,11 +456,6 @@ public:
     } // else: check t, nil or dot
   } // CheckTokenType()
   
-  /*
-    ------------------- Check ------------------
-    ------------------- Syntax -----------------
-  */
-  
   bool CheckSExp() {
     if ( IsAtom( m_OriginalTokens.back() ) ) {
       return true;
@@ -646,11 +620,6 @@ public:
     } // else if: atom
   } // BuildTree()
   
-  /*
-    ------------------- Tree -------------------
-    --------------- Constructing ---------------
-  */
-  
   void InitializeRoot() {
     m_Root = new TreeStruct;
     m_Root->leftNode = NULL;
@@ -672,11 +641,6 @@ public:
     newNode->isQuoteResult = false;
     return newNode;
   } // NewNode()
-  
-  /*
-    ------------------- Print ------------------
-    ------------------ Results -----------------
-  */
   
   bool NeedToPrint( vector<TokenStruct *> printVectorint, int i, int leftParenCount ) {
     if ( printVectorint[i]->tokenType == DOT ) {
@@ -856,11 +820,6 @@ public:
     cout << endl;
   } // PrintString()
   
-  /*
-    ------------------- Error ------------------
-    ------------------ Handling ----------------
-  */
-  
   void SetError( ErrorType errorType ) {
     stringstream errorStream;
     
@@ -933,11 +892,6 @@ public:
     } // else: not eof
   } // ErrorHandling()
   
-  /*
-    ------------------- Clear ------------------
-    -------------------- Line ------------------
-  */
-  
   void ClearTheLine() {
     g_CursorLine = 1;
     g_CursorColumn = 0;
@@ -986,11 +940,6 @@ class Project2Class {
   TreeStruct *m_Root;
 
 public:
-  /*
-    --------------------- Is -------------------
-    ------------------ Function ----------------
-  */
-  
   bool IsPrimitive( TokenStruct *currentToken ) {
     if ( currentToken->content == "cons" || currentToken->content == "list" ) {
       currentToken->isPrimitive = true;
@@ -1065,11 +1014,6 @@ public:
     return currentToken->isPrimitive;
   } // IsPrimitive()
   
-  /*
-    -------------------- New -------------------
-    ----------------- Structures ---------------
-  */
-  
   TreeStruct *NewNode() {
     TreeStruct *newNode = new TreeStruct;
     newNode->leftToken = NULL;
@@ -1087,24 +1031,25 @@ public:
     return newToken;
   } // NewToken()
   
-  /*
-    ------------------- Error ------------------
-    ------------------ Handling ----------------
-  */
-  
-  void ErrorHandling( ErrorType errorType, string errorMessage, TreeStruct *errorNode ) {
-    cout << errorMessage;
+  void ErrorHandling( ErrorType type, string message, TokenStruct *token, TreeStruct *node ) {
+    cout << message;
     
-    if ( errorNode ) {
+    if ( token ) {
+      PrintData( token, false );
+      return;
+    } // if: has token
+    
+    if ( node ) {
       int layer = 0;
       bool isRightNode = false;
       
-      if ( errorType == NON_LIST ) {
-        PrintTree( errorNode, layer, isRightNode, false );
+      if ( type == NON_LIST || type == DEFINE_FORMAT ||
+           type == COND_FORMAT || type == NO_RETURN_VALUE ) {
+        PrintTree( node, layer, isRightNode, false );
       } // if: non-list, no need to print #<procedure>
       
       else {
-        PrintTree( errorNode, layer, isRightNode, true );
+        PrintTree( node, layer, isRightNode, true );
       } // else: print #<procedure>
       
       if ( layer > 0 ) {
@@ -1117,41 +1062,13 @@ public:
       return;
     } // if: error argument is a node
     
-    else if ( errorType == DEFINE_FORMAT || errorType == NO_RETURN_VALUE || errorType == COND_FORMAT ) {
-      m_project1.PrintSExp( "build" );
-      return;
-    } // else if: print proj1 output include with quote inserted
-    
     cout << endl;
   } // ErrorHandling()
   
-  /*
-    ------------------- Start ------------------
-    ---------------- Evaluation ----------------
-  */
-  
   void EvalSExp( Project1Class project1Result ) {
     m_project1 = project1Result;
-    m_Root = TraversalRoot( m_project1.GetRoot() );
-    // m_Root = ProcessSExp( m_project1.GetRoot() );
+    m_Root = ProcessSExp( m_project1.GetRoot() );
   } // EvalSExp()
-  
-  TreeStruct *TraversalRoot( TreeStruct *root ) {
-    if ( root->leftNode && root->leftNode->leftNode ) {
-      TreeStruct *leftResult = TraversalRoot( root->leftNode );
-      root->leftNode->leftNode = NULL;
-      
-      if ( leftResult->leftToken ) {
-        root->leftNode->leftToken = leftResult->leftToken;
-      } // if: result is a token
-      
-      else {
-        root->leftNode->leftNode = leftResult->leftNode;
-      } // else: result is a node
-    } // if: leftNode has a leftNode
-    
-    return ProcessSExp( root );
-  } // TraversalRoot()
   
   TreeStruct *ProcessSExp( TreeStruct *currentNode ) {
     if ( currentNode->leftToken ) {
@@ -1160,8 +1077,8 @@ public:
         TreeStruct *defined = GetDefineBindings( currentNode->leftToken->content );
         
         if ( defined == NULL ) {
-          string errorMessage = "ERROR (unbound symbol) : " + currentNode->leftToken->content;
-          ErrorHandling( DEFINE_UNBOUND, errorMessage, NULL );
+          string errorMessage = "ERROR (unbound symbol) : ";
+          ErrorHandling( DEFINE_UNBOUND, errorMessage, currentNode->leftToken, NULL );
           throw "define unbound";
         } // if: define unbound
         
@@ -1181,10 +1098,24 @@ public:
     } // if: send in a token, then return
     
     else {
+      if ( currentNode->leftNode->leftToken == NULL ) {
+        currentNode->leftNode = ProcessSExp( currentNode->leftNode );
+        
+        if ( currentNode->leftNode->rightNode == NULL ) {
+          return currentNode->leftNode;
+        } // if: no arguments left, return
+      } // if: still got nodes
+      
       if ( IsList( currentNode->leftNode, false )->leftToken->tokenType == NIL ) {
-        ErrorHandling( NON_LIST, "ERROR (non-list) : ", currentNode->leftNode );
+        ErrorHandling( NON_LIST, "ERROR (non-list) : ", NULL, currentNode->leftNode );
         throw "non-list";
       } // if: non-list
+      
+      if ( currentNode->leftNode->leftNode ) {
+        ErrorHandling( APPLY_NON_FUNCTION, "ERROR (attempt to apply non-function) : ", NULL,
+                       currentNode->leftNode->leftNode );
+        throw "apply non-function";
+      } // if: the left node is still a node
       
       if ( !IsPrimitive( currentNode->leftNode->leftToken ) &&
            currentNode->leftNode->leftToken->tokenType == SYMBOL ) {
@@ -1200,15 +1131,14 @@ public:
           } // if: inherit isQuoteResult
           
           string errorMessage = "ERROR (attempt to apply non-function) : ";
-          ErrorHandling( APPLY_NON_FUNCTION, errorMessage, defined->leftNode );
+          ErrorHandling( APPLY_NON_FUNCTION, errorMessage, NULL, defined->leftNode );
           throw "apply non function";
         } // else if: defined as node
       } // if: symbol
       
       if ( !IsPrimitive( currentNode->leftNode->leftToken ) ) {
         string errorMessage = "ERROR (attempt to apply non-function) : ";
-        errorMessage += currentNode->leftNode->leftToken->content;
-        ErrorHandling( APPLY_NON_FUNCTION, errorMessage, NULL );
+        ErrorHandling( APPLY_NON_FUNCTION, errorMessage, currentNode->leftNode->leftToken, NULL );
         throw "apply non function";
       } // if: apply non-function
       
@@ -1227,11 +1157,6 @@ public:
     return currentNode;
   } // ProcessSExp()
   
-  /*
-    ------------------- Define -----------------
-    ------------------ Bindings ----------------
-  */
-  
   TreeStruct *GetDefineBindings( string currentWord ) {
     for ( int i = 0 ; i < m_DefineBindingList.size() ; i++ ) {
       if ( currentWord == m_DefineBindingList[i]->leftToken->content ) {
@@ -1240,14 +1165,9 @@ public:
     } // for: go through m_DefineBindingList
     
     string errorMessage = "ERROR (unbound symbol) : " + currentWord;
-    ErrorHandling( DEFINE_UNBOUND, errorMessage.c_str(), NULL );
+    ErrorHandling( DEFINE_UNBOUND, errorMessage.c_str(), NULL, NULL );
     throw "define unbound";
   } // GetDefineBindings()
-  
-  /*
-    ----------------- Parameters ---------------
-    ----------------- Processing ---------------
-  */
   
   void CheckArgumentNumber( TreeStruct *functionNode, int argumentNumber, bool greaterThan ) {
     int count = 0;
@@ -1265,19 +1185,19 @@ public:
       
       else if ( functionName == "define" ) {
         string errorMessage = "ERROR (DEFINE format) : ";
-        ErrorHandling( DEFINE_FORMAT, errorMessage, NULL );
+        ErrorHandling( DEFINE_FORMAT, errorMessage, NULL, m_project1.GetRoot()->leftNode );
         throw "define format";
       } // if: define format
       
       else if ( functionName == "cond" ) {
         string errorMessage = "ERROR (COND format) : ";
-        ErrorHandling( COND_FORMAT, errorMessage, NULL );
+        ErrorHandling( COND_FORMAT, errorMessage, NULL, m_project1.GetRoot()->leftNode );
         throw "cond format";
       } // else if: cond format
       
       else {
         string errorMessage = "ERROR (incorrect number of arguments) : " + functionName;
-        ErrorHandling( INCORRECT_NUM_ARGUMENTS, errorMessage, NULL );
+        ErrorHandling( INCORRECT_NUM_ARGUMENTS, errorMessage, NULL, NULL );
         throw "incorrect numbers of argument";
       } // else: incorrect num of arguments
     } // if: count != argumentNumber
@@ -1335,10 +1255,23 @@ public:
     return false;
   } // CompareTwoTrees()
   
-  /*
-  ------------------ Function ----------------
-  ------------------- Entry ------------------
-  */
+  void SetQuoteResult( TreeStruct *resultNode ) {
+    if ( resultNode->leftToken ) {
+      resultNode->leftToken->isQuoteResult = true;
+    } // if: has leftToken
+    
+    if ( resultNode->rightToken ) {
+      resultNode->rightToken->isQuoteResult = true;
+    } // if: has rightToken
+    
+    if ( resultNode->leftNode ) {
+      SetQuoteResult( resultNode->leftNode );
+    } // if: has leftNode
+    
+    if ( resultNode->rightNode ) {
+      SetQuoteResult( resultNode->rightNode );
+    } // if: has rightNode
+  } // SetQuoteResult()
   
   TreeStruct *CallCorrespondingFunction( TreeStruct *functionNode ) {
     TokenStruct *function = functionNode->leftToken;
@@ -1504,16 +1437,11 @@ public:
     } // else if: clean-environment
     
     else if ( function->primitiveType == EXIT ) {
-      CheckArgumentNumber( functionNode, 0, false );
+      return Exit( functionNode );
     } // else if: exit
     
     return NULL;
   } // CallCorrespondingFunction()
-  
-  /*
-  ------------------ Function ----------------
-  ----------------- Definition ---------------
-  */
   
   TreeStruct *Cons( TreeStruct *functionNode ) {
     CheckArgumentNumber( functionNode, 2, false );
@@ -1531,7 +1459,7 @@ public:
       result->leftNode = resultLeft->leftNode;
     } // else: left is node
     
-    if ( resultRight->leftToken ) {
+    if ( resultRight->leftToken && resultRight->leftToken->tokenType != NIL ) {
       result->rightToken = resultRight->leftToken;
     } // if: right is token
     
@@ -1543,7 +1471,16 @@ public:
   } // Cons()
   
   TreeStruct *List( TreeStruct *functionNode ) {
+    CheckArgumentNumber( functionNode, 0, true );
     TreeStruct *resultRoot = NewNode();
+    
+    if ( functionNode->rightNode == NULL ) {
+      resultRoot->leftToken = NewToken();
+      resultRoot->leftToken->tokenType = NIL;
+      resultRoot->leftToken->content = "nil";
+      return resultRoot;
+    } // if: only the list function, no arguments
+    
     resultRoot->leftNode = NewNode();
     TreeStruct *resultWalk = resultRoot->leftNode;
     TreeStruct *argumentWalk = functionNode->rightNode;
@@ -1570,22 +1507,31 @@ public:
     return resultRoot;
   } // List()
   
-  TreeStruct *Quote( TreeStruct *funcionNode ) {
-    funcionNode->rightNode->isQuoteResult = true;
-    return funcionNode->rightNode;
+  TreeStruct *Quote( TreeStruct *functionNode ) {
+    functionNode->rightNode->isQuoteResult = true;
+    SetQuoteResult( functionNode->rightNode );
+    return functionNode->rightNode;
   } // Quote()
   
   TreeStruct *Define( TreeStruct *functionNode ) {
-    CheckArgumentNumber( functionNode, 2, false );
-    
     if ( functionNode->previousNode->previousNode ) {
-      ErrorHandling( LEVEL_OF_DEFINE, "ERROR (level of DEFINE)", NULL );
+      
+      ErrorHandling( LEVEL_OF_ERROR, "ERROR (level of DEFINE)", NULL, NULL );
       throw "level of define";
     } // if: level of define
+    
+    CheckArgumentNumber( functionNode, 2, false );
     
     TreeStruct *definedFrom = functionNode->rightNode;
     TreeStruct *definedTo = NewNode();
     TreeStruct *result = NewNode();
+    
+    if ( ( definedFrom->leftNode ) ||
+         ( definedFrom->leftToken && definedFrom->leftToken->tokenType != SYMBOL ) ||
+         ( IsPrimitive( definedFrom->leftToken ) ) ) {
+      ErrorHandling( DEFINE_FORMAT, "ERROR (DEFINE format) : ", NULL, m_project1.GetRoot()->leftNode );
+      throw "define format";
+    } // if: define format error
     
     if ( functionNode->rightNode->rightNode->leftNode ) {
       definedTo = ProcessSExp( functionNode->rightNode->rightNode );
@@ -1595,17 +1541,12 @@ public:
       definedTo = functionNode->rightNode->rightNode;
     } // else: defineTo is a token
     
-    if ( ( definedFrom->leftNode ) ||
-         ( definedFrom->leftToken && definedFrom->leftToken->tokenType != SYMBOL ) ||
-         ( IsPrimitive( definedFrom->leftToken ) ) ) {
-      ErrorHandling( DEFINE_FORMAT, "ERROR (DEFINE format) : ", NULL );
-      throw "define format";
-    } // if: define format error
-    
     result->leftToken = NewToken();
     result->leftToken->content = definedFrom->leftToken->content + " defined";
     result->leftToken->tokenType = STRING;
-    TreeStruct *defineRecord = functionNode->rightNode;
+    TreeStruct *defineRecord = NewNode();
+    defineRecord->leftToken = definedFrom->leftToken;
+    defineRecord->rightNode = definedTo;
     
     for ( int i = 0 ; i < m_DefineBindingList.size() ; i++ ) {
       if ( defineRecord->leftToken->content == m_DefineBindingList[i]->leftToken->content ) {
@@ -1631,8 +1572,8 @@ public:
     TreeStruct *argument = ProcessSExp( functionNode->rightNode );
     
     if ( argument->leftToken ) {
-      string errorMessage = "ERROR (car with incorrect argument type) : " + argument->leftToken->content;
-      ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, NULL );
+      string errorMessage = "ERROR (car with incorrect argument type) : ";
+      ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftToken, NULL );
       throw "incorrect argument type";
     } // if: incorrect argument type
     
@@ -1661,8 +1602,8 @@ public:
     TreeStruct *argument = ProcessSExp( functionNode->rightNode );
     
     if ( argument->leftToken ) {
-      string errorMessage = "ERROR (car with incorrect argument type) : " + argument->leftToken->content;
-      ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, NULL );
+      string errorMessage = "ERROR (cdr with incorrect argument type) : ";
+      ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftToken, NULL );
       throw "incorrect argument type";
     } // if: incorrect argument type
     
@@ -1751,7 +1692,7 @@ public:
       walk = walk->rightNode;
     } // while: go to the rightmost node
     
-    if ( walk->rightToken ) {
+    if ( walk->rightToken && walk->rightToken->tokenType != NIL ) {
       result->leftToken->content = "nil";
       result->leftToken->tokenType = NIL;
     } // if: has a rightToken, not list
@@ -1891,7 +1832,7 @@ public:
     while ( walk ) {
       TreeStruct *argument = ProcessSExp( walk );
       
-      if ( ( !argument->isQuoteResult ) && ( argument->leftToken ) &&
+      if ( ( argument->leftToken ) &&
            ( argument->leftToken->tokenType == FLOAT || argument->leftToken->tokenType == INT ) ) {
         if ( argument->leftToken->tokenType == FLOAT ) {
           result->leftToken->tokenType = FLOAT;
@@ -1904,11 +1845,11 @@ public:
         string errorMessage = "ERROR (+ with incorrect argument type) : ";
         
         if ( argument->leftToken ) {
-          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage + argument->leftToken->content, NULL );
+          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftToken, NULL );
         } // if: error is a token
         
         else {
-          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftNode );
+          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, NULL, argument->leftNode );
         } // else: error is a node
         
         throw "incorrect argument type";
@@ -1945,7 +1886,7 @@ public:
     while ( walk ) {
       TreeStruct *argument = ProcessSExp( walk );
       
-      if ( ( !argument->isQuoteResult ) && ( argument->leftToken ) &&
+      if ( ( argument->leftToken ) &&
            ( argument->leftToken->tokenType == FLOAT || argument->leftToken->tokenType == INT ) ) {
         if ( argument->leftToken->tokenType == FLOAT ) {
           result->leftToken->tokenType = FLOAT;
@@ -1965,11 +1906,11 @@ public:
         string errorMessage = "ERROR (- with incorrect argument type) : ";
         
         if ( argument->leftToken ) {
-          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage + argument->leftToken->content, NULL );
+          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftToken, NULL );
         } // if: error is a token
         
         else {
-          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftNode );
+          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, NULL, argument->leftNode );
         } // else: error is a node
         
         throw "incorrect argument type";
@@ -2005,7 +1946,7 @@ public:
     while ( walk ) {
       TreeStruct *argument = ProcessSExp( walk );
       
-      if ( ( !argument->isQuoteResult ) && ( argument->leftToken ) &&
+      if ( ( argument->leftToken ) &&
            ( argument->leftToken->tokenType == FLOAT || argument->leftToken->tokenType == INT ) ) {
         if ( argument->leftToken->tokenType == FLOAT ) {
           result->leftToken->tokenType = FLOAT;
@@ -2018,11 +1959,11 @@ public:
         string errorMessage = "ERROR (* with incorrect argument type) : ";
         
         if ( argument->leftToken ) {
-          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage + argument->leftToken->content, NULL );
+          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftToken, NULL );
         } // if: error is a token
         
         else {
-          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftNode );
+          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, NULL, argument->leftNode );
         } // else: error is a node
         
         throw "incorrect argument type";
@@ -2059,7 +2000,7 @@ public:
     while ( walk ) {
       TreeStruct *argument = ProcessSExp( walk );
       
-      if ( ( !argument->isQuoteResult ) && ( argument->leftToken ) &&
+      if ( ( argument->leftToken ) &&
            ( argument->leftToken->tokenType == FLOAT || argument->leftToken->tokenType == INT ) ) {
         if ( argument->leftToken->tokenType == FLOAT ) {
           result->leftToken->tokenType = FLOAT;
@@ -2072,7 +2013,7 @@ public:
         
         else {
           if ( atof( argument->leftToken->content.c_str() ) == 0 ) {
-            ErrorHandling( DIVISION_BY_ZERO, "ERROR (division by zero) : /", NULL );
+            ErrorHandling( DIVISION_BY_ZERO, "ERROR (division by zero) : /", NULL, NULL );
             throw "division by zero";
           } // if: division by zero
           
@@ -2084,11 +2025,11 @@ public:
         string errorMessage = "ERROR (/ with incorrect argument type) : ";
         
         if ( argument->leftToken ) {
-          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage + argument->leftToken->content, NULL );
+          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftToken, NULL );
         } // if: error is a token
         
         else {
-          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftNode );
+          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, NULL, argument->leftNode );
         } // else: error is a node
         
         throw "incorrect argument type";
@@ -2222,11 +2163,11 @@ public:
         string errorMessage = "ERROR (> with incorrect argument type) : ";
         
         if ( argument->leftToken ) {
-          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage + argument->leftToken->content, NULL );
+          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftToken, NULL );
         } // if: error is a token
         
         else {
-          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftNode );
+          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, NULL, argument->leftNode );
         } // else: error is a node
         
         throw "incorrect argument type";
@@ -2275,11 +2216,11 @@ public:
         string errorMessage = "ERROR (>= with incorrect argument type) : ";
         
         if ( argument->leftToken ) {
-          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage + argument->leftToken->content, NULL );
+          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftToken, NULL );
         } // if: error is a token
         
         else {
-          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftNode );
+          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, NULL, argument->leftNode );
         } // else: error is a node
         
         throw "incorrect argument type";
@@ -2328,11 +2269,11 @@ public:
         string errorMessage = "ERROR (< with incorrect argument type) : ";
         
         if ( argument->leftToken ) {
-          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage + argument->leftToken->content, NULL );
+          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftToken, NULL );
         } // if: error is a token
         
         else {
-          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftNode );
+          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, NULL, argument->leftNode );
         } // else: error is a node
         
         throw "incorrect argument type";
@@ -2381,11 +2322,11 @@ public:
         string errorMessage = "ERROR (<= with incorrect argument type) : ";
         
         if ( argument->leftToken ) {
-          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage + argument->leftToken->content, NULL );
+          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftToken, NULL );
         } // if: error is a token
         
         else {
-          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftNode );
+          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, NULL, argument->leftNode );
         } // else: error is a node
         
         throw "incorrect argument type";
@@ -2434,11 +2375,11 @@ public:
         string errorMessage = "ERROR (= with incorrect argument type) : ";
         
         if ( argument->leftToken ) {
-          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage + argument->leftToken->content, NULL );
+          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftToken, NULL );
         } // if: error is a token
         
         else {
-          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftNode );
+          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, NULL, argument->leftNode );
         } // else: error is a node
         
         throw "incorrect argument type";
@@ -2456,14 +2397,13 @@ public:
     result->leftToken = NewToken();
     result->leftToken->tokenType = STRING;
     result->leftToken->content = "\0";
-    float previousNumber = 0.0;
     TreeStruct *walk = functionNode->rightNode;
     bool isFirstString = true;
     
     while ( walk ) {
       TreeStruct *argument = ProcessSExp( walk );
       
-      if ( ( !argument->isQuoteResult ) && ( argument->leftToken ) &&
+      if ( ( argument->leftToken ) &&
            ( argument->leftToken->tokenType == STRING ) ) {
         if ( isFirstString ) {
           argument->leftToken->content.erase( argument->leftToken->content.end() - 1 );
@@ -2486,11 +2426,11 @@ public:
         string errorMessage = "ERROR (string-append with incorrect argument type) : ";
         
         if ( argument->leftToken ) {
-          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage + argument->leftToken->content, NULL );
+          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftToken, NULL );
         } // if: error is a token
         
         else {
-          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftNode );
+          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, NULL, argument->leftNode );
         } // else: error is a node
         
         throw "incorrect argument type";
@@ -2515,7 +2455,7 @@ public:
     while ( walk ) {
       TreeStruct *argument = ProcessSExp( walk );
       
-      if ( ( !argument->isQuoteResult ) && ( argument->leftToken ) &&
+      if ( ( argument->leftToken ) &&
            ( argument->leftToken->tokenType == STRING ) ) {
         if ( isFirstString ) {
           previousString = argument->leftToken->content;
@@ -2539,11 +2479,11 @@ public:
         string errorMessage = "ERROR (string>? with incorrect argument type) : ";
         
         if ( argument->leftToken ) {
-          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage + argument->leftToken->content, NULL );
+          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftToken, NULL );
         } // if: error is a token
         
         else {
-          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftNode );
+          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, NULL, argument->leftNode );
         } // else: error is a node
         
         throw "incorrect argument type";
@@ -2568,7 +2508,7 @@ public:
     while ( walk ) {
       TreeStruct *argument = ProcessSExp( walk );
       
-      if ( ( !argument->isQuoteResult ) && ( argument->leftToken ) &&
+      if ( ( argument->leftToken ) &&
            ( argument->leftToken->tokenType == STRING ) ) {
         if ( isFirstString ) {
           previousString = argument->leftToken->content;
@@ -2592,11 +2532,11 @@ public:
         string errorMessage = "ERROR (string<? with incorrect argument type) : ";
         
         if ( argument->leftToken ) {
-          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage + argument->leftToken->content, NULL );
+          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftToken, NULL );
         } // if: error is a token
         
         else {
-          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftNode );
+          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, NULL, argument->leftNode );
         } // else: error is a node
         
         throw "incorrect argument type";
@@ -2621,7 +2561,7 @@ public:
     while ( walk ) {
       TreeStruct *argument = ProcessSExp( walk );
       
-      if ( ( !argument->isQuoteResult ) && ( argument->leftToken ) &&
+      if ( ( argument->leftToken ) &&
            ( argument->leftToken->tokenType == STRING ) ) {
         if ( isFirstString ) {
           previousString = argument->leftToken->content;
@@ -2645,11 +2585,11 @@ public:
         string errorMessage = "ERROR (string=? with incorrect argument type) : ";
         
         if ( argument->leftToken ) {
-          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage + argument->leftToken->content, NULL );
+          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftToken, NULL );
         } // if: error is a token
         
         else {
-          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, argument->leftNode );
+          ErrorHandling( INCORRECT_ARGUMENT_TYPE, errorMessage, NULL, argument->leftNode );
         } // else: error is a node
         
         throw "incorrect argument type";
@@ -2779,25 +2719,25 @@ public:
     CheckArgumentNumber( functionNode, 1, true );
     TreeStruct *result = NewNode();
     TreeStruct *walk = functionNode->rightNode;
+    TreeStruct *argument = NewNode();
     
-    while ( walk->rightNode ) {
+    while ( walk ) {
+      argument = ProcessSExp( walk );
       walk = walk->rightNode;
     } // while: go to the last argument
     
-    TreeStruct *lastArgument = ProcessSExp( walk );
-    
-    if ( lastArgument->leftToken ) {
-      result->leftToken = lastArgument->leftToken;
+    if ( argument->leftToken ) {
+      result->leftToken = argument->leftToken;
     } // if: the lastArgument is a token
     
     else {
-      result->leftNode = lastArgument->leftNode;
+      result->leftNode = argument->leftNode;
     } // else: the lastArgument is a node
     
     return result;
   } // Begin()
   
-  TreeStruct *If( TreeStruct *functionNode ) {
+  TreeStruct *If( TreeStruct *functionNode ) { // TODO: need to backup condition
     CheckArgumentNumber( functionNode, 2, false );
     TreeStruct *condition = ProcessSExp( functionNode->rightNode );
     TreeStruct *result = NewNode();
@@ -2816,7 +2756,7 @@ public:
     
     else {
       if ( functionNode->rightNode->rightNode->rightNode == NULL ) {
-        ErrorHandling( NO_RETURN_VALUE, "ERROR (no return value) : ", NULL );
+        ErrorHandling( NO_RETURN_VALUE, "ERROR (no return value) : ", NULL, functionNode );
         throw "no return value";
       } // if: no return value
       
@@ -2843,11 +2783,30 @@ public:
     conditionWalk = functionNode->rightNode;
     
     while ( conditionWalk ) {
+      if ( conditionWalk->leftNode == NULL || conditionWalk->leftNode->rightNode == NULL ||
+           ( IsList( conditionWalk->leftNode, false )->leftToken->tokenType == NIL ) ) {
+        ErrorHandling( COND_FORMAT, "ERROR (COND format) : ", NULL, m_project1.GetRoot()->leftNode );
+        throw "cond format";
+      } // if: condition is not in left-paren
+      
+      conditionWalk = conditionWalk->rightNode;
+    } // while: check cond format
+    
+    conditionWalk = functionNode->rightNode;
+    
+    while ( conditionWalk ) {
       if ( conditionWalk->rightNode == NULL &&
            ( conditionWalk->leftNode && conditionWalk->leftNode->leftToken &&
              conditionWalk->leftNode->leftToken->content == "else" ) ) {
         TreeStruct *elseResultWalk = conditionWalk->leftNode->rightNode;
         TreeStruct *elseResult = NewNode();
+        
+        if ( elseResultWalk == NULL ) {
+          ErrorHandling( COND_FORMAT, "ERROR (COND format) : ", NULL, m_project1.GetRoot()->leftNode );
+          throw "cond format";
+        } // if: condition is not in left-paren
+        
+        elseResultWalk = conditionWalk->leftNode->rightNode;
         
         while ( elseResultWalk ) {
           elseResult = ProcessSExp( elseResultWalk );
@@ -2867,21 +2826,16 @@ public:
       
       else {
         TreeStruct *condition = NewNode();
+        condition = ProcessSExp( conditionWalk->leftNode );
+        TreeStruct *conditionResultWalk = conditionWalk->leftNode->rightNode;
+        TreeStruct *conditionResult = NewNode();
         
-        if ( ( conditionWalk->leftNode == NULL ) ||
-             ( IsList( conditionWalk->leftNode, false )->leftToken->tokenType == NIL ) ) {
-          ErrorHandling( COND_FORMAT, "ERROR (COND format) : ", NULL );
+        if ( conditionResultWalk == NULL ) {
+          ErrorHandling( COND_FORMAT, "ERROR (COND format) : ", NULL, m_project1.GetRoot()->leftNode );
           throw "cond format";
-        } // if: cond format
-        
-        else {
-          condition = ProcessSExp( conditionWalk->leftNode );
-        } // else: the condition is a token
+        } // if: no true result
         
         if ( ( condition->leftToken && condition->leftToken->tokenType != NIL ) || condition->leftNode ) {
-          TreeStruct *conditionResultWalk = conditionWalk->leftNode->rightNode;
-          TreeStruct *conditionResult = NewNode();
-          
           while ( conditionResultWalk ) {
             conditionResult = ProcessSExp( conditionResultWalk );
             conditionResultWalk = conditionResultWalk->rightNode;
@@ -2896,19 +2850,23 @@ public:
           } // else: the result is a node
           
           return result;
-        } // if: condition is true, return the result
+        } // if: condition is true, go through the results
         
-        else {
-          conditionWalk = conditionWalk->rightNode;
-        } // else: condition is false, check next condition
+        conditionWalk = conditionWalk->rightNode;
       } // else: not else case
     } // while: go through the conditions
     
-    ErrorHandling( NO_RETURN_VALUE, "ERROR (no return value) : ", NULL );
+    ErrorHandling( NO_RETURN_VALUE, "ERROR (no return value) : ", NULL, m_project1.GetRoot()->leftNode );
     throw "no return value";
   } // Cond()
   
   TreeStruct *CleanEnvironment( TreeStruct *functionNode ) {
+    if ( functionNode->previousNode->previousNode ) {
+      
+      ErrorHandling( LEVEL_OF_ERROR, "ERROR (level of CLEAN-ENVIRONMENT)", NULL, NULL );
+      throw "level of define";
+    } // if: level of define
+    
     CheckArgumentNumber( functionNode, 0, false );
     m_DefineBindingList.clear();
     TreeStruct *result = NewNode();
@@ -2918,10 +2876,16 @@ public:
     return result;
   } // CleanEnvironment()
   
-  /*
-  ------------------- Print ------------------
-  ------------------ Result ------------------
-  */
+  TreeStruct *Exit( TreeStruct *functionNode ) {
+    if ( functionNode->previousNode->previousNode ) {
+      
+      ErrorHandling( LEVEL_OF_ERROR, "ERROR (level of EXIT)", NULL, NULL );
+      throw "level of define";
+    } // if: level of define
+    
+    CheckArgumentNumber( functionNode, 0, false );
+    return NULL;
+  } // Exit()
   
   void PrintResult() {
     if ( m_Root->leftToken == NULL && m_Root->leftNode == NULL ) {
@@ -3050,8 +3014,7 @@ public:
     } // else if: string
     
     else if ( currentToken->tokenType == SYMBOL ) {
-      if ( IsPrimitive( currentToken ) && printProcedure &&
-           currentToken->content != "or" && currentToken->content != "not" ) {
+      if ( IsPrimitive( currentToken ) && printProcedure && !currentToken->isQuoteResult ) {
         cout << "#<procedure " << currentToken->content << ">" << endl;
       } // if: is primitive
       
@@ -3059,6 +3022,10 @@ public:
         cout << currentToken->content << endl;
       } // else: not primitive
     } // else if: symbol
+    
+    else if ( currentToken->content == "quote" ) {
+      cout << currentToken->content << endl;
+    } // else if: quote
   } // PrintData()
   
   void PrintString( string stringContent ) {
@@ -3125,7 +3092,6 @@ int main() {
           } // try: evaluate
           
           catch ( const char *errorType ) {
-            // cout << errorType;
           } // catch: error
           
           project1.ClearTheLine();
