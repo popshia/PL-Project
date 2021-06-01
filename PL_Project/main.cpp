@@ -58,7 +58,7 @@ struct ErrorStruct {
 }; // ErrorStruct
 
 // define global variable to track the cursor
-int g_CursorLine = 1;
+int g_CursorLine = 0;
 int g_CursorColumn = 0;
 int g_uTestNum = 0;
 
@@ -87,7 +87,8 @@ public:
     for ( int i = 0 ; i < m_OriginalTokens.size() ; i++ ) {
       if ( IsAtom( m_OriginalTokens[i] ) ||
            m_OriginalTokens[i]->tokenType == LEFT_PAREN ||
-           m_OriginalTokens[i]->tokenType == RIGHT_PAREN ) {
+           m_OriginalTokens[i]->tokenType == RIGHT_PAREN ||
+           m_OriginalTokens[i]->tokenType == QUOTE ) {
         if ( m_OriginalTokens[i]->tokenType == NIL ) {
           if ( i > 1 ) {
             if ( m_OriginalTokens[i - 1]->tokenType != DOT && m_OriginalTokens[i + 1]->tokenType != DOT ) {
@@ -446,7 +447,8 @@ public:
         return DOT;
       } // else if: dot
       
-      else if ( newToken->content == "quote" ) {
+      else if ( !m_OriginalTokens.empty() &&
+                ( newToken->content == "quote" && m_OriginalTokens.back()->tokenType != QUOTE ) ) {
         return QUOTE;
       } // else if: quote
       
@@ -558,7 +560,10 @@ public:
       } // if: <S-exp>
       
       else {
-        SetError( UNEXPECTED_TOKEN_ATOM_LEFT_PAREN );
+        if ( m_Error.errorType == NOT_S_EXP ) {
+          SetError( UNEXPECTED_TOKEN_ATOM_LEFT_PAREN );
+        } // if: simple error, return
+        
         return false;
       } // else: syntax error
     } // else if: QUOTE
@@ -1272,6 +1277,32 @@ public:
       SetQuoteResult( resultNode->rightNode );
     } // if: has rightNode
   } // SetQuoteResult()
+  
+  void BackupIfCondition( TreeStruct *conditionNode, TreeStruct *backupNode ) {
+    if ( conditionNode->leftToken ) {
+      backupNode->leftToken = NewToken();
+      backupNode->leftToken->content = conditionNode->leftToken->content;
+      backupNode->leftToken->tokenType = conditionNode->leftToken->tokenType;
+      backupNode->leftToken->isQuoteResult = conditionNode->leftToken->isQuoteResult;
+    } // if: has leftToken
+    
+    if ( conditionNode->rightToken ) {
+      backupNode->rightToken = NewToken();
+      backupNode->rightToken->content = conditionNode->rightToken->content;
+      backupNode->rightToken->tokenType = conditionNode->rightToken->tokenType;
+      backupNode->rightToken->isQuoteResult = conditionNode->rightToken->isQuoteResult;
+    } // if: has rightToken
+    
+    if ( conditionNode->leftNode ) {
+      backupNode->leftNode = NewNode();
+      BackupIfCondition( conditionNode->leftNode, backupNode->leftNode );
+    } // if: has leftNode
+    
+    if ( conditionNode->rightNode ) {
+      backupNode->rightNode = NewNode();
+      BackupIfCondition( conditionNode->rightNode, backupNode->rightNode );
+    } // if: has rightNode
+  } // BackupIfCondition()
   
   TreeStruct *CallCorrespondingFunction( TreeStruct *functionNode ) {
     TokenStruct *function = functionNode->leftToken;
@@ -2739,6 +2770,8 @@ public:
   
   TreeStruct *If( TreeStruct *functionNode ) { // TODO: need to backup condition
     CheckArgumentNumber( functionNode, 2, false );
+    TreeStruct *conditionBackup = NewNode();
+    BackupIfCondition( functionNode->rightNode, conditionBackup );
     TreeStruct *condition = ProcessSExp( functionNode->rightNode );
     TreeStruct *result = NewNode();
     
@@ -2756,6 +2789,8 @@ public:
     
     else {
       if ( functionNode->rightNode->rightNode->rightNode == NULL ) {
+        conditionBackup->rightNode = functionNode->rightNode->rightNode;
+        functionNode->rightNode = conditionBackup;
         ErrorHandling( NO_RETURN_VALUE, "ERROR (no return value) : ", NULL, functionNode );
         throw "no return value";
       } // if: no return value
@@ -2973,7 +3008,7 @@ public:
       } // if: has data in rightToken
     } // if: has data in leftToken
     
-    else if ( currentRoot->rightToken ) {
+    else if ( currentRoot->rightToken && currentRoot->rightToken->tokenType != NIL ) {
       cout << string( layer*2, ' ' ) << '.' << endl << string( layer*2, ' ' );
       PrintData( currentRoot->rightToken, printProcedure );
     } // else if: has rightToken
