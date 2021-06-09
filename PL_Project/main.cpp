@@ -2,9 +2,7 @@
 # include <cctype>
 # include <stdio.h>
 # include <stdlib.h>
-# include <string.h>
 # include <math.h>
-# include <cctype>
 # include <iostream>
 # include <sstream>
 # include <iomanip>
@@ -1663,7 +1661,7 @@ public:
     result->leftToken = NewToken();
     TreeStruct *argument = ProcessSExp( functionNode->rightNode );
     
-    if ( argument->leftToken ) {
+    if ( argument->leftToken && !argument->leftToken->isQuoteResult ) {
       result->leftToken->tokenType = T;
       result->leftToken->content = "#t";
     } // if: leftToken
@@ -2651,7 +2649,13 @@ public:
         } // if: quote result
         
         else {
-          result->leftToken->tokenType = T;
+          if ( firstArgument->leftToken->content == secondArgument->leftToken->content ) {
+            result->leftToken->tokenType = T;
+          } // if: is the same
+          
+          else {
+            result->leftToken->tokenType = NIL;
+          } // else: not the same
         } // else: both atom
       } // if: second argument is also a token
       
@@ -2696,13 +2700,15 @@ public:
     
     if ( firstArgument->leftToken ) {
       if ( secondArgument->leftToken ) {
-        if ( firstArgument->isQuoteResult || secondArgument->isQuoteResult ) {
-          if ( ( firstArgument->isQuoteResult && secondArgument->isQuoteResult ) &&
+        if ( firstArgument->leftToken->isQuoteResult || secondArgument->leftToken->isQuoteResult ) {
+          if ( ( firstArgument->leftToken->isQuoteResult && secondArgument->leftToken->isQuoteResult ) &&
                ( firstArgument->leftToken->content == secondArgument->leftToken->content ) ) {
             result->leftToken->tokenType = T;
           } // if: both quote result, and content is the same
           
-          result->leftToken->tokenType = NIL;
+          else {
+            result->leftToken->tokenType = NIL;
+          } // else: not equal?
         } // if: any of one is a quote result
         
         else if ( firstArgument->leftToken->content == secondArgument->leftToken->content ) {
@@ -2768,7 +2774,7 @@ public:
     return result;
   } // Begin()
   
-  TreeStruct *If( TreeStruct *functionNode ) { // TODO: need to backup condition
+  TreeStruct *If( TreeStruct *functionNode ) {
     CheckArgumentNumber( functionNode, 2, false );
     TreeStruct *conditionBackup = NewNode();
     BackupIfCondition( functionNode->rightNode, conditionBackup );
